@@ -1,0 +1,5 @@
+/classes/
+/staging/
+*.ini
+*.key
+temp.lzma
