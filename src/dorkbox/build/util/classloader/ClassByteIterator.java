@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package dorkbox.build.util;
+package dorkbox.build.util.classloader;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -34,7 +34,7 @@ import dorkbox.util.annotation.ClassFileIterator;
 public class ClassByteIterator extends ClassFileIterator {
 
 
-    private final Iterator<Entry<String, byte[]>> iterator;
+    private final Iterator<Entry<String, ClassInfo>> iterator;
     private String fullPath;
 
     /**
@@ -47,7 +47,7 @@ public class ClassByteIterator extends ClassFileIterator {
      */
     public ClassByteIterator(final ByteClassloader classloader, final String[] pkgNameFilter) {
         super(pkgNameFilter);
-        this.iterator = classloader.getBytesIterator();
+        this.iterator = classloader.getIterator();
     }
 
     /**
@@ -78,7 +78,7 @@ public class ClassByteIterator extends ClassFileIterator {
     @Override
     public InputStream next(final FilenameFilter filter) throws IOException {
         while (this.iterator.hasNext()) {
-            Entry<String, byte[]> next = this.iterator.next();
+            Entry<String, ClassInfo> next = this.iterator.next();
             this.fullPath = next.getKey();
 
             File dir = null;
@@ -96,7 +96,7 @@ public class ClassByteIterator extends ClassFileIterator {
             }
 
             if (filter == null || filter.accept(dir, name)) {
-                return new ByteArrayInputStream(next.getValue());
+                return new ByteArrayInputStream(next.getValue().bytes);
             }
             // else just ignore
         }

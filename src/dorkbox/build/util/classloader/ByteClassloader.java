@@ -13,31 +13,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package dorkbox.build.util;
+package dorkbox.build.util.classloader;
 
+import java.io.File;
+import java.net.MalformedURLException;
+import java.security.CodeSource;
 import java.security.ProtectionDomain;
+import java.security.cert.Certificate;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class ByteClassloader extends java.lang.ClassLoader {
+public class ByteClassloader extends ClassLoader {
 
-    private Map<String, byte[]> bytes = new ConcurrentHashMap<String, byte[]>();
-    private Map<String, Class<?>> classes = new ConcurrentHashMap<String, Class<?>>();
+    private Map<String, ClassInfo> info = new ConcurrentHashMap<String, ClassInfo>();
 
-    private final ProtectionDomain domain;
 
     public ByteClassloader(ClassLoader classloader) {
         super(classloader);
-
-        this.domain = this.getClass().getProtectionDomain();
     }
 
-    public final void saveBytes(String name, byte[] bytes) {
+    public final void saveBytes(String className, String locationSourceWasFrom, byte[] bytes) {
         // this defines our class, and saves it in our cache -- so that findClass() will work
-        if (this.bytes != null) {
-            this.bytes.put(name, bytes);
+        if (this.info != null) {
+            ClassInfo info = new ClassInfo();
+            info.bytes = bytes;
+            info.sourceRootLocation = locationSourceWasFrom;
+            this.info.put(className, info);
         }
     }
 
@@ -49,10 +52,14 @@ public class ByteClassloader extends java.lang.ClassLoader {
     // check OURSELVES first, then check our parent.
     @Override
     protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
-        if (this.bytes != null) {
-            byte[] classBytes = this.bytes.get(name);
+        if (this.info != null) {
+            ClassInfo info = this.info.get(name);
 
-            if (classBytes != null) {
+            if (info != null) {
+                if (info.clazz != null) {
+                    return info.clazz;
+                }
+
                 // have to make sure that the package is properly setup.
                 int i = -1;
                 String packageName = name;
@@ -63,28 +70,36 @@ public class ByteClassloader extends java.lang.ClassLoader {
                     }
                 }
 
-                Class<?> clazz = defineClass(name, classBytes, 0, classBytes.length, this.domain);
+                // keep the bytes around for the annotation finder
+                byte[] classBytes = info.bytes;
+
+                ProtectionDomain domain = null;
+                try {
+                    domain = new ProtectionDomain(
+                                    new CodeSource(new File(info.sourceRootLocation).toURI().toURL(), (Certificate[]) null),
+                                    null);
+                } catch (MalformedURLException e) {
+                    e.printStackTrace();
+                }
+
+
+                Class<?> clazz = defineClass(name, classBytes, 0, classBytes.length, domain);
 
                 if (resolve) {
                     resolveClass(clazz);
                 }
 
                 // cache our classes that we create
-                this.classes.put(name, clazz);
+                info.clazz = clazz;
 
                 return clazz;
             }
         }
 
-        Class<?> c = this.classes.get(name);
-        if (c != null) {
-            return c;
-        }
-
         return getParent().loadClass(name);
     }
 
-    Iterator<Entry<String, byte[]>> getBytesIterator() {
-        return this.bytes.entrySet().iterator();
+    Iterator<Entry<String, ClassInfo>> getIterator() {
+        return this.info.entrySet().iterator();
     }
 }

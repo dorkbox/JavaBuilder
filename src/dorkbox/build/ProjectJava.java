@@ -39,9 +39,9 @@ import com.esotericsoftware.yamlbeans.scalar.ScalarSerializer;
 
 import dorkbox.Build;
 import dorkbox.BuildOptions;
-import dorkbox.build.util.ByteClassloader;
-import dorkbox.build.util.JavaMemFileManager;
 import dorkbox.build.util.PreJarAction;
+import dorkbox.build.util.classloader.ByteClassloader;
+import dorkbox.build.util.classloader.JavaMemFileManager;
 import dorkbox.build.util.jar.JarOptions;
 import dorkbox.build.util.jar.JarSigner;
 import dorkbox.build.util.jar.JarUtil;

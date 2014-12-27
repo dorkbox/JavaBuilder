@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package dorkbox.build.util;
+package dorkbox.build.util.classloader;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -35,13 +35,33 @@ public class JavaMemFileManager extends ForwardingJavaFileManager<StandardJavaFi
 
     static class ClassMemFileObject extends SimpleJavaFileObject {
         ByteArrayOutputStream os = new ByteArrayOutputStream();
+        private String location;
 
-        ClassMemFileObject(String className) {
+        ClassMemFileObject(String className, String location) {
             super(URI.create("mem:///" + className + Kind.CLASS.extension), Kind.CLASS);
+
+            // have to trim off subclasses/anon-class info from name.
+            int length = className.indexOf('$');
+            if (length < 0) {
+                length = className.length();
+            }
+
+            // the location WILL have an extension (.java), since we are compiling that. usually.
+            int locLength = location.lastIndexOf('.');
+            if (locLength < 0) {
+                locLength = location.length();
+            }
+
+            String loc = location.substring(0, locLength - length);
+            this.location = loc;
         }
 
         byte[] getBytes() {
             return this.os.toByteArray();
+        }
+
+        String getLocation() {
+            return this.location;
         }
 
         @Override
@@ -66,7 +86,7 @@ public class JavaMemFileManager extends ForwardingJavaFileManager<StandardJavaFi
                     throws IOException {
 
         if (StandardLocation.CLASS_OUTPUT == location && JavaFileObject.Kind.CLASS == kind) {
-            ClassMemFileObject clazz = new ClassMemFileObject(className);
+            ClassMemFileObject clazz = new ClassMemFileObject(className, sibling.getName());
             this.classes.put(className, clazz);
             return clazz;
         } else {
@@ -91,7 +111,7 @@ public class JavaMemFileManager extends ForwardingJavaFileManager<StandardJavaFi
             String key = entry.getKey();
             ClassMemFileObject value = entry.getValue();
 
-            this.bytesClassloader.saveBytes(key, value.getBytes());
+            this.bytesClassloader.saveBytes(key, value.getLocation(), value.getBytes());
         }
 
         this.classes.clear();
