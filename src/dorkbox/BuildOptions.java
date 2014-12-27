@@ -27,7 +27,18 @@ public class BuildOptions {
         public boolean forceRebuild = false;
 
         /**
-        * enables PACK200+LZMA+GZIP+ENCRYPTION on jar contents. Since this is
+         * Will the compiled classes be DELETED when done with compiling (and possibly jar'ing their contents)?
+         */
+        public boolean deleteOnComplete = false;
+
+
+        /**
+         * Specifics for jar'ing the compiled classes
+         */
+        public Jar jar = new Jar();
+
+        /**
+        * enables PACK200+LZMA+ENCRYPTION on jar contents. Since this is
         * REALLY SLOW (creating and running), we don't always want to do this.
         */
         public boolean release = false;
@@ -69,12 +80,34 @@ public class BuildOptions {
         * US export controls require that the JVM cannot perform AES-256 crypto. Here we are able to control the JCE policy files to
         * to permit unlimited crypto if we want to (and are following US export controls)
         */
-        public boolean unlimitedJceCrpytoRuntime = true;
+        public boolean unlimitedJceCryptoRuntime = true;
 
         /**
         * Adds the "verbose" compile option. This is useful if you want to get a list (from the compiler) of EVERY CLASS compiled/used
         */
         public boolean enableCompilerTrace = false;
+
+
+
+        /**
+         * Specifics for jar'ing the compiled classes
+         */
+        public static class Jar {
+            /**
+             * Builds a jar from the specified source files, class file, and extras
+             */
+            public boolean buildJar;
+
+            /**
+             * Sign the jar with a self-signed certificate
+             */
+            public boolean signJar;
+
+            /**
+             * What name will be used for signing the jar?
+             */
+            public String signName;
+        }
 
         /**
          * Provide the location of the rt.jar libraries for 'cross compiling' to a different java target.

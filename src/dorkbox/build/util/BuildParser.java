@@ -15,13 +15,17 @@
  */
 package dorkbox.build.util;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
+import java.io.StringReader;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 
 import com.esotericsoftware.wildcard.Paths;
 import com.esotericsoftware.yamlbeans.YamlException;
@@ -36,89 +40,153 @@ import dorkbox.util.Sys;
 public class BuildParser {
     public static String fileName = "build.oak";
 
-    @SuppressWarnings("unchecked")
-    public static HashMap<String, Object> parse(SimpleArgs args) {
+    public static HashMap<String, HashMap<String, Object>> parse(SimpleArgs args) {
         String fileName = BuildParser.fileName;
         if (args.has("-file") || args.has("-f")) {
             fileName = args.getNext();
         }
 
         final File file = new File(FileUtil.normalizeAsFile(fileName));
+        // replace $dir$ with the parent dir, for use in parameters
+        final File parentDir = file.getParentFile();
 
+        HashMap<String, HashMap<String, Object>> data = new HashMap<String, HashMap<String, Object>>();
 
-        HashMap<String, Object> data = null;
-
-        Reader fileReader = null;
+        BufferedReader fileReader = null;
         try {
-            fileReader = new FileReader(file);
-            YamlReader yamlReader = new YamlReader(fileReader) {
-                @SuppressWarnings("rawtypes")
-                @Override
-                protected Object readValue (Class type, Class elementType, Class defaultType) throws YamlException, ParserException,
-                    TokenizerException {
-
-                    Object value = super.readValue(type, elementType, defaultType);
-                    // replace $dir$ with the parent dir, for use in parameters
-                    if (value instanceof String) {
-                        value = ((String)value).replaceAll("\\$dir\\$", file.getParent());
+            fileReader = new BufferedReader(new FileReader(file));
+            StringBuffer buffer = new StringBuffer(2048);
+            // we SPLIT each map by the "name" field (which MUST be the first entry for a build file)
+            String currentEntry = null;
+            String name = "name";
+            while (true) {
+                String line = fileReader.readLine();
+                if (line == null) {
+                    break;
+                }
+                line = line.trim();
+                if (line.regionMatches(true, 0, name, 0, name.length())) {
+                    if (currentEntry != null) {
+                        HashMap<String, Object> parsed = parseYaml(parentDir, new StringReader(buffer.toString()));
+                        data.put(currentEntry, parsed);
+                        buffer.delete(0, buffer.length());
                     }
-
-                    return value;
+                    currentEntry = line.substring(line.indexOf(':')+1).trim();
+                } else if (!line.isEmpty()) {
+                    buffer.append(line);
+                    buffer.append('\n');
                 }
-            };
-
-            try {
-                data = yamlReader.read(HashMap.class);
-                yamlReader.close();
-                if (data == null) {
-                    return new HashMap<String, Object>(0);
-                } else {
-                    return data;
-                }
-            } catch (YamlException ex) {
-                throw new IOException("Error reading YAML file: " + file, ex);
             }
+
+            // parse the last entry
+            HashMap<String, Object> parsed = parseYaml(parentDir, new StringReader(buffer.toString()));
+            data.put(currentEntry, parsed);
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
             Sys.close(fileReader);
         }
 
-        return new HashMap<String, Object>(0);
+        return data;
+    }
+
+    /**
+     * Parse the yaml for the specific reader
+     */
+    @SuppressWarnings("unchecked")
+    private static HashMap<String, Object> parseYaml(final File parentFile, Reader fileReader) throws IOException {
+        HashMap<String, Object> data = null;
+        YamlReader yamlReader = new YamlReader(fileReader) {
+            @SuppressWarnings("rawtypes")
+            @Override
+            protected Object readValue (Class type, Class elementType, Class defaultType) throws YamlException, ParserException,
+                TokenizerException {
+
+                Object value = super.readValue(type, elementType, defaultType);
+                // replace $dir$ with the parent dir, for use in parameters
+                if (value instanceof String) {
+                    value = ((String)value).replaceAll("\\$dir\\$", parentFile.getAbsolutePath());
+                }
+
+                return value;
+            }
+        };
+
+        try {
+            data = yamlReader.read(HashMap.class);
+            yamlReader.close();
+            if (data == null) {
+                return new HashMap<String, Object>(0);
+            } else {
+                return data;
+            }
+        } catch (YamlException ex) {
+            throw new IOException("Error reading YAML file: " + parentFile, ex);
+        }
     }
 
     public static Paths getPathsFromMap(HashMap<String, Object> map, String key) throws IOException {
-        Paths sourcePaths = new Paths();
+        Paths paths = new Paths();
         if (map.containsKey(key)) {
             Object object = map.get(key);
             if (object instanceof String) {
-                sourcePaths.glob(".", (String) object);
+                checkPath(paths, (String) object);
             } else if (object instanceof Collection) {
                 @SuppressWarnings("rawtypes")
                 Collection col = (Collection) object;
                 for (Object c : col) {
-                    // we use the full path info
-                    Paths paths = new Paths(".", (String) c);
-                    if (paths.isEmpty()) {
-                        throw new IOException("Location does not exist: " + c);
-                    } else {
-                        Iterator<String> iterator = paths.iterator();
-                        while (iterator.hasNext()) {
-                            String next = FileUtil.normalizeAsFile(iterator.next());
-                            File file = new File(next);
-                            if (!file.canRead()) {
-                                throw new IOException("Location does not exist: " + next);
-                            }
-
-                            sourcePaths.add(file.getParent(), file.getName());
-                        }
-                    }
+                    checkPath(paths, (String) c);
                 }
             } else {
                 throw new IOException("Unknown source type: " + object.getClass().getSimpleName());
             }
         }
 
-        return sourcePaths;
+        return paths;
+    }
+
+
+    public static List<String> getStringsFromMap(HashMap<String, Object> map, String key) throws IOException {
+        ArrayList<String> deps = new ArrayList<String>();
+        if (map.containsKey(key)) {
+            Object object = map.get(key);
+            if (object instanceof String) {
+                deps.add((String)object);
+            } else if (object instanceof Collection) {
+                @SuppressWarnings("rawtypes")
+                Collection col = (Collection) object;
+                for (Object c : col) {
+                    deps.add((String)c);
+                }
+            } else {
+                throw new IOException("Unknown source type: " + object.getClass().getSimpleName());
+            }
+        }
+
+        return deps;
+    }
+
+    private static void checkPath(Paths paths, String c) throws IOException {
+        // we use the full path info
+        Paths testPaths = new Paths(".", c);
+        if (testPaths.isEmpty()) {
+            throw new IOException("Location does not exist: " + c);
+        } else {
+            Iterator<String> iterator = testPaths.iterator();
+            while (iterator.hasNext()) {
+                String next = FileUtil.normalizeAsFile(iterator.next());
+                File file = new File(next);
+                if (!file.canRead()) {
+                    throw new IOException("Location does not exist: " + next);
+                }
+
+                if (file.isFile()) {
+                    paths.add(file.getParent(), file.getName());
+                } else {
+                    // it's a directory, so we should add all class
+                    paths.glob(next, "**/*.class");
+                }
+            }
+        }
     }
 }

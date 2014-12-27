@@ -152,35 +152,8 @@ public class ProjectJava extends ProjectBasics {
     }
 
     @Override
-    protected ProjectJava build(BuildOptions properties) throws Exception {
-        return build(properties, true, true, false, null);
-    }
-
-    /** always does a build, ignoring checksums */
-    public void forceBuild(BuildOptions options) throws Exception {
-        forceBuild(options, false, false);
-    }
-
-    /** always does a build, ignoring checksums */
-    public void forceBuild(BuildOptions options, boolean deleteCompiledOnComplete, boolean buildJar) throws Exception {
-        File file = FileUtil.normalize(new File(STAGING + File.separator + this.outputFile));
-        if (file.exists()) {
-            FileUtil.delete(file);
-        }
-
-        File dir = new File(this.outputDir);
-        if (dir.exists()) {
-            FileUtil.delete(dir);
-        }
-
-        Build.settings.remove(this.outputDir);
-        build(options, deleteCompiledOnComplete, buildJar, false, null);
-    }
-
-    //  (and add them to the classpath)
-    protected ProjectJava build(BuildOptions options, boolean deleteOnComplete, boolean buildJar,
-                                 boolean signJar, String signName) throws Exception {
-
+    public ProjectJava build(BuildOptions options) throws Exception {
+        //  (and add them to the classpath)
         Build.log().message();
         Build.log().title("      Building").message(this.name, "Output - " + this.outputDir);
 
@@ -201,6 +174,8 @@ public class ProjectJava extends ProjectBasics {
             if (this.dependencies != null) {
                 for (String dep : this.dependencies) {
                     ProjectBasics project = deps.get(dep);
+                    // if we are compiling our build instructions (and projects), this won't exist. This is OK,
+                    // because we run from memory instead (in the classloader)
                     this.classPaths.glob(STAGING, project.outputFile);
                 }
             }
@@ -208,7 +183,7 @@ public class ProjectJava extends ProjectBasics {
             compile(this.sourcePaths, this.classPaths, this.outputDir, options);
             Build.log().message("Compile success.");
 
-            if (buildJar) {
+            if (options.compiler.jar.buildJar) {
                 if (this.preJarAction != null) {
                     Build.log().message("Running action before Jar is created...");
                     this.preJarAction.executeBeforeJarHappens(this.outputDir);
@@ -234,8 +209,8 @@ public class ProjectJava extends ProjectBasics {
 
                 JarUtil.jar(jarOptions);
 
-                if (signJar) {
-                    JarSigner.sign(this.outputFile, signName);
+                if (options.compiler.jar.signJar) {
+                    JarSigner.sign(this.outputFile, options.compiler.jar.signName);
                 }
 
                 // calculate the hash of all the files in the source path
@@ -244,7 +219,7 @@ public class ProjectJava extends ProjectBasics {
         } else {
             Build.log().message("Skipped (nothing changed)");
         }
-        if (shouldBuild && deleteOnComplete) {
+        if (shouldBuild && options.compiler.deleteOnComplete) {
             FileUtil.delete(this.outputDir);
         }
 
@@ -296,7 +271,7 @@ public class ProjectJava extends ProjectBasics {
     /**
      * Compiles into class files.
      */
-    public void compile(Paths source, Paths classpath, String outputDir, BuildOptions buildOptions) throws IOException {
+    public synchronized void compile(Paths source, Paths classpath, String outputDir, BuildOptions buildOptions) throws IOException {
         // if you get messages, such as
         // warning: [path] bad path element "/x/y/z/lib/fubar-all.jar": no such file or directory
         //   That is because that file exists in a MANIFEST.MF somewhere on the classpath! Find the jar that has that, and rip out
@@ -307,9 +282,6 @@ public class ProjectJava extends ProjectBasics {
             throw new IOException("No source files found.");
         }
 
-        FileUtil.delete(outputDir);
-        FileUtil.mkdir(outputDir);
-
         ArrayList<String> args = new ArrayList<String>();
         if (buildOptions.compiler.enableCompilerTrace) {
             // TODO: Interesting to note, that when COMPILING this with verbose, we can get a list (from the compiler) of EVERY CLASS NEEDED
@@ -317,16 +289,22 @@ public class ProjectJava extends ProjectBasics {
             args.add("-verbose");
         }
 
-      if (buildOptions.compiler.debugEnabled) {
-          Build.log().message("Adding debug info.");
+        if (buildOptions.compiler.debugEnabled) {
+            Build.log().message("Adding debug info.");
 
-          args.add("-g"); // Generate all debugging information, including local variables. By default, only line number and source file information is generated.
-      } else {
-          args.add("-g:none");
-      }
+            args.add("-g"); // Generate all debugging information, including local variables. By default, only line number and source file information is generated.
+        } else {
+            args.add("-g:none");
+        }
 
-        args.add("-d");
-        args.add(outputDir);
+        if (this.bytesClassloader == null) {
+            // we only want to use an output directory if we have output!
+            FileUtil.delete(outputDir);
+            FileUtil.mkdir(outputDir);
+
+            args.add("-d");
+            args.add(outputDir);
+        }
 
         args.add("-encoding");
         args.add("UTF-8");
@@ -385,7 +363,6 @@ public class ProjectJava extends ProjectBasics {
             Iterable<? extends JavaFileObject> javaFileObjectsFromFiles;
             if (this.bytesClassloader == null) {
                 javaFileObjectsFromFiles = ((StandardJavaFileManager)fileManager).getJavaFileObjectsFromFiles(source.getFiles());
-
             } else {
                 fileManager = new JavaMemFileManager((StandardJavaFileManager)fileManager, this.bytesClassloader);
                 ((JavaMemFileManager)fileManager).setSource(source);
@@ -427,7 +404,7 @@ public class ProjectJava extends ProjectBasics {
     }
 
     @Override
-    protected String getExtension() {
+    public String getExtension() {
         return ".jar";
     }
 
