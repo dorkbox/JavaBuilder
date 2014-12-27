@@ -32,6 +32,7 @@ import java.lang.reflect.Method;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map.Entry;
 
 import com.esotericsoftware.wildcard.Paths;
 
@@ -71,6 +72,8 @@ public class Build {
 
     private ByteClassloader classloader;
 
+    private boolean isJar;
+
     static {
         Paths.setDefaultGlobExcludes("**/.svn/**, **/.git/**");
     }
@@ -93,7 +96,10 @@ public class Build {
         Build build = new Build();
         try {
             build.prepareXcompile();
-            build.loadBuildInfo(args);
+            if (build.isJar) {
+                // when from eclipse, we want to run it directly (in case it changes significantly)
+                build.compileBuildInstructions(args);
+            }
             build.start(args);
         } catch (Throwable e) {
             e.printStackTrace();
@@ -101,36 +107,42 @@ public class Build {
     }
 
     // loads the build.oak file information
-    private void loadBuildInfo(SimpleArgs args) throws Exception {
-        HashMap<String, Object> data = BuildParser.parse(args);
-
-
-        Paths classPaths = BuildParser.getPathsFromMap(data, "classpath");
-        Paths sourcePaths = BuildParser.getPathsFromMap(data, "source");
-
-        // always use these as the default. don't want the runtimes on our path
-        classPaths.glob("libs", "**/*.jar", "!jdkRuntimes");
-
-
-        String projectName = "project";
-
-        if (data.containsKey("name")) {
-            Object object = data.get("name");
-            projectName = (String) object;
-        }
+    private void compileBuildInstructions(SimpleArgs args) throws Exception {
+        log().println("-= Compiling build instructions =-" + OS.LINE_SEPARATOR);
 
         ByteClassloader bytesClassloader = new ByteClassloader(Thread.currentThread().getContextClassLoader());
+        HashMap<String, HashMap<String, Object>> data = BuildParser.parse(args);
 
-        ProjectJava project = ProjectJava.create(projectName)
-                                         .classPath(classPaths)
-                                         .compilerClassloader(bytesClassloader)
-                                         .sourcePath(sourcePaths);
+        // each entry is a build, that can have dependencies.
+        for (Entry<String, HashMap<String, Object>> entry : data.entrySet()) {
+            String projectName = entry.getKey();
+            HashMap<String, Object> projectData = entry.getValue();
 
+            Paths classPaths = BuildParser.getPathsFromMap(projectData, "classpath");
+            Paths sourcePaths = BuildParser.getPathsFromMap(projectData, "source");
+
+            // always use these as the default. don't want the runtimes on our path
+            classPaths.glob("libs", "**/*.jar", "!jdkRuntimes");
+
+            ProjectJava project = ProjectJava.create(projectName)
+                                             .classPath(classPaths)
+                                             .compilerClassloader(bytesClassloader)
+                                             .sourcePath(sourcePaths);
+
+
+            List<String> dependencies = BuildParser.getStringsFromMap(projectData, "depends");
+            for (String dep : dependencies) {
+                project.depends(dep);
+            }
+        }
 
         try {
-            log().println("-= Compiling build instructions =-" + OS.LINE_SEPARATOR);
             BuildLog.stop();
-            project.forceBuild(new BuildOptions(), false, false);
+            BuildOptions buildOptions = new BuildOptions();
+            buildOptions.compiler.forceRebuild = true;
+
+            // this automatically takes care of build dependency ordering
+            ProjectBasics.buildAll(buildOptions);
             ProjectBasics.reset();
             BuildLog.start();
         } catch (Exception e) {
@@ -142,6 +154,9 @@ public class Build {
     }
 
     private Build() {
+        // are we building from a jar, or a project (from eclipse?)
+        String sourceName = LocationResolver.get(dorkbox.Build.class).getName();
+        this.isJar = sourceName.endsWith(".jar");
     }
 
     public static BuildLog log() {
@@ -155,10 +170,17 @@ public class Build {
     private void start(SimpleArgs args) throws IOException, IllegalAccessException, IllegalArgumentException,
                                                InvocationTargetException, InstantiationException {
 
+        dorkbox.util.annotation.Builder detector;
         BuildOptions buildOptions = new BuildOptions();
-        List<Class<?>> controllers = AnnotationDetector.scan(this.classloader, new ClassByteIterator(this.classloader, null))
-                                                       .forAnnotations(Build.Configure.class)
-                                                       .collect(AnnotationDefaults.getType);
+
+        if (this.isJar) {
+            detector = AnnotationDetector.scan(this.classloader, new ClassByteIterator(this.classloader, null));
+        } else {
+            detector = AnnotationDetector.scanClassPath();
+        }
+
+        List<Class<?>> controllers = detector.forAnnotations(Build.Configure.class)
+                                             .collect(AnnotationDefaults.getType);
 
         if (controllers != null) {
             // do we have something to control the build process??
@@ -184,9 +206,13 @@ public class Build {
         // now we want to update/search for all project builders.
         if (args.getMode().equals(Build.BUILD_MODE)) {
             boolean found = false;
-            List<Class<?>> builders = AnnotationDetector.scan(this.classloader, new ClassByteIterator(this.classloader, null))
-                                                        .forAnnotations(Build.Builder.class)
-                                                        .collect(AnnotationDefaults.getType);
+            if (this.isJar) {
+                detector = AnnotationDetector.scan(this.classloader, new ClassByteIterator(this.classloader, null));
+            } else {
+                detector = AnnotationDetector.scanClassPath();
+            }
+            List<Class<?>> builders = detector.forAnnotations(Build.Builder.class)
+                                              .collect(AnnotationDefaults.getType);
 
             if (builders != null) {
                 String projectToBuild = args.get(1);

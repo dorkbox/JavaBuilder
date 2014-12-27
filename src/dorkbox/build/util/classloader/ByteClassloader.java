@@ -34,9 +34,9 @@ public class ByteClassloader extends ClassLoader {
         super(classloader);
     }
 
-    public final void saveBytes(String className, String locationSourceWasFrom, byte[] bytes) {
+    public final synchronized void saveBytes(String className, String locationSourceWasFrom, byte[] bytes) {
         // this defines our class, and saves it in our cache -- so that findClass() will work
-        if (this.info != null) {
+        if (this.info != null && !this.info.containsKey(className)) {
             ClassInfo info = new ClassInfo();
             info.bytes = bytes;
             info.sourceRootLocation = locationSourceWasFrom;

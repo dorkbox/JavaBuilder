@@ -123,7 +123,7 @@ public class ProjectGwt extends ProjectBasics {
      * This uses the same gwt symbol parser as the web-server project.
      */
     @Override
-    protected ProjectGwt build(BuildOptions properties) throws Exception {
+    public ProjectGwt build(BuildOptions properties) throws Exception {
         // exit early if we already built this project
         if (checkAndBuildDependencies(properties)) {
             return this;
@@ -392,7 +392,7 @@ public class ProjectGwt extends ProjectBasics {
     }
 
     @Override
-    protected String getExtension() {
+    public String getExtension() {
         return ".war";
     }
 }

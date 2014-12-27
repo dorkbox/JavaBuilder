@@ -175,7 +175,7 @@ public abstract class ProjectBasics {
      *
      * @return true if we can skip building this project
      */
-    protected boolean checkAndBuildDependencies(BuildOptions properties) throws Exception {
+    protected boolean checkAndBuildDependencies(BuildOptions options) throws Exception {
         // exit early if we already built this project
         if (buildList.contains(this.outputDir)) {
             Build.log().message("Skipped (built this run)");
@@ -189,7 +189,13 @@ public abstract class ProjectBasics {
             for (String dep : this.dependencies) {
                 ProjectBasics project = deps.get(dep);
                 if (!buildList.contains(project.outputDir)) {
-                    project.build(properties);
+                    Build.log().message("Dependency - " + project.name);
+                }
+            }
+            for (String dep : this.dependencies) {
+                ProjectBasics project = deps.get(dep);
+                if (!buildList.contains(project.outputDir)) {
+                    project.build(options);
                 }
             }
         }
@@ -204,8 +210,8 @@ public abstract class ProjectBasics {
         return this;
     }
 
-    protected abstract ProjectBasics build(BuildOptions properties) throws Exception;
-    protected abstract String getExtension();
+    public abstract ProjectBasics build(BuildOptions properties) throws Exception;
+    public abstract String getExtension();
 
 
 
@@ -219,8 +225,8 @@ public abstract class ProjectBasics {
     /**
      * @return true if the checksums for path match the saved checksums and the jar file exists
      */
-    boolean verifyChecksums(BuildOptions properties) throws IOException {
-        if (forceRebuild || properties.compiler.forceRebuild) {
+    boolean verifyChecksums(BuildOptions options) throws IOException {
+        if (forceRebuild || options.compiler.forceRebuild) {
             return false;
         }
 
