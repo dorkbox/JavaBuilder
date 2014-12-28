@@ -86,6 +86,7 @@ public class Build {
         if (_args.length < 2) {
             System.err.println("You must specify an action, followed by what you want done.");
             System.err.println("For example:  build myProject  , which will then find and build your project");
+            System.err.println("           : see example for more specific details");
             return;
         }
 
@@ -202,6 +203,11 @@ public class Build {
                 }
             }
         }
+
+        log().title("  Java Version").message(buildOptions.compiler.targetJavaVersion);
+        log().title("    Debug info").message(buildOptions.compiler.debugEnabled ? "Enabled" : "Disabled");
+        log().title("Release status").message(buildOptions.compiler.release ? "Enabled" : "Disabled");
+
 
         // now we want to update/search for all project builders.
         if (args.getMode().equals(Build.BUILD_MODE)) {

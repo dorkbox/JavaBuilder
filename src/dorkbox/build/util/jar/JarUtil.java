@@ -446,6 +446,7 @@ public class JarUtil {
             }
         }
 
+        Build.log().message();
         Build.log().title("  Creating JAR").message("(" + options.inputPaths.count() + " entries)",
                                                   FileUtil.normalizeAsFile(options.outputFile));
 
@@ -1144,7 +1145,7 @@ public class JarUtil {
             for (Pack pack : filesToAdd) {
                 String destPath = pack.getDestPath();
                 if (name.equals(destPath)) {
-                    Build.log().message("   Replacing '" + destPath + "'");
+                    Build.log().message("  Replacing '" + destPath + "'");
                     canAdd = false;
                     break;
                 }
@@ -1160,7 +1161,7 @@ public class JarUtil {
                 pack.remove(actionsToRemove);
             }
 
-            String sourcePath = pack.getSourcePath();
+            String sourcePath = FileUtil.normalizeAsFile(pack.getSourcePath());
             String destPath = pack.getDestPath();
 
             Build.log().message("  '" + sourcePath + "' -> '" + destPath + "'");

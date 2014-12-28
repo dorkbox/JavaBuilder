@@ -174,9 +174,13 @@ public class ProjectJava extends ProjectBasics {
             if (this.dependencies != null) {
                 for (String dep : this.dependencies) {
                     ProjectBasics project = deps.get(dep);
+                    File file = new File(STAGING, project.outputFile);
+                    if (!file.canRead()) {
+                        throw new IOException("Dependency for project :" + this.name + " does not exist. '" + file.getAbsolutePath() + "'");
+                    }
                     // if we are compiling our build instructions (and projects), this won't exist. This is OK,
                     // because we run from memory instead (in the classloader)
-                    this.classPaths.glob(STAGING, project.outputFile);
+                    this.classPaths.addFile(file.getAbsolutePath());
                 }
             }
 
