@@ -20,6 +20,8 @@ import java.io.PrintStream;
 import dorkbox.util.OS;
 
 public class BuildLog {
+    private static final String TITLE_MESSAGE_DELIMITER = ":";
+    public static final int TITLE_WIDTH = 16;
     private static boolean suppressOutput = false;
 
     public static void start() {
@@ -50,50 +52,54 @@ public class BuildLog {
         message((String) null);
     }
 
-    public void message(String... message) {
+    public void message(Object... message) {
         if (suppressOutput) {
             return;
         }
 
-        String spacer = "                ";
+        String spacer1 = " ";
+        String spacer2 = "  ";
+        String spacerTitle = "                ";
 
         if (this.title == null) {
-            this.title = spacer;
+            this.title = spacerTitle;
         } else {
             int length = this.title.length();
-            int padding = 16 - length;
+            int padding = TITLE_WIDTH - length;
             if (padding > 0) {
                 StringBuilder msg = new StringBuilder(16);
                 msg.append(this.title);
                 for (int i = 0; i < padding; i++) {
-                    msg.append(" ");
+                    msg.append(spacer1);
                 }
                 this.title = msg.toString();
             }
         }
 
+        StringBuilder msg = new StringBuilder(1024);
+        String titleMessageDelimiter = TITLE_MESSAGE_DELIMITER;
+
+        msg.append(this.title).append(titleMessageDelimiter);
+
         if (message != null && message.length > 0 && message[0] != null) {
-            StringBuilder msg = new StringBuilder(1024);
-            int start = 0;
-            if (message.length > 1) {
-                msg.append(this.title).append(": ").append(message[start++]);
-            }
-
             String newLineToken = OS.LINE_SEPARATOR;
-            for (int i = start; i < message.length; i++) {
-                String m = message[i];
-                if (msg.length() > 0) {
-                    msg.append(newLineToken);
-                }
-                msg.append(spacer).append(": ").append("  ").append(m);
-            }
+            int width = TITLE_WIDTH + 3;
+            int start = 0;
 
-            this.printer.println(msg.toString());
-        } else {
-            StringBuilder msg = new StringBuilder(1024);
-            msg.append(this.title).append(":");
-            this.printer.println(msg.toString());
+            // if we have more than one message, the messages AFTER the first one are INDENTED
+            msg.append(spacer1).append(message[start++]);
+            if (message.length > 1) {
+                for (int i = start; i < message.length; i++) {
+                    String m = message[i].toString();
+                    if (msg.length() > width) {
+                        msg.append(newLineToken);
+                    }
+                    msg.append(spacerTitle).append(titleMessageDelimiter).append(spacer1).append(spacer2).append(m);
+                }
+            }
         }
+
+        this.printer.println(msg.toString());
     }
 
     public void print(String message) {
