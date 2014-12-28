@@ -1,0 +1,6 @@
+name: OAK
+classpath:
+ - ../../resources/Dependencies/javassist/javassist.jar
+
+source:
+ - src/**/*.java
