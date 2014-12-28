@@ -27,6 +27,9 @@ public class SimpleArgs {
     private int lastIndex = 0;
 
     public SimpleArgs(String[] args) {
+        if (args == null) {
+            throw new NullPointerException("args cannot be null");
+        }
         this.args = args;
 
         this.argsAsSet = new HashSet<String>(args.length);
@@ -69,6 +72,10 @@ public class SimpleArgs {
 
     public String getMode() {
         return this.args[0];
+    }
+
+    public boolean isBuild() {
+        return "build".equals(this.args[0]);
     }
 
     public String get(int i) {

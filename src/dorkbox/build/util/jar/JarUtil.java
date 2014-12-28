@@ -447,7 +447,7 @@ public class JarUtil {
         }
 
         Build.log().message();
-        Build.log().title("  Creating JAR").message("(" + options.inputPaths.count() + " entries)",
+        Build.log().title("Creating JAR").message("(" + options.inputPaths.count() + " entries)",
                                                   FileUtil.normalizeAsFile(options.outputFile));
 
 

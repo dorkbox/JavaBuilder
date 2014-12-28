@@ -155,7 +155,15 @@ public class ProjectJava extends ProjectBasics {
     public ProjectJava build(BuildOptions options) throws Exception {
         //  (and add them to the classpath)
         Build.log().message();
-        Build.log().title("      Building").message(this.name, "Output - " + this.outputDir);
+        if (this.bytesClassloader == null) {
+            if (options.compiler.jar.buildJar) {
+                Build.log().title("Building").message(this.name, "Output - " + FileUtil.normalize(new File(STAGING, this.outputFile)).getAbsolutePath());
+            } else {
+                Build.log().title("Building").message(this.name, "Output - " + this.outputDir);
+            }
+        } else {
+            Build.log().title("Building").message(this.name);
+        }
 
         // exit early if we already built this project
         if (checkAndBuildDependencies(options)) {
@@ -233,8 +241,8 @@ public class ProjectJava extends ProjectBasics {
     /**
      * @return true if the checksums for path match the saved checksums and the jar file exists
      */
-    boolean verifyChecksums(ProjectBasics project, BuildOptions properties) throws IOException {
-        boolean sourceHashesSame = super.verifyChecksums(properties);
+    boolean verifyChecksums(ProjectBasics project, BuildOptions options) throws IOException {
+        boolean sourceHashesSame = super.verifyChecksums(options);
         if (!sourceHashesSame) {
             return false;
         }
