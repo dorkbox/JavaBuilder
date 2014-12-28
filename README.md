@@ -17,6 +17,9 @@ For example:
  
 OR, for a "real world" example
 
- - See the example code in the wiki, which is what is used to build OAK
- - Then, java -jar libs/OAK.jar build oak
+ - See the build code in the "build" directory, which is the build code used to build OAK  
+   - If you want to compile it yourself, copy the entire contents of the libs directory into the dist directory.  
+   - Then (from the project root), java -jar dist/OAK.jar build oak  
+   (note: make sure that you have the java JDK installed!)
+   
 
