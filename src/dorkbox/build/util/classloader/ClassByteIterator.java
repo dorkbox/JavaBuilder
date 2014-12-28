@@ -23,7 +23,7 @@ import java.io.InputStream;
 import java.util.Iterator;
 import java.util.Map.Entry;
 
-import dorkbox.util.annotation.ClassFileIterator;
+import dorkbox.util.annotation.ClassIterator;
 
 /**
  * {@code ClassBytesIterator} is used to iterate over all Java ClassFile files available within
@@ -31,10 +31,10 @@ import dorkbox.util.annotation.ClassFileIterator;
  * <p>
  * For every Java ClassFile ({@code .class}) an {@link InputStream} is returned.
  */
-public class ClassByteIterator extends ClassFileIterator {
-
+public class ClassByteIterator implements ClassIterator {
 
     private final Iterator<Entry<String, ClassInfo>> iterator;
+    protected final String[] pkgNameFilter;
     private String fullPath;
 
     /**
@@ -46,7 +46,7 @@ public class ClassByteIterator extends ClassFileIterator {
      * NOTE: package names must be defined in the native format (using '/' instead of '.').
      */
     public ClassByteIterator(final ByteClassloader classloader, final String[] pkgNameFilter) {
-        super(pkgNameFilter);
+        this.pkgNameFilter = pkgNameFilter;
         this.iterator = classloader.getIterator();
     }
 

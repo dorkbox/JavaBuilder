@@ -44,14 +44,9 @@ public class ByteClassloader extends ClassLoader {
         }
     }
 
+    // this will check PARENT first, then check us.
     @Override
-    public Class<?> loadClass(String name) throws ClassNotFoundException {
-        return loadClass(name, false);
-    }
-
-    // check OURSELVES first, then check our parent.
-    @Override
-    protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+    public Class<?> findClass(String name) throws ClassNotFoundException {
         if (this.info != null) {
             ClassInfo info = this.info.get(name);
 
@@ -85,9 +80,9 @@ public class ByteClassloader extends ClassLoader {
 
                 Class<?> clazz = defineClass(name, classBytes, 0, classBytes.length, domain);
 
-                if (resolve) {
-                    resolveClass(clazz);
-                }
+//                if (resolve) {
+//                    resolveClass(clazz);
+//                }
 
                 // cache our classes that we create
                 info.clazz = clazz;
@@ -96,7 +91,8 @@ public class ByteClassloader extends ClassLoader {
             }
         }
 
-        return getParent().loadClass(name);
+        throw new ClassNotFoundException(name);
+//        return getParent().loadClass(name);
     }
 
     Iterator<Entry<String, ClassInfo>> getIterator() {

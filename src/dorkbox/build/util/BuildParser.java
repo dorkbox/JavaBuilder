@@ -33,20 +33,29 @@ import com.esotericsoftware.yamlbeans.YamlReader;
 import com.esotericsoftware.yamlbeans.parser.Parser.ParserException;
 import com.esotericsoftware.yamlbeans.tokenizer.Tokenizer.TokenizerException;
 
+import dorkbox.Build;
 import dorkbox.build.SimpleArgs;
 import dorkbox.util.FileUtil;
 import dorkbox.util.Sys;
 
 public class BuildParser {
-    public static String fileName = "build.oak";
+    @SuppressWarnings("unchecked")
+    public static HashMap<String, HashMap<String, Object>> parse(SimpleArgs args) throws IOException {
+        String buildDir = "build";
+        String fileName = new File(buildDir, "build.oak").getPath();
 
-    public static HashMap<String, HashMap<String, Object>> parse(SimpleArgs args) {
-        String fileName = BuildParser.fileName;
         if (args.has("-file") || args.has("-f")) {
             fileName = args.getNext();
         }
 
-        final File file = new File(FileUtil.normalizeAsFile(fileName));
+        String normalizeAsFile = FileUtil.normalizeAsFile(fileName);
+        Build.log().title("Build location").message("Compiling build instructions", normalizeAsFile);
+
+        final File file = new File(normalizeAsFile);
+        if (!file.canRead()) {
+            throw new IOException("Unable to load build file: " + normalizeAsFile);
+        }
+
         // replace $dir$ with the parent dir, for use in parameters
         final File parentDir = file.getParentFile();
 
@@ -80,6 +89,49 @@ public class BuildParser {
 
             // parse the last entry
             HashMap<String, Object> parsed = parseYaml(parentDir, new StringReader(buffer.toString()));
+
+            Object object = parsed.get("source");
+            // always add these to as the default.
+            Paths sourcePaths = new Paths(parentDir.getAbsolutePath(), "**/*.java");
+
+            if (object == null) {
+                object = new ArrayList<String>();
+            } else if (object instanceof String) {
+                String first = (String) object;
+                ArrayList<String> list = new ArrayList<String>();
+                list.add(first);
+                object = list;
+            }
+
+            List<String> list = (List<String>) object;
+            List<File> files = sourcePaths.getFiles();
+            for (File f : files) {
+                list.add(FileUtil.normalize(f).getAbsolutePath());
+            }
+            parsed.put("source", list);
+
+
+            object = parsed.get("classpath");
+            // always use these as the default. don't want the runtimes on our path
+            Paths classPaths = new Paths(parentDir.getParentFile().getAbsolutePath() + File.separator + "libs", "**/*.jar", "!jdkRuntimes");
+
+            if (object == null) {
+                object = new ArrayList<String>();
+            } else if (object instanceof String) {
+                String first = (String) object;
+                list = new ArrayList<String>();
+                list.add(first);
+                object = list;
+            }
+
+            list = (List<String>) object;
+            files = classPaths.getFiles();
+            for (File f : files) {
+                list.add(FileUtil.normalize(f).getAbsolutePath());
+            }
+            parsed.put("classpath", list);
+
+
             data.put(currentEntry, parsed);
         } catch (IOException e) {
             e.printStackTrace();
@@ -167,15 +219,29 @@ public class BuildParser {
     }
 
     private static void checkPath(Paths paths, String c) throws IOException {
-        // we use the full path info
-        Paths testPaths = new Paths(".", c);
-        if (testPaths.isEmpty()) {
-            throw new IOException("Location does not exist: " + c);
+        File file = new File(c);
+        if (file.canRead() || file.isDirectory()) {
+            if (file.isFile()) {
+                paths.add(file.getParent(), file.getName());
+            } else {
+                // it's a directory, so we should add all classes
+                paths.glob(file.getAbsolutePath(), "**/*.class");
+            }
         } else {
+            // we use the full path info
+            Paths testPaths = new Paths(".", c);
+            if (testPaths.isEmpty()) {
+                testPaths = new Paths(file.getParentFile().getAbsolutePath(), file.getName());
+
+                if (testPaths.isEmpty()) {
+                    throw new IOException("Location does not exist: " + c);
+                }
+            }
+
             Iterator<String> iterator = testPaths.iterator();
             while (iterator.hasNext()) {
                 String next = FileUtil.normalizeAsFile(iterator.next());
-                File file = new File(next);
+                file = new File(next);
                 if (!file.canRead()) {
                     throw new IOException("Location does not exist: " + next);
                 }
@@ -183,7 +249,7 @@ public class BuildParser {
                 if (file.isFile()) {
                     paths.add(file.getParent(), file.getName());
                 } else {
-                    // it's a directory, so we should add all class
+                    // it's a directory, so we should add all classes
                     paths.glob(next, "**/*.class");
                 }
             }

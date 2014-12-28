@@ -65,13 +65,14 @@ public class BuildLog {
             this.title = spacerTitle;
         } else {
             int length = this.title.length();
-            int padding = TITLE_WIDTH - length;
+            int padding = TITLE_WIDTH - length - 1;
             if (padding > 0) {
                 StringBuilder msg = new StringBuilder(16);
-                msg.append(this.title);
                 for (int i = 0; i < padding; i++) {
                     msg.append(spacer1);
                 }
+                msg.append(this.title);
+                msg.append(spacer1);
                 this.title = msg.toString();
             }
         }

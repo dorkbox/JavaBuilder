@@ -47,7 +47,6 @@ import dorkbox.build.util.jar.Pack200Util;
 import dorkbox.util.FileUtil;
 import dorkbox.util.LZMA;
 import dorkbox.util.LocationResolver;
-import dorkbox.util.OS;
 import dorkbox.util.Sys;
 import dorkbox.util.annotation.AnnotationDefaults;
 import dorkbox.util.annotation.AnnotationDetector;
@@ -72,10 +71,13 @@ public class Build {
 
     private ByteClassloader classloader;
 
-    private boolean isJar;
+    public static boolean isJar;
 
     static {
         Paths.setDefaultGlobExcludes("**/.svn/**, **/.git/**");
+        // are we building from a jar, or a project (from eclipse?)
+        String sourceName = LocationResolver.get(dorkbox.Build.class).getName();
+        isJar = sourceName.endsWith(".jar");
     }
 
     public static void main(String[] _args) {
@@ -91,26 +93,113 @@ public class Build {
         }
 
         SimpleArgs args = new SimpleArgs(_args);
+        build(new BuildOptions(), args);
+    }
 
-        System.err.println("Dorkbox OAK: starting " + args);
+    public static void build(String projectName, String... arguments) {
+        build(new BuildOptions(), projectName, arguments);
+    }
+
+    public static void build(BuildOptions buildOptions, String projectName, String... arguments) {
+        String _args[] = new String[2 + arguments.length];
+        _args[0] = "build";
+        _args[1] = projectName;
+        for (int i = 0; i < arguments.length; i++) {
+            _args[i+2] = arguments[i];
+        }
+
+        SimpleArgs args = new SimpleArgs(_args);
+        build(buildOptions, args);
+    }
+
+    public static void build(BuildOptions buildOptions, SimpleArgs args) {
+        String title = "OAK";
+        log().title(title).message("starting " + args);
 
         Build build = new Build();
         try {
             build.prepareXcompile();
-            if (build.isJar) {
+            log().message();
+
+            if (Build.isJar) {
                 // when from eclipse, we want to run it directly (in case it changes significantly)
                 build.compileBuildInstructions(args);
+                log().message();
             }
-            build.start(args);
+
+            build.start(args, buildOptions);
+
+            log().message();
+            log().title(title).message("finished " + args , new Date());
         } catch (Throwable e) {
             e.printStackTrace();
         }
     }
 
+    private Build() {
+        ProjectBasics.reset();
+    }
+
+    public static BuildLog log() {
+        return new BuildLog();
+    }
+
+    public static BuildLog log(PrintStream printer) {
+        return new BuildLog(printer);
+    }
+
+    /**
+     * check to see if our jdk files have been decompressed (necessary for cross target builds)
+     */
+    private void prepareXcompile() throws IOException {
+        String jdkDist = FileUtil.normalizeAsFile(Build.path("libs", "jdkRuntimes"));
+        List<File> jdkFiles = FileUtil.parseDir(jdkDist);
+        boolean first = true;
+        for (File f : jdkFiles) {
+            // unLZMA + unpack200
+            String name = f.getName();
+            String suffix = ".pack.lzma";
+
+            if (name.endsWith(suffix)) {
+                int nameLength = f.getAbsolutePath().length();
+                String fixedName = f.getAbsolutePath().substring(0, nameLength - suffix.length());
+                File file = new File(fixedName);
+
+                if (!file.canRead() || file.length() == 0) {
+                    if (first) {
+                        first = false;
+                        log().message("******************************");
+                        log().message("Preparing environment");
+                        log().message("******************************");
+                    }
+
+                    log().message("  Decompressing: " + f.getAbsolutePath());
+                    InputStream inputStream = new FileInputStream(f);
+                    // now uncompress
+                    ByteArrayOutputStream outputStream = LZMA.decode(inputStream);
+
+                    // now unpack
+                    inputStream = new ByteArrayInputStream(outputStream.toByteArray());
+                    outputStream = Pack200Util.Java.unpack200((ByteArrayInputStream) inputStream);
+
+                    // now write to disk
+                    inputStream = new ByteArrayInputStream(outputStream.toByteArray());
+
+                    FileOutputStream fileOutputStream = new FileOutputStream(new File(fixedName));
+                    Sys.copyStream(inputStream, fileOutputStream);
+                    Sys.close(fileOutputStream);
+                }
+            }
+        }
+
+        if (!first) {
+            log().message("Finished Preparing environment");
+            log().message("******************************\n\n");
+        }
+    }
+
     // loads the build.oak file information
     private void compileBuildInstructions(SimpleArgs args) throws Exception {
-        log().println("-= Compiling build instructions =-" + OS.LINE_SEPARATOR);
-
         ByteClassloader bytesClassloader = new ByteClassloader(Thread.currentThread().getContextClassLoader());
         HashMap<String, HashMap<String, Object>> data = BuildParser.parse(args);
 
@@ -119,11 +208,11 @@ public class Build {
             String projectName = entry.getKey();
             HashMap<String, Object> projectData = entry.getValue();
 
+            // will always have libs jars (minus runtime jars)
             Paths classPaths = BuildParser.getPathsFromMap(projectData, "classpath");
-            Paths sourcePaths = BuildParser.getPathsFromMap(projectData, "source");
 
-            // always use these as the default. don't want the runtimes on our path
-            classPaths.glob("libs", "**/*.jar", "!jdkRuntimes");
+            // BY DEFAULT, will use build/**/*.java path
+            Paths sourcePaths = BuildParser.getPathsFromMap(projectData, "source");
 
             ProjectJava project = ProjectJava.create(projectName)
                                              .classPath(classPaths)
@@ -154,27 +243,13 @@ public class Build {
         this.classloader = bytesClassloader;
     }
 
-    private Build() {
-        // are we building from a jar, or a project (from eclipse?)
-        String sourceName = LocationResolver.get(dorkbox.Build.class).getName();
-        this.isJar = sourceName.endsWith(".jar");
-    }
 
-    public static BuildLog log() {
-        return new BuildLog();
-    }
-
-    public static BuildLog log(PrintStream printer) {
-        return new BuildLog(printer);
-    }
-
-    private void start(SimpleArgs args) throws IOException, IllegalAccessException, IllegalArgumentException,
+    private void start(SimpleArgs args, BuildOptions buildOptions) throws IOException, IllegalAccessException, IllegalArgumentException,
                                                InvocationTargetException, InstantiationException {
 
         dorkbox.util.annotation.Builder detector;
-        BuildOptions buildOptions = new BuildOptions();
 
-        if (this.isJar) {
+        if (Build.isJar) {
             detector = AnnotationDetector.scan(this.classloader, new ClassByteIterator(this.classloader, null));
         } else {
             detector = AnnotationDetector.scanClassPath();
@@ -204,15 +279,15 @@ public class Build {
             }
         }
 
-        log().title("  Java Version").message(buildOptions.compiler.targetJavaVersion);
-        log().title("    Debug info").message(buildOptions.compiler.debugEnabled ? "Enabled" : "Disabled");
+        log().title("Java Version").message(buildOptions.compiler.targetJavaVersion);
+        log().title("Debug info").message(buildOptions.compiler.debugEnabled ? "Enabled" : "Disabled");
         log().title("Release status").message(buildOptions.compiler.release ? "Enabled" : "Disabled");
-
+        log().message();
 
         // now we want to update/search for all project builders.
         if (args.getMode().equals(Build.BUILD_MODE)) {
             boolean found = false;
-            if (this.isJar) {
+            if (Build.isJar) {
                 detector = AnnotationDetector.scan(this.classloader, new ClassByteIterator(this.classloader, null));
             } else {
                 detector = AnnotationDetector.scanClassPath();
@@ -226,63 +301,48 @@ public class Build {
                     String simpleName = c.getSimpleName().toLowerCase();
 
                     if (projectToBuild.equals(simpleName)) {
-                        Method build = null;
+                        Method[] methods = c.getMethods();
 
-                        // 4 different build methods supported.
-                        // build()
-                        try {
-                            build = c.getMethod(Build.BUILD_MODE, new Class<?>[] {});
-                        } catch (Exception e) {}
+                        for (Method m : methods) {
+                            if (m.getName().equals(Build.BUILD_MODE)) {
+                                Class<?>[] p = m.getParameterTypes();
 
-                        if (build != null) {
-                            build .invoke(c);
-                            found = true;
-                            break;
-                        }
-
-                        // build(Args)
-                        Class<?>[] params = new Class<?>[] {SimpleArgs.class};
-                        try {
-                            build = c.getMethod(Build.BUILD_MODE, params);
-                        } catch (Exception e) {}
-
-                        if (build != null) {
-                            build .invoke(c, args);
-                            found = true;
-                            break;
-                        }
-
-
-                        // build(BuildOptions)
-                        params = new Class<?>[] {BuildOptions.class};
-                        try {
-                            build = c.getMethod(Build.BUILD_MODE, params);
-                        } catch (Exception e) {}
-
-                        if (build != null) {
-                            build.invoke(c, buildOptions);
-                            found = true;
-                            break;
-                        }
-
-
-                        // build(BuildOptions, Args)
-                        params = new Class<?>[] {BuildOptions.class, SimpleArgs.class};
-                        try {
-                            build = c.getMethod(Build.BUILD_MODE, params);
-                        } catch (Exception e) {}
-
-                        if (build != null) {
-                            build .invoke(c, buildOptions, args);
-                            found = true;
-                            break;
+                                switch (p.length) {
+                                    case 0: {
+                                        // build()
+                                        m.invoke(c);
+                                        found = true;
+                                        break;
+                                    }
+                                    case 1: {
+                                        if (p[0].equals(SimpleArgs.class)) {
+                                            // build(Args)
+                                            m.invoke(c, args);
+                                            found = true;
+                                            break;
+                                        } if (p[0].equals(BuildOptions.class)) {
+                                            // build(BuildOptions)
+                                            m.invoke(c, buildOptions);
+                                            found = true;
+                                            break;
+                                        }
+                                        break;
+                                    }
+                                    case 2: {
+                                        // build(BuildOptions, Args)
+                                        m.invoke(c, buildOptions, args);
+                                        found = true;
+                                        break;
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
 
             if (!found) {
-                System.err.println("Unable to find a build for the target: " + args);
+                log().message("Unable to find a build for " + args);
             }
         }
 
@@ -305,56 +365,6 @@ public class Build {
                     break;
                 }
             }
-        }
-    }
-
-    /**
-     * check to see if our jdk files have been decompressed (necessary for cross target builds)
-     */
-    private void prepareXcompile() throws IOException {
-        String jdkDist = FileUtil.normalizeAsFile(Build.path("libs", "jdkRuntimes"));
-        List<File> jdkFiles = FileUtil.parseDir(jdkDist);
-        boolean first = true;
-        for (File f : jdkFiles) {
-            // unLZMA + unpack200
-            String name = f.getName();
-            String suffix = ".pack.lzma";
-
-            if (name.endsWith(suffix)) {
-                int nameLength = f.getAbsolutePath().length();
-                String fixedName = f.getAbsolutePath().substring(0, nameLength - suffix.length());
-                File file = new File(fixedName);
-
-                if (!file.canRead() || file.length() == 0) {
-                    if (first) {
-                        first = false;
-                        System.err.println("******************************************");
-                        System.err.println("*  Dorkbox OAK -- Preparing environment  *");
-                        System.err.println("******************************************");
-                    }
-
-                    System.err.println("*  Decompressing: " + f.getAbsolutePath());
-                    InputStream inputStream = new FileInputStream(f);
-                    // now uncompress
-                    ByteArrayOutputStream outputStream = LZMA.decode(inputStream);
-
-                    // now unpack
-                    inputStream = new ByteArrayInputStream(outputStream.toByteArray());
-                    outputStream = Pack200Util.Java.unpack200((ByteArrayInputStream) inputStream);
-
-                    // now write to disk
-                    inputStream = new ByteArrayInputStream(outputStream.toByteArray());
-
-                    FileOutputStream fileOutputStream = new FileOutputStream(new File(fixedName));
-                    Sys.copyStream(inputStream, fileOutputStream);
-                    Sys.close(fileOutputStream);
-                }
-            }
-        }
-
-        if (!first) {
-            System.err.println("*  Finished preparing environment");
-            System.err.println("******************************************\n\n");
         }
     }
 
@@ -415,19 +425,13 @@ public class Build {
         }
     }
 
-    public static final void finish(String text) {
-        System.err.println("\n\n");
-        System.err.println("TIME: " + new Date());
-        System.err.println("FINISHED: " + text);
-    }
-
     public static File moveFile(String source, String target) throws IOException {
         source = FileUtil.normalizeAsFile(source);
         target = FileUtil.normalizeAsFile(target);
 
 
-        log().title("   Moving file").message("  ╭─ " + source,
-                                                "╰─> " + target);
+        log().title("Moving file").message("  ╭─ " + source,
+                                             "╰─> " + target);
 
         return FileUtil.moveFile(source, target);
     }
@@ -437,8 +441,8 @@ public class Build {
         target = FileUtil.normalize(target);
 
 
-        log().title("  Copying file").message("  ╭─ " + source.getAbsolutePath(),
-                                                "╰─> " + target.getAbsolutePath());
+        log().title("Copying file").message("  ╭─ " + source.getAbsolutePath(),
+                                              "╰─> " + target.getAbsolutePath());
 
         return FileUtil.copyFile(source, target);
     }
@@ -447,8 +451,8 @@ public class Build {
         source = FileUtil.normalizeAsFile(source);
         target = FileUtil.normalizeAsFile(target);
 
-        log().title("  Copying file").message("  ╭─ " + source,
-                                                "╰─> " + target);
+        log().title("Copying file").message("  ╭─ " + source,
+                                              "╰─> " + target);
 
         FileUtil.copyFile(source, target);
     }
@@ -457,8 +461,8 @@ public class Build {
         source = FileUtil.normalizeAsFile(source);
         target = FileUtil.normalizeAsFile(target);
 
-        log().title("   Copying dir").message("  ╭─ " + source,
-                                                "╰─> " + target);
+        log().title("Copying dir").message("  ╭─ " + source,
+                                             "╰─> " + target);
         FileUtil.copyDirectory(source, target, dirNamesToIgnore);
     }
 }

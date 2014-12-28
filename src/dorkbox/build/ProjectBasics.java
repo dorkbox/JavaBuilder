@@ -50,36 +50,39 @@ public abstract class ProjectBasics {
     public static List<File> builderFiles = new ArrayList<File>();
 
     {
-        // check to see if our deploy code has changed. if yes, then we have to rebuild everything since
-        // we don't know what might have changed.
-        Paths paths = new Paths();
-        File file = new File(ProjectBasics.class.getSimpleName() + ".java").getAbsoluteFile().getParentFile();
-        paths.glob(file.getAbsolutePath(), Java_Pattern);
+        if (!Build.isJar) {
+            // check to see if our deploy code has changed. if yes, then we have to rebuild everything since
+            // we don't know what might have changed.
+            Paths paths = new Paths();
+            File file = new File(ProjectBasics.class.getSimpleName() + ".java").getAbsoluteFile().getParentFile();
+            paths.glob(file.getAbsolutePath(), Java_Pattern);
 
-        for (File f : builderFiles) {
-            paths.glob(f.getAbsolutePath(), Java_Pattern);
-        }
+            for (File f : builderFiles) {
+                paths.glob(f.getAbsolutePath(), Java_Pattern);
+            }
 
-        try {
-            String oldHash = Build.settings.get("BUILD", String.class);
-            String hashedContents = generateChecksums(paths);
+            try {
+                String oldHash = Build.settings.get("BUILD", String.class);
+                String hashedContents = generateChecksums(paths);
 
-            if (oldHash != null) {
-                if (!oldHash.equals(hashedContents)) {
+                if (oldHash != null) {
+                    if (!oldHash.equals(hashedContents)) {
+                        forceRebuild = true;
+                    }
+                } else {
                     forceRebuild = true;
                 }
-            } else {
-                forceRebuild = true;
+
+                if (forceRebuild) {
+                    if (!alreadyChecked) {
+                        alreadyChecked = true;
+                        Build.log().message("Build system changed. Rebuilding.");
+                    }
+                    Build.settings.save("BUILD", hashedContents);
+                }
+            } catch (IOException e) {
             }
 
-            if (forceRebuild) {
-                if (!alreadyChecked) {
-                    alreadyChecked = true;
-                    System.err.println("-= Build system changed. Rebuilding =-");
-                }
-                Build.settings.save("BUILD", hashedContents);
-            }
-        } catch (IOException e) {
         }
     }
 
