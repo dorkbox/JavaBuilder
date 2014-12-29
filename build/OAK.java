@@ -39,14 +39,12 @@ public class OAK {
     // ~/dorkbox/eclipse/jre/bin/java -jar dist/OAK.jar build oak
     // ~/dorkbox/eclipse/jre/bin/java -Xrunjdwp:transport=dt_socket,server=y,address=1044 -jar dist/OAK.jar build oak
 
-
     public static void build(BuildOptions buildOptions) throws Exception {
         // Unsafe creates compiler warnings. Disable them!
         buildOptions.compiler.suppressSunWarnings = true;
 
         buildOptions.compiler.targetJavaVersion = 6;
 
-        buildOptions.compiler.forceRebuild = true;
         buildOptions.compiler.deleteOnComplete = true;
         buildOptions.compiler.jar.buildJar = true;
 
@@ -62,6 +60,7 @@ public class OAK {
 
         String distDir = FileUtil.normalizeAsFile(Build.path(BuildStrings.JavaBuilder.root, "dist"));
         File dists = new File(distDir);
+        FileUtil.delete(dists, BuildStrings.JavaBuilder.name + ".jar");
         dists.mkdirs();
 
 
@@ -69,6 +68,7 @@ public class OAK {
         if (!runningFromJar) {
             // copy over jar deps
             File libDir = new File(libsPath);
+            FileUtil.delete(libDir, "dorkboxUtil.jar");
             libDir.mkdirs();
 
             Build.copyDirectory(Dirs.JavaTar, libsPath);
@@ -80,7 +80,7 @@ public class OAK {
                 String name = next.getName();
                 if (name.startsWith("slf4j") ||
                                 name.startsWith("logback-classic") ||
-                                name.startsWith("logback-cored")) {
+                                name.startsWith("logback-core")) {
 
                     File file = new File(libDir, name);
                     FileUtil.copyFile(next, file);
@@ -145,7 +145,7 @@ public class OAK {
 
             PreJarAction preJarAction = new PreJarAction() {
                 @Override
-                public void executeBeforeJarHappens(String outputDir) throws Exception {
+                public void executeBeforeJarHappens(File outputDir) throws Exception {
                     ClassPool cp = ClassPool.getDefault();
                     InputStream ins = null;
                     try {
@@ -165,7 +165,7 @@ public class OAK {
                                 }
                             }
                         }
-                        cryptoClass.writeFile(outputDir);
+                        cryptoClass.writeFile(outputDir.getAbsolutePath());
                     } finally {
                         if (ins != null) {
                             ins.close();
@@ -175,23 +175,22 @@ public class OAK {
             };
 
             // this is only done here, since this is a VERY limited version of our utils.
-            ProjectJava project = ProjectJava.create("DorkboxUtil")
+            ProjectJava project = ProjectJava.create(BuildStrings.JavaBuilder.name + "-" + "Dorkbox-Util")
                             .includeSourceInJar()
                             .license(Licenses.DorkboxUtil.DorkboxUtil)
                             .license(Licenses.DorkboxUtil.MigBase64)
                             .license(Licenses.DorkboxUtil.FilenameUtils)
                             .preJarAction(preJarAction)
+                            .outputFile(Build.path(libsPath, "dorkboxUtil.jar"))
                             .sourcePath(sources);
 
             project.build(buildOptions);
-            // now put it in our libs
-            Build.copyFile(Build.path("staging", project.outputFile), Build.path(libsPath, "dorkboxUtil.jar"));
         }
 
 
         PreJarAction preJarAction = new PreJarAction() {
             @Override
-            public void executeBeforeJarHappens(String outputDir) throws Exception {
+            public void executeBeforeJarHappens(File outputDir) throws Exception {
                 Build.log().message("Installing license files...");
                 File targetLocation = new File(outputDir, Build.path("dorkbox", "license"));
                 License.install(targetLocation);
@@ -207,14 +206,11 @@ public class OAK {
                         .license(BuildStrings.JavaBuilder.license)
                         .extraFiles(new Paths(BuildStrings.JavaBuilder.root, "README.md"))
                         .mainClass(dorkbox.Build.class)
+                        .outputFile(Build.path(distDir, BuildStrings.JavaBuilder.name + ".jar"))
                         .sourcePath(BuildStrings.JavaBuilder.src, ProjectBasics.Java_Pattern);
 
 
         project.build(buildOptions);
-
-        // now put it in our dist dir
-        String targetPath = Build.path(distDir, project.name + ".jar");
-        Build.moveFile(Build.path(BuildStrings.STAGING, project.outputFile), targetPath);
 
 
         // now copy all of these files into our libs dir for our builder
@@ -225,7 +221,7 @@ public class OAK {
 
             // ALSO copy this file into OUR libs dir (so we can use it!)
             Build.log().message("Copying jars into our location.");
-            Build.copyFile(targetPath, Build.path(destLibsDir, project.name + ".jar"));
+            Build.copyFile(project.outputFile.getAbsolutePath(), Build.path(destLibsDir, project.name + ".jar"));
 
             // copy all of the files from the libs dir
             FileUtil.copyDirectory(libsPath, destLibsDir);
