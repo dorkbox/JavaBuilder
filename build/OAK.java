@@ -16,6 +16,7 @@
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.List;
 
 import javassist.ClassPool;
@@ -36,8 +37,35 @@ import dorkbox.util.LocationResolver;
 @Build.Builder
 public class OAK {
 
+    // ALSO copied over to OAK build dir (as an example), so make sure to update in both locations
     // ~/dorkbox/eclipse/jre/bin/java -jar dist/OAK.jar build oak
     // ~/dorkbox/eclipse/jre/bin/java -Xrunjdwp:transport=dt_socket,server=y,address=1044 -jar dist/OAK.jar build oak
+
+    public static final String name = "OAK";
+    public static final String root = BuildStrings.path(BuildStrings.ProjectPath.GitHub, name);
+    public static final String src = BuildStrings.path(root, "src");
+    public static ArrayList<License> license = new ArrayList<License>() {
+        private static final long serialVersionUID = 1L;
+        {
+            add(Licenses.OAK.OAK);
+            add(Licenses.OAK.Scar);
+            add(Licenses.DorkboxUtil.DorkboxUtil);
+            add(Licenses.DorkboxUtil.MigBase64);
+            add(Licenses.DorkboxUtil.FilenameUtils);
+            add(Licenses.DorkboxUtil.AnnotationDetector);
+
+            add(LicenseLibs.BouncyCastle);
+            add(LicenseLibs.FastMD5);
+            add(LicenseLibs.LzmaJava);
+            add(LicenseLibs.SLF4J);
+
+            add(LicenseLibs.JavaTar);
+            add(LicenseLibs.WildCard);
+            add(LicenseLibs.OpenJDK);
+            add(LicenseLibs.YamlBeans);
+        }
+    };
+
 
     public static void build(BuildOptions buildOptions) throws Exception {
         // Unsafe creates compiler warnings. Disable them!
@@ -46,7 +74,10 @@ public class OAK {
         buildOptions.compiler.targetJavaVersion = 6;
 
         buildOptions.compiler.deleteOnComplete = true;
+
         buildOptions.compiler.jar.buildJar = true;
+        buildOptions.compiler.jar.includeSourceAsSeparate = true;
+
 
 
         // if we are running from a jar, DO NOT try to do certain things
@@ -55,20 +86,20 @@ public class OAK {
 
         if (!runningFromJar) {
             // install license files
-            License.install(BuildStrings.JavaBuilder.root, BuildStrings.JavaBuilder.license);
+            License.install(root, license);
         }
 
-        String distDir = FileUtil.normalizeAsFile(Build.path(BuildStrings.JavaBuilder.root, "dist"));
+        String distDir = FileUtil.normalizeAsFile(Build.path(root, "dist"));
         File dists = new File(distDir);
-        FileUtil.delete(dists, BuildStrings.JavaBuilder.name + ".jar");
+        FileUtil.delete(dists, name + ".jar", name + "-src.zip");
         dists.mkdirs();
 
 
-        String libsPath = FileUtil.normalizeAsFile(Build.path(BuildStrings.JavaBuilder.root, "libs"));
+        String libsPath = FileUtil.normalizeAsFile(Build.path(root, "libs"));
         if (!runningFromJar) {
             // copy over jar deps
             File libDir = new File(libsPath);
-            FileUtil.delete(libDir, "dorkboxUtil.jar");
+            FileUtil.delete(libDir, "dorkboxUtil.jar", "dorkboxUtil-src.zip");
             libDir.mkdirs();
 
             Build.copyDirectory(Dirs.JavaTar, libsPath);
@@ -175,8 +206,7 @@ public class OAK {
             };
 
             // this is only done here, since this is a VERY limited version of our utils.
-            ProjectJava project = ProjectJava.create(BuildStrings.JavaBuilder.name + "-" + "Dorkbox-Util")
-                            .includeSourceInJar()
+            ProjectJava project = ProjectJava.create(name + "-" + "Dorkbox-Util")
                             .license(Licenses.DorkboxUtil.DorkboxUtil)
                             .license(Licenses.DorkboxUtil.MigBase64)
                             .license(Licenses.DorkboxUtil.FilenameUtils)
@@ -198,16 +228,15 @@ public class OAK {
         };
 
         // now build the project
-        ProjectJava project = ProjectJava.create(BuildStrings.JavaBuilder.name)
-                        .classPath(new Paths(Build.path(BuildStrings.JavaBuilder.root, "libs"), ProjectBasics.Jar_Pattern, "!jdkRuntimes"))
-                        .includeSourceInJar()
+        ProjectJava project = ProjectJava.create(name)
+                        .classPath(new Paths(Build.path(root, "libs"), ProjectBasics.Jar_Pattern, "!jdkRuntimes"))
                         .preJarAction(preJarAction)
 
-                        .license(BuildStrings.JavaBuilder.license)
-                        .extraFiles(new Paths(BuildStrings.JavaBuilder.root, "README.md"))
+                        .license(license)
+                        .extraFiles(new Paths(root, "README.md"))
                         .mainClass(dorkbox.Build.class)
-                        .outputFile(Build.path(distDir, BuildStrings.JavaBuilder.name + ".jar"))
-                        .sourcePath(BuildStrings.JavaBuilder.src, ProjectBasics.Java_Pattern);
+                        .outputFile(Build.path(distDir, name + ".jar"))
+                        .sourcePath(src, ProjectBasics.Java_Pattern);
 
 
         project.build(buildOptions);
@@ -220,6 +249,7 @@ public class OAK {
             String destLibsDir = new File(rootPath.getParentFile(), "libs").getAbsolutePath();
 
             // ALSO copy this file into OUR libs dir (so we can use it!)
+            Build.log().message();
             Build.log().message("Copying jars into our location.");
             Build.copyFile(project.outputFile.getAbsolutePath(), Build.path(destLibsDir, project.name + ".jar"));
 
@@ -229,7 +259,7 @@ public class OAK {
 
             // and the license files
             Build.log().message("Copying license files to our location.");
-            Paths paths = new Paths(BuildStrings.JavaBuilder.root, "LICENSE*");
+            Paths paths = new Paths(root, "LICENSE*");
             for (File file : paths.getFiles()) {
                 FileUtil.copyFile(file.getAbsolutePath(), Build.path(destLibsDir, file.getName()));
             }
