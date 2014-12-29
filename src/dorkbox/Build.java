@@ -66,6 +66,8 @@ public class Build {
 
     public static final String BUILD_MODE = "build";
 
+    public static final long startDate = System.currentTimeMillis();
+
     /** Location where settings are stored */
     public static PropertiesProvider settings = new PropertiesProvider(new File("settings.ini"));
 
@@ -113,8 +115,11 @@ public class Build {
     }
 
     public static void build(BuildOptions buildOptions, SimpleArgs args) {
+        BuildLog.start();
+        log().titleStart();
+
         String title = "OAK";
-        log().title(title).message("starting " + args);
+        log().title(title + " starting").message(args);
 
         Build build = new Build();
         try {
@@ -127,13 +132,16 @@ public class Build {
                 log().message();
             }
 
-            build.start(args, buildOptions);
+            build.start(buildOptions, args);
 
             log().message();
-            log().title(title).message("finished " + args , new Date());
+            log().title(title + " finished").message(args , new Date());
+            log().titleEnd();
         } catch (Throwable e) {
             e.printStackTrace();
         }
+
+        BuildLog.finish();
     }
 
     private Build() {
@@ -227,16 +235,16 @@ public class Build {
         }
 
         try {
-            BuildLog.stop();
+            BuildLog.disable();
             BuildOptions buildOptions = new BuildOptions();
             buildOptions.compiler.forceRebuild = true;
 
             // this automatically takes care of build dependency ordering
             ProjectBasics.buildAll(buildOptions);
             ProjectBasics.reset();
-            BuildLog.start();
+            BuildLog.enable();
         } catch (Exception e) {
-            BuildLog.start();
+            BuildLog.enable();
             throw e;
         }
 
@@ -244,8 +252,8 @@ public class Build {
     }
 
 
-    private void start(SimpleArgs args, BuildOptions buildOptions) throws IOException, IllegalAccessException, IllegalArgumentException,
-                                               InvocationTargetException, InstantiationException {
+    private void start(BuildOptions buildOptions, SimpleArgs args) throws IOException, IllegalAccessException, IllegalArgumentException,
+                                                                          InvocationTargetException, InstantiationException {
 
         dorkbox.util.annotation.Builder detector;
 
@@ -262,10 +270,10 @@ public class Build {
             // do we have something to control the build process??
             // now we want to update/search for all project builders if we didn't already run our specific builder
             for (Class<?> c : controllers) {
-                Class<?>[] params = new Class<?>[] {BuildOptions.class, SimpleArgs.class};
+                Class<?>[] params = new Class<?>[] {SimpleArgs.class};
                 Method buildTargeted = null;
 
-                // setup(BuildOptions, Args)
+                // setup(Args)
                 try {
                     buildTargeted = c.getMethod("setup", params);
                 } catch (Exception e) {}
@@ -273,8 +281,22 @@ public class Build {
                 if (buildTargeted != null) {
                     Object newInstance = c.newInstance();
                     // see if we can build a targeted build
-                    buildTargeted.invoke(newInstance, buildOptions, args);
+                    buildOptions = (BuildOptions) buildTargeted.invoke(newInstance, args);
                     break;
+                } else {
+                    params = new Class<?>[] {BuildOptions.class, SimpleArgs.class};
+
+                    // setup(BuildOptions, Args)
+                    try {
+                        buildTargeted = c.getMethod("setup", params);
+                    } catch (Exception e) {}
+
+                    if (buildTargeted != null) {
+                        Object newInstance = c.newInstance();
+                        // see if we can build a targeted build
+                        buildTargeted.invoke(newInstance, buildOptions, args);
+                        break;
+                    }
                 }
             }
         }

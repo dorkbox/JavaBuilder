@@ -20,20 +20,35 @@ import java.io.PrintStream;
 import dorkbox.util.OS;
 
 public class BuildLog {
-    private static final String TITLE_MESSAGE_DELIMITER = ":";
-    public static final int TITLE_WIDTH = 16;
-    private static boolean suppressOutput = false;
+    public static final int STOCK_TITLE_WIDTH = 16;
+
+    private static final String TITLE_MESSAGE_DELIMITER = "│";
+    private static final String TITLE_SEPERATOR = "─";
+
+    public static volatile int TITLE_WIDTH = 14; // so the first one goes to 16
+    private static volatile boolean suppressOutput = false;
 
     public static void start() {
+        TITLE_WIDTH += 2;
+    }
+
+    public static void finish() {
+        TITLE_WIDTH -= 2;
+    }
+
+    public static void enable() {
         suppressOutput = false;
     }
 
-    public static void stop() {
+    public static void disable() {
         suppressOutput = true;
     }
 
     private PrintStream printer;
     private String title;
+
+    private int cachedSize = -1;
+    private String cachedSpacer;
 
     public BuildLog() {
         this.printer = System.err;
@@ -48,6 +63,48 @@ public class BuildLog {
         return this;
     }
 
+    public void titleStart() {
+        this.cachedSize = TITLE_WIDTH;
+        String sep = TITLE_SEPERATOR;
+
+        StringBuilder spacerTitle = new StringBuilder(this.cachedSize);
+        for (int i = 2; i < this.cachedSize; i++) {
+            spacerTitle.append(sep);
+        }
+
+        if (this.cachedSize == STOCK_TITLE_WIDTH) {
+            spacerTitle.append(sep);
+            spacerTitle.append(sep);
+            spacerTitle.append('╮');
+        } else {
+            spacerTitle.append('┴');
+            spacerTitle.append(sep);
+            spacerTitle.append('╮');
+        }
+        this.printer.println(spacerTitle.toString());
+    }
+
+    public void titleEnd() {
+        this.cachedSize = TITLE_WIDTH;
+        String sep = TITLE_SEPERATOR;
+
+        StringBuilder spacerTitle = new StringBuilder(this.cachedSize);
+        for (int i = 2; i < this.cachedSize; i++) {
+            spacerTitle.append(sep);
+        }
+
+        if (this.cachedSize == STOCK_TITLE_WIDTH) {
+            spacerTitle.append(sep);
+            spacerTitle.append(sep);
+            spacerTitle.append('╯');
+        } else {
+            spacerTitle.append('┬');
+            spacerTitle.append(sep);
+            spacerTitle.append('╯');
+        }
+        this.printer.println(spacerTitle.toString());
+    }
+
     public void message() {
         message((String) null);
     }
@@ -59,15 +116,24 @@ public class BuildLog {
 
         String spacer1 = " ";
         String spacer2 = "  ";
-        String spacerTitle = "                ";
+
+        if (this.cachedSize != TITLE_WIDTH) {
+            this.cachedSize = TITLE_WIDTH;
+            StringBuilder spacerTitle = new StringBuilder(this.cachedSize);
+            for (int i = 0; i < this.cachedSize; i++) {
+                spacerTitle.append(spacer1);
+            }
+            this.cachedSpacer = spacerTitle.toString();
+        }
+
 
         if (this.title == null) {
-            this.title = spacerTitle;
+            this.title = this.cachedSpacer;
         } else {
             int length = this.title.length();
             int padding = TITLE_WIDTH - length - 1;
             if (padding > 0) {
-                StringBuilder msg = new StringBuilder(16);
+                StringBuilder msg = new StringBuilder(TITLE_WIDTH);
                 for (int i = 0; i < padding; i++) {
                     msg.append(spacer1);
                 }
@@ -95,7 +161,7 @@ public class BuildLog {
                     if (msg.length() > width) {
                         msg.append(newLineToken);
                     }
-                    msg.append(spacerTitle).append(titleMessageDelimiter).append(spacer1).append(spacer2).append(m);
+                    msg.append(this.cachedSpacer).append(titleMessageDelimiter).append(spacer1).append(spacer2).append(m);
                 }
             }
         }

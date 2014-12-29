@@ -32,7 +32,6 @@ public class JarOptions {
     public Map<String,String>  otherManifestAttributes = new LinkedHashMap<String, String>();
 
     public Paths   classpath  = null;
-    public boolean createDebugVersion   = false;
 
     /** target dir + paths for extra files **/
     public Paths extraPaths;
@@ -42,4 +41,9 @@ public class JarOptions {
 
     /** Include the various licenses if possible **/
     public List<License> licenses;
+
+    /**
+     * Specify that all of the dates in the file should be now.
+     */
+    public boolean setDateLatest;
 }

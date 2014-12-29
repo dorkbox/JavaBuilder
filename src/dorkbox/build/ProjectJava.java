@@ -56,7 +56,6 @@ public class ProjectJava extends ProjectBasics {
 
     protected Paths sourcePaths = new Paths();
     public Paths classPaths = new Paths();
-    private boolean includeSource;
     public List<License> licenses = new ArrayList<License>();
 
     private transient PreJarAction preJarAction;
@@ -160,12 +159,8 @@ public class ProjectJava extends ProjectBasics {
     public ProjectJava build(BuildOptions options) throws Exception {
         //  (and add them to the classpath)
         Build.log().message();
-        if (this.bytesClassloader == null) {
-            if (options.compiler.jar.buildJar) {
-                Build.log().title("Building").message(this.name, "Output - " + this.outputFile);
-            } else {
-                Build.log().title("Building").message(this.name, "Output - " + this.outputDir);
-            }
+        if (this.bytesClassloader == null && !options.compiler.jar.buildJar) {
+            Build.log().title("Building").message(this.name, "Output - " + this.outputDir);
         } else {
             Build.log().title("Building").message(this.name);
         }
@@ -206,6 +201,7 @@ public class ProjectJava extends ProjectBasics {
                 }
 
                 JarOptions jarOptions = new JarOptions();
+                jarOptions.setDateLatest = options.compiler.jar.setDateLatest;
                 jarOptions.outputFile = this.outputFile;
                 jarOptions.inputPaths = new Paths(this.outputDir.getAbsolutePath());
                 jarOptions.extraPaths = this.extraFiles;
@@ -213,24 +209,36 @@ public class ProjectJava extends ProjectBasics {
                     jarOptions.mainClass = this.mainClass.getCanonicalName();
                     jarOptions.classpath = this.classPaths;
                 }
-                if (this.includeSource) {
+                if (options.compiler.jar.includeSource) {
                     jarOptions.sourcePaths = this.sourcePaths;
                 }
                 if (!this.licenses.isEmpty()) {
                     jarOptions.licenses = this.licenses;
                 }
-                jarOptions.createDebugVersion = options.compiler.debugEnabled;
-
-
 
                 JarUtil.jar(jarOptions);
+
+                if (options.compiler.jar.includeSourceAsSeparate) {
+                    String name = getSourceZipName(options);
+
+                    jarOptions = new JarOptions();
+                    jarOptions.setDateLatest = options.compiler.jar.setDateLatest;
+                    jarOptions.outputFile = new File(name);
+                    jarOptions.extraPaths = this.extraFiles;
+                    jarOptions.sourcePaths = this.sourcePaths;
+                    if (!this.licenses.isEmpty()) {
+                        jarOptions.licenses = this.licenses;
+                    }
+
+                    JarUtil.zip(jarOptions);
+                }
 
                 if (options.compiler.jar.signJar) {
                     JarSigner.sign(this.outputFile.getAbsolutePath(), options.compiler.jar.signName);
                 }
 
                 // calculate the hash of all the files in the source path
-                saveChecksums();
+                saveChecksums(options);
             }
         } else {
             Build.log().message("Skipped (nothing changed)");
@@ -240,6 +248,28 @@ public class ProjectJava extends ProjectBasics {
         }
 
         return this;
+    }
+
+    private String getSourceZipName(BuildOptions options) {
+        String name;
+
+        if (options.compiler.jar.sourceFilename == null) {
+            name = this.outputFile.getAbsolutePath();
+            int lastIndexOf = name.lastIndexOf('.');
+            if (lastIndexOf > 0) {
+                name = name.substring(0, lastIndexOf);
+            }
+
+            name += "-src.zip";
+        } else {
+            File testName = new File(options.compiler.jar.sourceFilename);
+            if (testName.canRead()) {
+                name = FileUtil.normalizeAsFile(options.compiler.jar.sourceFilename);
+            } else {
+                name = new File(this.outputFile.getParent(), options.compiler.jar.sourceFilename).getAbsolutePath();
+            }
+        }
+        return name;
     }
 
     /**
@@ -253,28 +283,48 @@ public class ProjectJava extends ProjectBasics {
         }
 
         // if the sources are the same, check the jar file
-        if (this.outputFile.exists()) {
+        if (options.compiler.jar.includeSourceAsSeparate || options.compiler.jar.buildJar && this.outputFile.canRead()) {
             String jarChecksum = generateChecksum(this.outputFile);
             String checkContents = Build.settings.get(this.outputFile.getAbsolutePath(), String.class);
 
-            return jarChecksum != null && jarChecksum.equals(checkContents);
-        } else {
-            // output file was removed
-            return false;
+            boolean outputFileGood = jarChecksum != null && jarChecksum.equals(checkContents);
+
+            if (outputFileGood) {
+                if (!options.compiler.jar.includeSourceAsSeparate) {
+                    return true;
+                } else {
+                    // now check the src.zip file (if there was one).
+                    String name = getSourceZipName(options);
+                    jarChecksum = generateChecksum(new File(name));
+                    checkContents = Build.settings.get(name, String.class);
+
+                    return jarChecksum != null && jarChecksum.equals(checkContents);
+                }
+            }
         }
+        // output file was removed
+        return false;
     }
 
     /**
      * Saves the checksums for a given path
      */
     @Override
-    void saveChecksums() throws IOException {
-        super.saveChecksums();
+    void saveChecksums(BuildOptions options) throws IOException {
+        super.saveChecksums(options);
 
         // hash/save the jar file (if there was one)
         if (this.saveChecksums && this.outputFile.exists()) {
             String fileChecksum = generateChecksum(this.outputFile);
             Build.settings.save(this.outputFile.getAbsolutePath(), fileChecksum);
+
+            if (options.compiler.jar.includeSourceAsSeparate) {
+                // now check the src.zip file (if there was one).
+                String name = getSourceZipName(options);
+                fileChecksum = generateChecksum(new File(name));
+
+                Build.settings.save(name, fileChecksum);
+            }
         }
     }
 
@@ -421,11 +471,6 @@ public class ProjectJava extends ProjectBasics {
     public static interface OnJarEntryAction {
         boolean canHandle(String fileName);
         int onEntry(String fileName, ByteArrayInputStream inputStream, OutputStream output) throws Exception;
-    }
-
-    public ProjectJava includeSourceInJar() {
-        this.includeSource = true;
-        return this;
     }
 
     public ProjectJava license(License license) {
