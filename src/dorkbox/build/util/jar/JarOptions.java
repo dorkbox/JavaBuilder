@@ -15,6 +15,7 @@
  */
 package dorkbox.build.util.jar;
 
+import java.io.File;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,7 +25,7 @@ import com.esotericsoftware.wildcard.Paths;
 import dorkbox.license.License;
 
 public class JarOptions {
-    public String  outputFile = null;
+    public File  outputFile = null;
     public Paths inputPaths = null;
 
     public String  mainClass  = null;

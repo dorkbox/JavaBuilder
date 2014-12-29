@@ -448,14 +448,14 @@ public class JarUtil {
 
         Build.log().message();
         Build.log().title("Creating JAR").message("(" + options.inputPaths.count() + " entries)",
-                                                  FileUtil.normalizeAsFile(options.outputFile));
+                                                  options.outputFile.getAbsolutePath());
 
 
         // CLEANUP DIRECTORIES
         Set<String> directories = figureOutDirectories(fullPaths, relativePaths);
 
         // NOW WE ACTUALLY MAKE THE JAR
-        FileUtil.mkdir(new File(options.outputFile).getParent());
+        FileUtil.mkdir(options.outputFile.getParentFile());
         ByteArrayOutputStream jarOutputStream = new ByteArrayOutputStream();
         JarOutputStream output = new JarOutputStream(jarOutputStream);
         output.setLevel(JAR_COMPRESSION_LEVEL);
@@ -1563,7 +1563,7 @@ public class JarUtil {
             fileNames[i] = files[i].getAbsolutePath();
         }
 
-        merge(primaryFile.getAbsolutePath(), fileNames);
+        merge(primaryFile.getAbsoluteFile(), fileNames);
     }
 
     /**
@@ -1574,14 +1574,14 @@ public class JarUtil {
      * @throws IOException
      * @throws FileNotFoundException
      */
-    public static void merge(String primaryFile, String... files) throws FileNotFoundException, IOException {
+    public static void merge(File primaryFile, String... files) throws FileNotFoundException, IOException {
         Build.log().message("Merging files into single jar/zip: '" + primaryFile + "'");
 
         // write everything to staging dir, then jar it up.
         String tempDirectory = FileUtil.tempDirectory("mergeTemp");
         File mergeLocation = new File(tempDirectory);
 
-        FileUtil.unzipJar(primaryFile, mergeLocation.getAbsolutePath(), true);
+        FileUtil.unzipJar(primaryFile, mergeLocation.getAbsoluteFile(), true);
 
         for (String fileName : files) {
             File file = new File(fileName);
@@ -1609,4 +1609,3 @@ public class JarUtil {
         FileUtil.delete(mergeLocation);
     }
 }
-
