@@ -22,4 +22,7 @@ OR, for a "real world" example
    - Then (from the project root), java -jar dist/OAK.jar build oak  
    (note: make sure that you have the java JDK installed!)
    
-
+```
+Note: This project was inspired (and some parts heavily modified) by the excellent 
+      SCAR library, and includes utility classes/methods from a variety of sources.
+```

@@ -31,7 +31,7 @@ public class LicenseLibs {
                         .n("Originally written by Santeri Paavolainen, Helsinki Finland 1996");
 
     public static final License
-    JavaTar = new License("Javatar", LicenseType.PUBLIC)
+    JavaTar = new License("JavaTar", LicenseType.PUBLIC)
                         .u("http://www.trustice.com/java/tar")
                         .c("Timothy Gerard Endres, time@gjt.org");
 
