@@ -97,11 +97,12 @@ public abstract class ProjectBasics {
 
     protected Paths extraFiles = new Paths();
 
-    public String outputFile;
-    public String outputDir;
+    public File outputFile;
+    public File outputDir;
 
     protected Set<String> dependencies;
 
+    protected boolean saveChecksums = true;
     private transient Paths checksumPaths = new Paths();
 
 
@@ -143,10 +144,8 @@ public abstract class ProjectBasics {
         this.name = projectName;
 
         String lowerCase_outputDir = projectName.toLowerCase();
-        this.outputDir = FileUtil.normalizeAsFile(STAGING + File.separator + lowerCase_outputDir);
-
-        String outputFile = lowerCase_outputDir.substring(lowerCase_outputDir.lastIndexOf("/") + 1,  lowerCase_outputDir.length());
-        this.outputFile = outputFile + getExtension();
+        this.outputDir = new File(FileUtil.normalizeAsFile(STAGING + File.separator + lowerCase_outputDir));
+        this.outputFile = new File(this.outputDir, this.name + getExtension());
     }
 
     public ProjectBasics depends(String dependsProjectName) {
@@ -162,13 +161,8 @@ public abstract class ProjectBasics {
         return this;
     }
 
-    public ProjectBasics output() {
-        String lowerCase_outputDir = this.outputDir.toLowerCase();
-        this.outputDir = STAGING + File.separator + lowerCase_outputDir;
-
-        String outputFile = lowerCase_outputDir.substring(lowerCase_outputDir.lastIndexOf("/") + 1,  lowerCase_outputDir.length());
-        this.outputFile = outputFile + getExtension();
-
+    public ProjectBasics outputFile(String outputFileName) {
+        this.outputFile = new File(outputFileName);
         return this;
     }
 
@@ -185,7 +179,7 @@ public abstract class ProjectBasics {
             return true;
         }
 
-        buildList.add(this.outputDir);
+        buildList.add(this.outputDir.getAbsolutePath());
 
         // ONLY build the dependencies as well
         if (this.dependencies != null) {
@@ -244,9 +238,11 @@ public abstract class ProjectBasics {
      * Saves the checksums for a given path
      */
     void saveChecksums() throws IOException {
-        // hash/save the sources *and check-summed files* files
-        String hashedContents = generateChecksums(this.checksumPaths);
-        Build.settings.save(this.name, hashedContents);
+        if (this.saveChecksums) {
+            // hash/save the sources *and check-summed files* files
+            String hashedContents = generateChecksums(this.checksumPaths);
+            Build.settings.save(this.name, hashedContents);
+        }
     }
 
     /**

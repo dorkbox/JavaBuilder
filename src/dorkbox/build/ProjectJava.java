@@ -65,6 +65,15 @@ public class ProjectJava extends ProjectBasics {
 
     private ByteClassloader bytesClassloader = null;
 
+    /**
+     * Create an "anonymous" project. This project will ALWAYS be built, and will NOT save it's checksums
+     */
+    public static ProjectJava create() {
+        ProjectJava create = create(Long.toString(System.currentTimeMillis()));
+        create.saveChecksums = true;
+        return create;
+    }
+
     public static ProjectJava create(String projectName) {
         ProjectJava project = new ProjectJava(projectName);
         deps.put(projectName, project);
@@ -131,14 +140,10 @@ public class ProjectJava extends ProjectBasics {
         return this;
     }
 
+
     @Override
-    public ProjectJava output() {
-        String lowerCase_outputDir = this.outputDir.toLowerCase();
-        this.outputDir = STAGING + File.separator + lowerCase_outputDir;
-
-        String outputFile = lowerCase_outputDir.substring(lowerCase_outputDir.lastIndexOf("/") + 1,  lowerCase_outputDir.length());
-        this.outputFile = outputFile + getExtension();
-
+    public ProjectJava outputFile(String outputFileName) {
+        super.outputFile(outputFileName);
         return this;
     }
 
@@ -157,7 +162,7 @@ public class ProjectJava extends ProjectBasics {
         Build.log().message();
         if (this.bytesClassloader == null) {
             if (options.compiler.jar.buildJar) {
-                Build.log().title("Building").message(this.name, "Output - " + FileUtil.normalize(new File(STAGING, this.outputFile)).getAbsolutePath());
+                Build.log().title("Building").message(this.name, "Output - " + this.outputFile);
             } else {
                 Build.log().title("Building").message(this.name, "Output - " + this.outputDir);
             }
@@ -170,7 +175,7 @@ public class ProjectJava extends ProjectBasics {
             return this;
         }
 
-        boolean shouldBuild = !verifyChecksums(this, options);
+        boolean shouldBuild = !verifyChecksums(options);
 
         if (shouldBuild) {
             // barf if we don't have source files!
@@ -182,17 +187,16 @@ public class ProjectJava extends ProjectBasics {
             if (this.dependencies != null) {
                 for (String dep : this.dependencies) {
                     ProjectBasics project = deps.get(dep);
-                    File file = new File(STAGING, project.outputFile);
-                    if (!file.canRead()) {
-                        throw new IOException("Dependency for project :" + this.name + " does not exist. '" + file.getAbsolutePath() + "'");
+                    if (!project.outputFile.canRead()) {
+                        throw new IOException("Dependency for project :" + this.name + " does not exist. '" + project.outputFile.getAbsolutePath() + "'");
                     }
                     // if we are compiling our build instructions (and projects), this won't exist. This is OK,
                     // because we run from memory instead (in the classloader)
-                    this.classPaths.addFile(file.getAbsolutePath());
+                    this.classPaths.addFile(project.outputFile.getAbsolutePath());
                 }
             }
 
-            compile(this.sourcePaths, this.classPaths, this.outputDir, options);
+            compile(options);
             Build.log().message("Compile success.");
 
             if (options.compiler.jar.buildJar) {
@@ -202,8 +206,8 @@ public class ProjectJava extends ProjectBasics {
                 }
 
                 JarOptions jarOptions = new JarOptions();
-                jarOptions.outputFile = STAGING + File.separator + this.outputFile;
-                jarOptions.inputPaths = new Paths(this.outputDir);
+                jarOptions.outputFile = this.outputFile;
+                jarOptions.inputPaths = new Paths(this.outputDir.getAbsolutePath());
                 jarOptions.extraPaths = this.extraFiles;
                 if (this.mainClass != null) {
                     jarOptions.mainClass = this.mainClass.getCanonicalName();
@@ -222,7 +226,7 @@ public class ProjectJava extends ProjectBasics {
                 JarUtil.jar(jarOptions);
 
                 if (options.compiler.jar.signJar) {
-                    JarSigner.sign(this.outputFile, options.compiler.jar.signName);
+                    JarSigner.sign(this.outputFile.getAbsolutePath(), options.compiler.jar.signName);
                 }
 
                 // calculate the hash of all the files in the source path
@@ -241,24 +245,21 @@ public class ProjectJava extends ProjectBasics {
     /**
      * @return true if the checksums for path match the saved checksums and the jar file exists
      */
-    boolean verifyChecksums(ProjectBasics project, BuildOptions options) throws IOException {
+    @Override
+    boolean verifyChecksums(BuildOptions options) throws IOException {
         boolean sourceHashesSame = super.verifyChecksums(options);
         if (!sourceHashesSame) {
             return false;
         }
 
         // if the sources are the same, check the jar file
-        String fileName = project.outputDir;
-        fileName += project.getExtension();
-
-        File file = new File(fileName);
-        if (file.exists()) {
-            String jarChecksum = generateChecksum(file);
-            String checkContents = Build.settings.get(fileName, String.class);
+        if (this.outputFile.exists()) {
+            String jarChecksum = generateChecksum(this.outputFile);
+            String checkContents = Build.settings.get(this.outputFile.getAbsolutePath(), String.class);
 
             return jarChecksum != null && jarChecksum.equals(checkContents);
         } else {
-            // output dir was removed
+            // output file was removed
             return false;
         }
     }
@@ -271,26 +272,23 @@ public class ProjectJava extends ProjectBasics {
         super.saveChecksums();
 
         // hash/save the jar file (if there was one)
-        String fileName = this.outputDir;
-        fileName += getExtension();
-        File file = new File(fileName);
-        if (file.exists()) {
-            String fileChecksum = generateChecksum(file);
-            Build.settings.save(fileName, fileChecksum);
+        if (this.saveChecksums && this.outputFile.exists()) {
+            String fileChecksum = generateChecksum(this.outputFile);
+            Build.settings.save(this.outputFile.getAbsolutePath(), fileChecksum);
         }
     }
 
     /**
      * Compiles into class files.
      */
-    public synchronized void compile(Paths source, Paths classpath, String outputDir, BuildOptions buildOptions) throws IOException {
+    public synchronized void compile(BuildOptions buildOptions) throws IOException {
         // if you get messages, such as
         // warning: [path] bad path element "/x/y/z/lib/fubar-all.jar": no such file or directory
         //   That is because that file exists in a MANIFEST.MF somewhere on the classpath! Find the jar that has that, and rip out
         //   the offending manifest.mf file.
         // see: http://stackoverflow.com/questions/1344202/bad-path-warning-where-is-it-coming-from
 
-        if (source.isEmpty()) {
+        if (this.sourcePaths.isEmpty()) {
             throw new IOException("No source files found.");
         }
 
@@ -311,11 +309,11 @@ public class ProjectJava extends ProjectBasics {
 
         if (this.bytesClassloader == null) {
             // we only want to use an output directory if we have output!
-            FileUtil.delete(outputDir);
-            FileUtil.mkdir(outputDir);
+            FileUtil.delete(this.outputDir);
+            FileUtil.mkdir(this.outputDir);
 
             args.add("-d");
-            args.add(outputDir);
+            args.add(this.outputDir.getAbsolutePath());
         }
 
         args.add("-encoding");
@@ -362,9 +360,9 @@ public class ProjectJava extends ProjectBasics {
             throw new RuntimeException("No compiler available. Ensure you are running from a JDK, and not a JRE.");
         }
 
-        if (classpath != null && !classpath.isEmpty()) {
+        if (this.classPaths != null && !this.classPaths.isEmpty()) {
             args.add("-classpath");
-            args.add(classpath.toString(File.pathSeparator));
+            args.add(this.classPaths.toString(File.pathSeparator));
         }
 
         // now compile the code
@@ -374,15 +372,15 @@ public class ProjectJava extends ProjectBasics {
         try {
             Iterable<? extends JavaFileObject> javaFileObjectsFromFiles;
             if (this.bytesClassloader == null) {
-                javaFileObjectsFromFiles = ((StandardJavaFileManager)fileManager).getJavaFileObjectsFromFiles(source.getFiles());
+                javaFileObjectsFromFiles = ((StandardJavaFileManager)fileManager).getJavaFileObjectsFromFiles(this.sourcePaths.getFiles());
             } else {
                 fileManager = new JavaMemFileManager((StandardJavaFileManager)fileManager, this.bytesClassloader);
-                ((JavaMemFileManager)fileManager).setSource(source);
+                ((JavaMemFileManager)fileManager).setSource(this.sourcePaths);
                 javaFileObjectsFromFiles = ((JavaMemFileManager)fileManager).getSourceFiles();
             }
 
             compiler.getTask(null, fileManager, diagnostics, args, null,
-                            javaFileObjectsFromFiles).call();
+                             javaFileObjectsFromFiles).call();
         } finally {
             fileManager.close();
         }

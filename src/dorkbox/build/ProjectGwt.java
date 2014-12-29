@@ -81,19 +81,17 @@ public class ProjectGwt extends ProjectBasics {
      * GWT only cares about the output dir (it doesn't make jars for compiling)
      * @return true if the checksums for path match the saved checksums and the jar file exists
      */
-    boolean verifyChecksums(ProjectBasics project, BuildOptions properties) throws IOException {
-        boolean sourceHashesSame = super.verifyChecksums(properties);
+    @Override
+    boolean verifyChecksums(BuildOptions options) throws IOException {
+        boolean sourceHashesSame = super.verifyChecksums(options);
         if (!sourceHashesSame) {
             return false;
         }
 
         // if the sources are the same, check the output dir
-        String fileName = project.outputDir;
-
-        File file = new File(fileName);
-        if (file.exists()) {
-            String dirChecksum = generateChecksum(file);
-            String checkContents = Build.settings.get(fileName, String.class);
+        if (this.outputDir.exists()) {
+            String dirChecksum = generateChecksum(this.outputDir);
+            String checkContents = Build.settings.get(this.outputDir.getAbsolutePath(), String.class);
 
             return dirChecksum != null && dirChecksum.equals(checkContents);
         }
@@ -110,11 +108,9 @@ public class ProjectGwt extends ProjectBasics {
         super.saveChecksums();
 
         // hash/save the output files (if there are any)
-        String fileName = this.outputDir;
-        File file = new File(fileName);
-        if (file.exists()) {
-            String fileChecksum = generateChecksum(file);
-            Build.settings.save(fileName, fileChecksum);
+        if (this.saveChecksums && this.outputDir.exists()) {
+            String fileChecksum = generateChecksum(this.outputDir);
+            Build.settings.save(this.outputDir.getAbsolutePath(), fileChecksum);
         }
     }
 
@@ -139,7 +135,7 @@ public class ProjectGwt extends ProjectBasics {
                 if (this.dependencies != null) {
                     for (String dep : this.dependencies) {
                         ProjectBasics project = deps.get(dep);
-                        this.sourcePaths.glob(STAGING, project.outputFile);
+                        this.sourcePaths.addFile(project.outputFile.getAbsolutePath());
                     }
                 }
 
@@ -309,17 +305,14 @@ public class ProjectGwt extends ProjectBasics {
                 List<String> fullPaths = warFiles.filesOnly().getPaths();
                 List<String> relativePaths = warFiles.filesOnly().getRelativePaths();
 
-                String warFilePath = Build.path(STAGING, this.outputFile);
-
-                File warFile = new File(warFilePath);
-                if (warFile.exists()) {
-                    warFile.delete();
+                if (this.outputFile.exists()) {
+                    this.outputFile.delete();
                 }
-                FileUtil.mkdir(warFile.getParent());
+                FileUtil.mkdir(this.outputFile.getParent());
 
 
                 // make a jar (really a war file)
-                JarUtil.war(warFilePath, fullPaths, relativePaths);
+                JarUtil.war(this.outputFile.getAbsolutePath(), fullPaths, relativePaths);
 
                 // cleanup
                 FileUtil.delete(stagingWar);
