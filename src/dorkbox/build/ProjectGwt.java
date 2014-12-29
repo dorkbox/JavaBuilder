@@ -36,7 +36,7 @@ import dorkbox.util.process.JavaProcessBuilder;
 
 public class ProjectGwt extends ProjectBasics {
 
-    private String[] options;
+    private String[] extraOptions;
     private String projectLocation;
     protected Paths sourcePaths = new Paths();
 
@@ -104,8 +104,8 @@ public class ProjectGwt extends ProjectBasics {
      * Saves the checksums for a given path
      */
     @Override
-    void saveChecksums() throws IOException {
-        super.saveChecksums();
+    void saveChecksums(BuildOptions options) throws IOException {
+        super.saveChecksums(options);
 
         // hash/save the output files (if there are any)
         if (this.saveChecksums && this.outputDir.exists()) {
@@ -119,16 +119,16 @@ public class ProjectGwt extends ProjectBasics {
      * This uses the same gwt symbol parser as the web-server project.
      */
     @Override
-    public ProjectGwt build(BuildOptions properties) throws Exception {
+    public ProjectGwt build(BuildOptions options) throws Exception {
         // exit early if we already built this project
-        if (checkAndBuildDependencies(properties)) {
+        if (checkAndBuildDependencies(options)) {
             return this;
         }
 
         boolean shouldBuild = false;
         try {
             // GWT checksum requirements are different than regular java.
-            shouldBuild = !verifyChecksums(properties);
+            shouldBuild = !verifyChecksums(options);
 
             if (shouldBuild) {
                 // make sure our dependencies are on the classpath.
@@ -167,7 +167,7 @@ public class ProjectGwt extends ProjectBasics {
                 FileUtil.mkdir(stagingWar);
                 FileUtil.mkdir(stagingUnitCache);
 
-                if (properties.compiler.release) {
+                if (options.compiler.release) {
                     FileUtil.delete(stagingUnitCache);
                 }
 
@@ -220,19 +220,19 @@ public class ProjectGwt extends ProjectBasics {
                 builder.addArgument("-logLevel INFO");
 //                builder.addArgument("-logLevel TRACE");
 
-                for (String option : this.options) {
+                for (String option : this.extraOptions) {
                     builder.addArgument(option);
                 }
 
                 // DETAILED, PRETTY, OBF[USCATED]
-                if (properties.compiler.debugEnabled) {
+                if (options.compiler.debugEnabled) {
 //                    builder.addArgument("-style PRETTY");
                     builder.addArgument("-style DETAILED");
                 } else {
                     builder.addArgument("-style OBF");
                 }
 
-                if (properties.compiler.release) {
+                if (options.compiler.release) {
                     // generate the gwt cache files EVERY time
                     builder.addArgument("-Dgwt.usearchives=false");
                 }
@@ -261,7 +261,7 @@ public class ProjectGwt extends ProjectBasics {
                 FileUtil.delete(stagingWar);
                 FileUtil.delete(stagingJunk);
 
-                if (properties.compiler.release) {
+                if (options.compiler.release) {
                     FileUtil.delete(stagingUnitCache);
                 }
 
@@ -318,7 +318,7 @@ public class ProjectGwt extends ProjectBasics {
                 FileUtil.delete(stagingWar);
 
                 // calculate the hash of all the files in the source path
-                saveChecksums();
+                saveChecksums(options);
             } else {
                 Build.log().message("Skipped (nothing changed)");
             }
@@ -333,14 +333,14 @@ public class ProjectGwt extends ProjectBasics {
     }
 
     public ProjectGwt options(String... options) {
-        if (this.options != null) {
-            List<String> origList = Arrays.asList(this.options);
+        if (this.extraOptions != null) {
+            List<String> origList = Arrays.asList(this.extraOptions);
             List<String> newList = Arrays.asList(options);
 
             origList.addAll(newList);
-            this.options = origList.toArray(new String[0]);
+            this.extraOptions = origList.toArray(new String[0]);
         } else {
-            this.options = options;
+            this.extraOptions = options;
         }
 
         return this;

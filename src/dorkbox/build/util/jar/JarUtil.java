@@ -367,6 +367,122 @@ public class JarUtil {
     }
 
     /**
+     * Creates a zip file, similar to how jar() works, only minus jar-specific stuff (manifest, etc)
+     */
+    public static void zip(JarOptions options) throws IOException {
+        if (options.outputFile == null) {
+            throw new IllegalArgumentException("jarFile cannot be null.");
+        }
+
+        int totalEntries = options.sourcePaths.count();
+
+        Build.log().message();
+        Build.log().title("Creating ZIP").message("(" + totalEntries + " entries)",
+                                                  options.outputFile.getAbsolutePath());
+
+
+        List<String> fullPaths = options.sourcePaths.getPaths();
+        List<String> relativePaths = options.sourcePaths.getRelativePaths();
+
+        // CLEANUP DIRECTORIES
+        Set<String> directories = figureOutDirectories(fullPaths, relativePaths);
+
+        // NOW WE ACTUALLY MAKE THE ZIP
+        FileUtil.mkdir(options.outputFile.getParentFile());
+        ByteArrayOutputStream zipOutputStream = new ByteArrayOutputStream();
+        ZipOutputStream output = new ZipOutputStream(zipOutputStream);
+        output.setLevel(JAR_COMPRESSION_LEVEL);
+
+        try {
+            // quirks & zip standards.
+            // - Directory names must end with a slash '/'
+            // - All paths must use '/' style slashes, not '\'
+            // - JarEntry names should NOT begin with '/'
+            InputStream input = null;
+
+            // there won't be any OTHER manifest files, since we haven't signed
+            // the jar yet...
+
+            // FIRST all directories
+            List<String> sortList = new ArrayList<String>(directories.size());
+            for (String dirName : directories) {
+                if (!dirName.endsWith("/")) {
+                    dirName += "/";
+                }
+
+                sortList.add(dirName);
+            }
+
+            // sort them
+            Collections.sort(sortList);
+            for (String dirName : sortList) {
+                ZipEntry jarEntry = new ZipEntry(dirName);
+                output.putNextEntry(jarEntry);
+                output.closeEntry();
+            }
+
+            ///////////////////////////////////////////////
+            // include the source code if possible
+            ///////////////////////////////////////////////
+            if (options.sourcePaths != null && !options.sourcePaths.isEmpty()) {
+                ArrayList<SortedFiles> sortList2 = new ArrayList<SortedFiles>(options.sourcePaths.count());
+
+                Build.log().message("   Adding sources (" + options.sourcePaths.count() + " entries)...");
+
+                for (int i = 0, n = fullPaths.size(); i < n; i++) {
+                    String fileName = relativePaths.get(i).replace('\\', '/');
+//                    System.err.println("\t\t:     " + fileName);
+
+                    SortedFiles file = new SortedFiles();
+                    file.file = new File(fullPaths.get(i));
+                    file.fileName = fileName;
+                    sortList2.add(file);
+                }
+
+                // sort them
+                Collections.sort(sortList2);
+                for (SortedFiles cf : sortList2) {
+
+                    ZipEntry zipEntry = new ZipEntry(cf.fileName);
+                    if (options.setDateLatest) {
+                        zipEntry.setTime(Build.startDate);
+                    } else {
+                        zipEntry.setTime(cf.file.lastModified());
+                    }
+                    output.putNextEntry(zipEntry);
+
+                    // else just copy the file over
+                    input = new BufferedInputStream(new FileInputStream(cf.file));
+                    Sys.copyStream(input, output);
+                    Sys.close(input);
+                    output.closeEntry();
+                }
+            }
+
+            ///////////////////////////////////////////////
+            // now include the license, if possible
+            ///////////////////////////////////////////////
+            if (options.licenses != null) {
+                Build.log().message("   Adding license");
+                License.install(output, options.licenses);
+            }
+        } finally {
+            output.finish();
+            Sys.close(output);
+        }
+        ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(zipOutputStream.toByteArray());
+
+        // now we normalize the JAR.
+        ByteArrayOutputStream repacked = Pack200Util.Java.repackJar(byteArrayInputStream);
+
+        byteArrayInputStream = new ByteArrayInputStream(repacked.toByteArray());
+        FileOutputStream fileOutputStream = new FileOutputStream(options.outputFile);
+
+        Sys.copyStream(byteArrayInputStream, fileOutputStream);
+        Sys.close(fileOutputStream);
+    }
+
+    /**
      * This will ALSO normalize (pack+unpack) the jar
      *
      * Note about JarOutputStream:
@@ -446,8 +562,19 @@ public class JarUtil {
             }
         }
 
+        int totalEntries = options.inputPaths.count();
+
+        if (options.extraPaths != null) {
+            totalEntries += options.extraPaths.count();
+        }
+
+        if (options.sourcePaths != null) {
+            totalEntries += options.sourcePaths.count();
+        }
+
+
         Build.log().message();
-        Build.log().title("Creating JAR").message("(" + options.inputPaths.count() + " entries)",
+        Build.log().title("Creating JAR").message("(" + totalEntries + " entries)",
                                                   options.outputFile.getAbsolutePath());
 
 
@@ -478,7 +605,11 @@ public class JarUtil {
                         File file = new File(fullPaths.get(i));
 
                         JarEntry jarEntry = new JarEntry(fileName);
-                        jarEntry.setTime(file.lastModified());
+                        if (options.setDateLatest) {
+                            jarEntry.setTime(Build.startDate);
+                        } else {
+                            jarEntry.setTime(file.lastModified());
+                        }
                         output.putNextEntry(jarEntry);
 
                         input = new BufferedInputStream(new FileInputStream(file));
@@ -520,45 +651,6 @@ public class JarUtil {
             }
 
 
-            class SortedFiles implements Comparable<SortedFiles> {
-                public String fileName;
-                public File file;
-
-                @Override
-                public int hashCode() {
-                    final int prime = 31;
-                    int result = 1;
-                    result = prime * result + (this.fileName == null ? 0 : this.fileName.hashCode());
-                    return result;
-                }
-
-                @Override
-                public boolean equals(Object obj) {
-                    if (this == obj) {
-                        return true;
-                    }
-                    if (obj == null) {
-                        return false;
-                    }
-                    if (getClass() != obj.getClass()) {
-                        return false;
-                    }
-                    SortedFiles other = (SortedFiles) obj;
-                    if (this.fileName == null) {
-                        if (other.fileName != null) {
-                            return false;
-                        }
-                    } else if (!this.fileName.equals(other.fileName)) {
-                        return false;
-                    }
-                    return true;
-                }
-
-                @Override
-                public int compareTo(SortedFiles o) {
-                    return this.fileName.compareTo(o.fileName);
-                }
-            }
 
             ///////////////////////////////////////////////
             // THEN all CLASS files. Skip the MANIFEST
@@ -585,7 +677,11 @@ public class JarUtil {
             Collections.sort(sortList2);
             for (SortedFiles cf : sortList2) {
                 JarEntry jarEntry = new JarEntry(cf.fileName);
-                jarEntry.setTime(cf.file.lastModified());
+                if (options.setDateLatest) {
+                    jarEntry.setTime(Build.startDate);
+                } else {
+                    jarEntry.setTime(cf.file.lastModified());
+                }
                 output.putNextEntry(jarEntry);
 
                 // else just copy the file over
@@ -615,7 +711,11 @@ public class JarUtil {
                 //System.err.println('\t' + fullPaths.get(i));
 
                 JarEntry jarEntry = new JarEntry(cf.fileName);
-                jarEntry.setTime(cf.file.lastModified());
+                if (options.setDateLatest) {
+                    jarEntry.setTime(Build.startDate);
+                } else {
+                    jarEntry.setTime(cf.file.lastModified());
+                }
                 output.putNextEntry(jarEntry);
 
                 // else just copy the file over
@@ -655,7 +755,11 @@ public class JarUtil {
                 for (SortedFiles cf : sortList2) {
 
                     JarEntry jarEntry = new JarEntry(cf.fileName);
-                    jarEntry.setTime(cf.file.lastModified());
+                    if (options.setDateLatest) {
+                        jarEntry.setTime(Build.startDate);
+                    } else {
+                        jarEntry.setTime(cf.file.lastModified());
+                    }
                     output.putNextEntry(jarEntry);
 
                     // else just copy the file over
@@ -692,7 +796,11 @@ public class JarUtil {
                 for (SortedFiles cf : sortList2) {
 
                     JarEntry jarEntry = new JarEntry(cf.fileName);
-                    jarEntry.setTime(cf.file.lastModified());
+                    if (options.setDateLatest) {
+                        jarEntry.setTime(Build.startDate);
+                    } else {
+                        jarEntry.setTime(cf.file.lastModified());
+                    }
                     output.putNextEntry(jarEntry);
 
                     // else just copy the file over

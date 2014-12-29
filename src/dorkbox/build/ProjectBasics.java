@@ -162,7 +162,7 @@ public abstract class ProjectBasics {
     }
 
     public ProjectBasics outputFile(String outputFileName) {
-        this.outputFile = new File(outputFileName);
+        this.outputFile = FileUtil.normalize(new File(outputFileName));
         return this;
     }
 
@@ -237,7 +237,8 @@ public abstract class ProjectBasics {
     /**
      * Saves the checksums for a given path
      */
-    void saveChecksums() throws IOException {
+    @SuppressWarnings("unused")
+    void saveChecksums(BuildOptions options) throws IOException {
         if (this.saveChecksums) {
             // hash/save the sources *and check-summed files* files
             String hashedContents = generateChecksums(this.checksumPaths);

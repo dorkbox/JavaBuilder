@@ -31,7 +31,6 @@ public class BuildOptions {
          */
         public boolean deleteOnComplete = false;
 
-
         /**
          * Specifics for jar'ing the compiled classes
          */
@@ -99,6 +98,30 @@ public class BuildOptions {
             public boolean buildJar;
 
             /**
+             * Specify that all of the dates in the file should be now.
+             */
+            public boolean setDateLatest = false;
+
+            /**
+             * Should we include the source in the jar (alongside the class files)?
+             */
+            public boolean includeSource = false;
+
+            /**
+             * Should we include a zip of source files NEXT to the jar?
+             * <p>
+             * IE: xyz.jar + xyz-src.zip
+             */
+            public boolean includeSourceAsSeparate = false;
+
+            /**
+             * When ALSO creating a source jar, this lets you override the NAME (either relative or absolute) for the source file
+             * <p>
+             * The default is xyz-src.zip
+             */
+            public String sourceFilename = null;
+
+            /**
              * Sign the jar with a self-signed certificate
              */
             public boolean signJar;
@@ -125,84 +148,7 @@ public class BuildOptions {
         }
     }
 
-    /**
-     *  Options that affect how the launcher is included, and how the jar is signed/encrypted
-     */
-    public static class Launcher {
-        /**
-        * do we want to enable the launcher crypto signature verification? (runtime requires this)
-        */
-        public boolean crypto = true;
-
-        /**
-        * do we want to deploy the JAVA runtime as a part of our app? (depends on crypto to work)
-        */
-        public boolean runtime = true;
-
-        /**
-        * do we want to enable the key/mouse input monitor?
-        */
-        public boolean monitor = true;
-
-        /**
-        * do we want to enable the socket bind wrapper? (when you run launcher as root, it will drop root when runnning java)
-        */
-        public boolean bindWrapper = true;
-
-        /**
-        * do we want to enable LGPL parsing of the RESOURCES.BOX file?
-        */
-        public boolean lpgl = false;
-    }
-
-    /**
-     *  Misc libraries to include (which are not easy to just link the library)
-     */
-    public static class Misc {
-        /**
-        * Java7 (but not ARM) can have the optional JavaFX library included.
-        */
-        public boolean includeJavaFx = false;
-
-    }
-
     public Compiler compiler = new Compiler();
-    public Launcher launcher = new Launcher();
-    public Misc misc = new Misc();
-
-
-
-
-    /**
-     * Gets the executable name based on what different build options are specified.
-     */
-    public String getExecutableName(String exectuableBaseName) {
-        if (this.launcher.runtime && !this.launcher.crypto) {
-            throw new RuntimeException("Unable to deply runtime with crypto disabled! You must enable crypto to continue!");
-        }
-
-        String newName = exectuableBaseName;
-        if (this.compiler.debugEnabled) {
-            newName += "_debug";
-        }
-        if (this.launcher.lpgl) {
-            newName += "_lgpl";
-        }
-        if (this.launcher.crypto) {
-            newName += "_crypto";
-        }
-        if (this.launcher.runtime) {
-            newName += "_runtime";
-        }
-        if (this.launcher.monitor) {
-            newName += "_monitor";
-        }
-        if (this.launcher.bindWrapper) {
-            newName += "_bind";
-        }
-
-        return newName;
-    }
 
     /**
      * @return the target java version to compile, in full format. IE: "1.6", or "1.7"
