@@ -40,12 +40,18 @@ public class SimpleArgs {
         }
     }
 
+    /**
+     * contains check with lower case.
+     */
     public boolean has(String argToCheck) {
         String argToCheck2 = argToCheck.toLowerCase(Locale.US);
 
         return this.argsAsSet.contains(argToCheck2);
     }
 
+    /**
+     * slower than has, since this returns the arg name, AND prepares {@link getNext()} for the arg value
+     */
     public String get(String argToCheck) {
         String argToCheck2 = argToCheck.toLowerCase(Locale.US);
 
@@ -79,6 +85,10 @@ public class SimpleArgs {
     }
 
     public String get(int i) {
+        if (i >= this.args.length) {
+            return null;
+        }
+
         return this.args[i];
     }
 }

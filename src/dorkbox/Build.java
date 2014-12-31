@@ -36,7 +36,7 @@ import java.util.Map.Entry;
 
 import com.esotericsoftware.wildcard.Paths;
 
-import dorkbox.build.ProjectBasics;
+import dorkbox.build.Project;
 import dorkbox.build.ProjectJava;
 import dorkbox.build.SimpleArgs;
 import dorkbox.build.util.BuildLog;
@@ -71,8 +71,6 @@ public class Build {
     /** Location where settings are stored */
     public static PropertiesProvider settings = new PropertiesProvider(new File("settings.ini"));
 
-    private ByteClassloader classloader;
-
     public static boolean isJar;
 
     static {
@@ -82,7 +80,7 @@ public class Build {
         isJar = sourceName.endsWith(".jar");
     }
 
-    public static void main(String[] _args) {
+    public static void main(String... _args) {
         for (int i=0;i<_args.length;i++) {
             _args[i] = _args[i].toLowerCase();
         }
@@ -95,7 +93,7 @@ public class Build {
         }
 
         SimpleArgs args = new SimpleArgs(_args);
-        build(new BuildOptions(), args);
+        make(new BuildOptions(), args);
     }
 
     public static void build(String projectName, String... arguments) {
@@ -111,15 +109,14 @@ public class Build {
         }
 
         SimpleArgs args = new SimpleArgs(_args);
-        build(buildOptions, args);
+        Project.reset();
+        make(buildOptions, args);
     }
 
-    public static void build(BuildOptions buildOptions, SimpleArgs args) {
-        BuildLog.start();
-        log().titleStart();
+    public static void make(BuildOptions buildOptions, SimpleArgs args) {
 
-        String title = "OAK";
-        log().title(title + " starting").message(args);
+        String title = "JavaBuilder";
+        BuildLog.start().title(title).message(args);
 
         Build build = new Build();
         try {
@@ -135,8 +132,11 @@ public class Build {
             build.start(buildOptions, args);
 
             log().message();
-            log().title(title + " finished").message(args , new Date());
-            log().titleEnd();
+            if (!BuildLog.wasNested || BuildLog.TITLE_WIDTH != BuildLog.STOCK_TITLE_WIDTH) {
+                log().title(title).message(args , new Date(), "Completed in: " + getRuntime(build.startTime) + " seconds.");
+            } else {
+                log().title(title).message(args , new Date(), "Completed in: " + getRuntime(Build.startDate) + " seconds.");
+            }
         } catch (Throwable e) {
             e.printStackTrace();
         }
@@ -144,8 +144,14 @@ public class Build {
         BuildLog.finish();
     }
 
-    private Build() {
-        ProjectBasics.reset();
+    private static String getRuntime(long startTime) {
+        String time = Double.toString((System.currentTimeMillis()-startTime)/1000D);
+        int index = time.indexOf('.');
+        if (index > -1 && index < time.length() - 2) {
+            return time.substring(0, index + 2);
+        }
+
+        return time;
     }
 
     public static BuildLog log() {
@@ -154,6 +160,17 @@ public class Build {
 
     public static BuildLog log(PrintStream printer) {
         return new BuildLog(printer);
+    }
+
+
+
+
+
+
+    private long startTime = System.currentTimeMillis();
+    private ByteClassloader classloader;
+    private Build() {
+        Project.reset();
     }
 
     /**
@@ -240,8 +257,8 @@ public class Build {
             buildOptions.compiler.forceRebuild = true;
 
             // this automatically takes care of build dependency ordering
-            ProjectBasics.buildAll(buildOptions);
-            ProjectBasics.reset();
+            Project.buildAll();
+            Project.reset();
             BuildLog.enable();
         } catch (Exception e) {
             BuildLog.enable();
@@ -301,72 +318,43 @@ public class Build {
             }
         }
 
-        log().title("Java Version").message(buildOptions.compiler.targetJavaVersion);
         log().title("Debug info").message(buildOptions.compiler.debugEnabled ? "Enabled" : "Disabled");
         log().title("Release status").message(buildOptions.compiler.release ? "Enabled" : "Disabled");
         log().message();
 
         // now we want to update/search for all project builders.
+        boolean found = false;
+        if (Build.isJar) {
+            detector = AnnotationDetector.scan(this.classloader, new ClassByteIterator(this.classloader, null));
+        } else {
+            detector = AnnotationDetector.scanClassPath();
+        }
+        List<Class<?>> builders = detector.forAnnotations(Build.Builder.class)
+                                          .collect(AnnotationDefaults.getType);
+
         if (args.getMode().equals(Build.BUILD_MODE)) {
-            boolean found = false;
-            if (Build.isJar) {
-                detector = AnnotationDetector.scan(this.classloader, new ClassByteIterator(this.classloader, null));
-            } else {
-                detector = AnnotationDetector.scanClassPath();
+            String projectToBuild = args.get(1);
+            String methodNameToCall = args.get(2);
+            if (methodNameToCall == null) {
+                methodNameToCall = Build.BUILD_MODE;
             }
-            List<Class<?>> builders = detector.forAnnotations(Build.Builder.class)
-                                              .collect(AnnotationDefaults.getType);
 
-            if (builders != null) {
-                String projectToBuild = args.get(1);
-                for (Class<?> c : builders) {
-                    String simpleName = c.getSimpleName().toLowerCase();
+            found = runBuild(buildOptions, args, found, builders, methodNameToCall, projectToBuild);
 
-                    if (projectToBuild.equals(simpleName)) {
-                        Method[] methods = c.getMethods();
+            if (!found) {
+                if (methodNameToCall.equals(Build.BUILD_MODE)) {
+                    log().message("Unable to find a builder for " + args);
+                } else {
+                    methodNameToCall = Build.BUILD_MODE;
+                    found = runBuild(buildOptions, args, found, builders, methodNameToCall, projectToBuild);
 
-                        for (Method m : methods) {
-                            if (m.getName().equals(Build.BUILD_MODE)) {
-                                Class<?>[] p = m.getParameterTypes();
-
-                                switch (p.length) {
-                                    case 0: {
-                                        // build()
-                                        m.invoke(c);
-                                        found = true;
-                                        break;
-                                    }
-                                    case 1: {
-                                        if (p[0].equals(SimpleArgs.class)) {
-                                            // build(Args)
-                                            m.invoke(c, args);
-                                            found = true;
-                                            break;
-                                        } if (p[0].equals(BuildOptions.class)) {
-                                            // build(BuildOptions)
-                                            m.invoke(c, buildOptions);
-                                            found = true;
-                                            break;
-                                        }
-                                        break;
-                                    }
-                                    case 2: {
-                                        // build(BuildOptions, Args)
-                                        m.invoke(c, buildOptions, args);
-                                        found = true;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
+                    if (!found) {
+                        log().message("Unable to find a builder for " + args);
                     }
                 }
             }
-
-            if (!found) {
-                log().message("Unable to find a build for " + args);
-            }
         }
+
 
         if (controllers != null) {
             // do we have something to control the build process??
@@ -388,6 +376,57 @@ public class Build {
                 }
             }
         }
+    }
+
+    private boolean runBuild(BuildOptions buildOptions, SimpleArgs args, boolean found, List<Class<?>> builders, String methodNameToCall,
+                    String projectToBuild) throws IllegalAccessException, InvocationTargetException {
+        if (builders == null) {
+            return false;
+        }
+
+        for (Class<?> c : builders) {
+            String simpleName = c.getSimpleName().toLowerCase();
+
+            if (projectToBuild.equals(simpleName)) {
+                Method[] methods = c.getMethods();
+
+                for (Method m : methods) {
+                    if (m.getName().equals(methodNameToCall)) {
+                        Class<?>[] p = m.getParameterTypes();
+
+                        switch (p.length) {
+                            case 0: {
+                                // build()
+                                m.invoke(c);
+                                found = true;
+                                break;
+                            }
+                            case 1: {
+                                if (p[0].equals(SimpleArgs.class)) {
+                                    // build(Args)
+                                    m.invoke(c, args);
+                                    found = true;
+                                    break;
+                                } if (p[0].equals(BuildOptions.class)) {
+                                    // build(BuildOptions)
+                                    m.invoke(c, buildOptions);
+                                    found = true;
+                                    break;
+                                }
+                                break;
+                            }
+                            case 2: {
+                                // build(BuildOptions, Args)
+                                m.invoke(c, buildOptions, args);
+                                found = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return found;
     }
 
     public static String path(String... paths) {
