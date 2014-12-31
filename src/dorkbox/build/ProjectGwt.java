@@ -28,13 +28,12 @@ import java.util.Map.Entry;
 import com.esotericsoftware.wildcard.Paths;
 
 import dorkbox.Build;
-import dorkbox.BuildOptions;
 import dorkbox.build.util.jar.JarUtil;
 import dorkbox.util.FileUtil;
 import dorkbox.util.gwt.GwtSymbolMapParser;
 import dorkbox.util.process.JavaProcessBuilder;
 
-public class ProjectGwt extends ProjectBasics {
+public class ProjectGwt extends Project<ProjectGwt> {
 
     private String[] extraOptions;
     private String projectLocation;
@@ -52,7 +51,6 @@ public class ProjectGwt extends ProjectBasics {
        super(projectName);
 
        this.projectLocation = projectLocation;
-       checksum(this.sourcePaths);
     }
 
     public ProjectGwt sourcePath(Paths sourcePaths) {
@@ -82,16 +80,16 @@ public class ProjectGwt extends ProjectBasics {
      * @return true if the checksums for path match the saved checksums and the jar file exists
      */
     @Override
-    boolean verifyChecksums(BuildOptions options) throws IOException {
-        boolean sourceHashesSame = super.verifyChecksums(options);
+    boolean verifyChecksums() throws IOException {
+        boolean sourceHashesSame = super.verifyChecksums();
         if (!sourceHashesSame) {
             return false;
         }
 
         // if the sources are the same, check the output dir
-        if (this.outputDir.exists()) {
-            String dirChecksum = generateChecksum(this.outputDir);
-            String checkContents = Build.settings.get(this.outputDir.getAbsolutePath(), String.class);
+        if (this.stagingDir.exists()) {
+            String dirChecksum = generateChecksum(this.stagingDir);
+            String checkContents = Build.settings.get(this.stagingDir.getAbsolutePath(), String.class);
 
             return dirChecksum != null && dirChecksum.equals(checkContents);
         }
@@ -104,13 +102,13 @@ public class ProjectGwt extends ProjectBasics {
      * Saves the checksums for a given path
      */
     @Override
-    void saveChecksums(BuildOptions options) throws IOException {
-        super.saveChecksums(options);
+    void saveChecksums() throws IOException {
+        super.saveChecksums();
 
         // hash/save the output files (if there are any)
-        if (this.saveChecksums && this.outputDir.exists()) {
-            String fileChecksum = generateChecksum(this.outputDir);
-            Build.settings.save(this.outputDir.getAbsolutePath(), fileChecksum);
+        if (this.stagingDir.exists()) {
+            String fileChecksum = generateChecksum(this.stagingDir);
+            Build.settings.save(this.stagingDir.getAbsolutePath(), fileChecksum);
         }
     }
 
@@ -119,29 +117,31 @@ public class ProjectGwt extends ProjectBasics {
      * This uses the same gwt symbol parser as the web-server project.
      */
     @Override
-    public ProjectGwt build(BuildOptions options) throws Exception {
+    public void build() throws IOException {
         // exit early if we already built this project
-        if (checkAndBuildDependencies(options)) {
-            return this;
+        if (checkAndBuildDependencies()) {
+            return;
         }
 
         boolean shouldBuild = false;
         try {
             // GWT checksum requirements are different than regular java.
-            shouldBuild = !verifyChecksums(options);
+            shouldBuild = !verifyChecksums();
 
             if (shouldBuild) {
                 // make sure our dependencies are on the classpath.
                 if (this.dependencies != null) {
                     for (String dep : this.dependencies) {
-                        ProjectBasics project = deps.get(dep);
-                        this.sourcePaths.addFile(project.outputFile.getAbsolutePath());
+                        Project<?> project = deps.get(dep);
+                        if (project != null) {
+                            this.sourcePaths.addFile(project.outputFile.getAbsolutePath());
+                        }
                     }
                 }
 
 
-                FileUtil.delete(this.outputDir);
-                FileUtil.mkdir(this.outputDir);
+                FileUtil.delete(this.stagingDir);
+                FileUtil.mkdir(this.stagingDir);
 
                 String clientString = "Client";
 
@@ -167,10 +167,9 @@ public class ProjectGwt extends ProjectBasics {
                 FileUtil.mkdir(stagingWar);
                 FileUtil.mkdir(stagingUnitCache);
 
-                if (options.compiler.release) {
+                if (this.buildOptions.compiler.release) {
                     FileUtil.delete(stagingUnitCache);
                 }
-
 
 
                 System.err.println("Compiling GWT modules. This can take a while....");
@@ -225,14 +224,14 @@ public class ProjectGwt extends ProjectBasics {
                 }
 
                 // DETAILED, PRETTY, OBF[USCATED]
-                if (options.compiler.debugEnabled) {
+                if (this.buildOptions.compiler.debugEnabled) {
 //                    builder.addArgument("-style PRETTY");
                     builder.addArgument("-style DETAILED");
                 } else {
                     builder.addArgument("-style OBF");
                 }
 
-                if (options.compiler.release) {
+                if (this.buildOptions.compiler.release) {
                     // generate the gwt cache files EVERY time
                     builder.addArgument("-Dgwt.usearchives=false");
                 }
@@ -261,7 +260,7 @@ public class ProjectGwt extends ProjectBasics {
                 FileUtil.delete(stagingWar);
                 FileUtil.delete(stagingJunk);
 
-                if (options.compiler.release) {
+                if (this.buildOptions.compiler.release) {
                     FileUtil.delete(stagingUnitCache);
                 }
 
@@ -318,18 +317,17 @@ public class ProjectGwt extends ProjectBasics {
                 FileUtil.delete(stagingWar);
 
                 // calculate the hash of all the files in the source path
-                saveChecksums(options);
+                saveChecksums();
             } else {
                 Build.log().message("Skipped (nothing changed)");
             }
         } finally {
             if (shouldBuild) {
-                FileUtil.delete(this.outputDir);
+                FileUtil.delete(this.stagingDir);
             }
         }
 
-        System.err.println("   Build success: " + this.outputDir);
-        return this;
+        System.err.println("   Build success: " + this.stagingDir);
     }
 
     public ProjectGwt options(String... options) {

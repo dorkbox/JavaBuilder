@@ -26,6 +26,7 @@ import java.io.OutputStream;
 import java.io.RandomAccessFile;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -44,6 +45,37 @@ public class License implements Comparable<License> {
     private static final String LINE_SEPARATOR = System.getProperty("line.separator");
 
     private static int maxLicenseFileSize = Integer.MAX_VALUE/16;
+
+    public static List<License> list(Object... licenses) {
+        List<License> list = new ArrayList<License>(licenses.length);
+        for (Object l : licenses) {
+            if (l instanceof License) {
+                list.add((License) l);
+            } else  if (l instanceof Collection) {
+                List<License> list2 = convert((Collection<?>) l);
+                list.addAll(list2);
+            } else {
+                throw new RuntimeException("Not a license! Whoops!");
+            }
+        }
+        return list;
+    }
+
+    private static List<License> convert(Collection<?> collection) {
+        List<License> list = new ArrayList<License>(collection.size());
+        for (Object c : collection) {
+            if (c instanceof License) {
+                list.add((License) c);
+            } else  if (c instanceof Collection) {
+                List<License> list2 = convert((Collection<?>) c);
+                list.addAll(list2);
+            } else {
+                throw new RuntimeException("Not a license! Whoops!");
+            }
+        }
+
+        return list;
+    }
 
     /**
      * Returns the LICENSE text file, as a combo of the listed licenses. Duplicates are removed.

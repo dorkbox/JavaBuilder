@@ -16,7 +16,8 @@
 package dorkbox.build.util;
 
 import java.io.File;
+import java.io.IOException;
 
 public interface PreJarAction {
-    public void executeBeforeJarHappens(File outputDir) throws Exception;
+    public void executeBeforeJarHappens(File outputDir) throws IOException;
 }

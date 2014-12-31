@@ -21,7 +21,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
-import java.util.List;
 
 import javax.tools.Diagnostic;
 import javax.tools.DiagnosticCollector;
@@ -38,40 +37,24 @@ import com.esotericsoftware.yamlbeans.YamlWriter;
 import com.esotericsoftware.yamlbeans.scalar.ScalarSerializer;
 
 import dorkbox.Build;
-import dorkbox.BuildOptions;
-import dorkbox.build.util.PreJarAction;
 import dorkbox.build.util.classloader.ByteClassloader;
 import dorkbox.build.util.classloader.JavaMemFileManager;
-import dorkbox.build.util.jar.JarOptions;
-import dorkbox.build.util.jar.JarSigner;
-import dorkbox.build.util.jar.JarUtil;
 import dorkbox.license.License;
 import dorkbox.license.LicenseType;
 import dorkbox.util.FileUtil;
 import dorkbox.util.OS;
 
-public class ProjectJava extends ProjectBasics {
+public class ProjectJava extends Project<ProjectJava> {
 
     protected ArrayList<String> extraArgs;
 
     protected Paths sourcePaths = new Paths();
     public Paths classPaths = new Paths();
-    public List<License> licenses = new ArrayList<License>();
-
-    private transient PreJarAction preJarAction;
-
-    private Class<?> mainClass;
 
     private ByteClassloader bytesClassloader = null;
 
-    /**
-     * Create an "anonymous" project. This project will ALWAYS be built, and will NOT save it's checksums
-     */
-    public static ProjectJava create() {
-        ProjectJava create = create(Long.toString(System.currentTimeMillis()));
-        create.saveChecksums = true;
-        return create;
-    }
+    private Jarable jarable = null;
+    private String sourceFilename = null;
 
     public static ProjectJava create(String projectName) {
         ProjectJava project = new ProjectJava(projectName);
@@ -80,11 +63,8 @@ public class ProjectJava extends ProjectBasics {
         return project;
     }
 
-    public ProjectJava(String projectName) {
+    private ProjectJava(String projectName) {
         super(projectName);
-
-        checksum(this.sourcePaths);
-        checksum(this.classPaths);
     }
 
     public ProjectJava sourcePath(Paths sourcePaths) {
@@ -112,6 +92,18 @@ public class ProjectJava extends ProjectBasics {
         return sourcePath(new Paths(dir, patterns));
     }
 
+    public ProjectJava classPath(ProjectJar project) {
+        if (project == null) {
+            throw new NullPointerException("Project cannot be null!");
+        }
+
+        Paths paths = new Paths();
+        paths.addFile(project.outputFile.getAbsolutePath());
+        this.classPaths.add(paths);
+
+        return this;
+    }
+
     public ProjectJava classPath(Paths classPaths) {
         if (classPaths == null) {
             throw new NullPointerException("Class paths cannot be null!");
@@ -123,28 +115,14 @@ public class ProjectJava extends ProjectBasics {
     }
 
     public ProjectJava classPath(String dir, String... patterns) {
+        if (new File(dir).isFile() && (patterns == null || patterns.length == 0)) {
+            Paths paths = new Paths();
+            paths.addFile(dir);
+            return classPath(paths);
+        }
         return classPath(new Paths(dir, patterns));
     }
 
-    /** extra files to include when you jar the project */
-    @Override
-    public ProjectJava extraFiles(Paths filePaths) {
-        super.extraFiles(filePaths);
-        return this;
-    }
-
-    @Override
-    public final ProjectJava depends(String dependsProjectName) {
-        super.depends(dependsProjectName);
-        return this;
-    }
-
-
-    @Override
-    public ProjectJava outputFile(String outputFileName) {
-        super.outputFile(outputFileName);
-        return this;
-    }
 
     public ProjectJava addArg(String arg) {
         if (this.extraArgs == null) {
@@ -155,105 +133,81 @@ public class ProjectJava extends ProjectBasics {
         return this;
     }
 
+
     @Override
-    public ProjectJava build(BuildOptions options) throws Exception {
-        //  (and add them to the classpath)
+    public void build() throws IOException {
+        // exit early if we already built this project
+        if (checkAndBuildDependencies()) {
+            return;
+        }
+
         Build.log().message();
-        if (this.bytesClassloader == null && !options.compiler.jar.buildJar) {
-            Build.log().title("Building").message(this.name, "Output - " + this.outputDir);
+        if (this.bytesClassloader == null && this.jarable == null) {
+            Build.log().title("Building").message(this.name, "Output - " + this.stagingDir);
         } else {
             Build.log().title("Building").message(this.name);
         }
 
-        // exit early if we already built this project
-        if (checkAndBuildDependencies(options)) {
-            return this;
-        }
-
-        boolean shouldBuild = !verifyChecksums(options);
-
+        boolean shouldBuild = !verifyChecksums();
         if (shouldBuild) {
             // barf if we don't have source files!
             if (this.sourcePaths.getFiles().isEmpty()) {
-                throw new RuntimeException("No source files specified for project: " + this.name);
+                throw new IOException("No source files specified for project: " + this.name);
             }
 
             // make sure our dependencies are on the classpath.
             if (this.dependencies != null) {
                 for (String dep : this.dependencies) {
-                    ProjectBasics project = deps.get(dep);
-                    if (!project.outputFile.canRead()) {
-                        throw new IOException("Dependency for project :" + this.name + " does not exist. '" + project.outputFile.getAbsolutePath() + "'");
+                    Project<?> project = deps.get(dep);
+                    // dep can be a jar as well
+                    if (project != null) {
+                        if (!project.outputFile.canRead()) {
+                            throw new IOException("Dependency for project :" + this.name + " does not exist. '" + project.outputFile.getAbsolutePath() + "'");
+                        }
+                        // if we are compiling our build instructions (and projects), this won't exist. This is OK,
+                        // because we run from memory instead (in the classloader)
+                        this.classPaths.addFile(project.outputFile.getAbsolutePath());
+                    } else {
+                        File file = new File(dep);
+                        if (!file.canRead()) {
+                            throw new IOException("Dependency for project :" + this.name + " does not exist. '" + dep + "'");
+                        }
+                        this.classPaths.addFile(dep);
                     }
-                    // if we are compiling our build instructions (and projects), this won't exist. This is OK,
-                    // because we run from memory instead (in the classloader)
-                    this.classPaths.addFile(project.outputFile.getAbsolutePath());
                 }
             }
 
-            compile(options);
-            Build.log().message("Compile success.");
+            runCompile();
+            Build.log().message("Compile success");
 
-            if (options.compiler.jar.buildJar) {
-                if (this.preJarAction != null) {
-                    Build.log().message("Running action before Jar is created...");
-                    this.preJarAction.executeBeforeJarHappens(this.outputDir);
-                }
-
-                JarOptions jarOptions = new JarOptions();
-                jarOptions.setDateLatest = options.compiler.jar.setDateLatest;
-                jarOptions.outputFile = this.outputFile;
-                jarOptions.inputPaths = new Paths(this.outputDir.getAbsolutePath());
-                jarOptions.extraPaths = this.extraFiles;
-                if (this.mainClass != null) {
-                    jarOptions.mainClass = this.mainClass.getCanonicalName();
-                    jarOptions.classpath = this.classPaths;
-                }
-                if (options.compiler.jar.includeSource) {
-                    jarOptions.sourcePaths = this.sourcePaths;
-                }
-                if (!this.licenses.isEmpty()) {
-                    jarOptions.licenses = this.licenses;
-                }
-
-                JarUtil.jar(jarOptions);
-
-                if (options.compiler.jar.includeSourceAsSeparate) {
-                    String name = getSourceZipName(options);
-
-                    jarOptions = new JarOptions();
-                    jarOptions.setDateLatest = options.compiler.jar.setDateLatest;
-                    jarOptions.outputFile = new File(name);
-                    jarOptions.extraPaths = this.extraFiles;
-                    jarOptions.sourcePaths = this.sourcePaths;
-                    if (!this.licenses.isEmpty()) {
-                        jarOptions.licenses = this.licenses;
-                    }
-
-                    JarUtil.zip(jarOptions);
-                }
-
-                if (options.compiler.jar.signJar) {
-                    JarSigner.sign(this.outputFile.getAbsolutePath(), options.compiler.jar.signName);
-                }
-
-                // calculate the hash of all the files in the source path
-                saveChecksums(options);
+            if (this.jarable != null) {
+                this.jarable.buildJar();
             }
+
+            // calculate the hash of all the files in the source path
+            saveChecksums();
+
+            FileUtil.delete(this.stagingDir);
         } else {
             Build.log().message("Skipped (nothing changed)");
         }
-        if (shouldBuild && options.compiler.deleteOnComplete) {
-            FileUtil.delete(this.outputDir);
-        }
-
-        return this;
     }
 
-    private String getSourceZipName(BuildOptions options) {
+    public Jarable jar() {
+        if (this.jarable == null) {
+            this.jarable = new Jarable(this);
+        }
+        return this.jarable;
+    }
+
+    void setSourceZipName(String sourceName) {
+        this.sourceFilename = sourceName;
+    }
+
+    String getSourceZipName() {
         String name;
 
-        if (options.compiler.jar.sourceFilename == null) {
+        if (this.sourceFilename == null) {
             name = this.outputFile.getAbsolutePath();
             int lastIndexOf = name.lastIndexOf('.');
             if (lastIndexOf > 0) {
@@ -262,11 +216,11 @@ public class ProjectJava extends ProjectBasics {
 
             name += "-src.zip";
         } else {
-            File testName = new File(options.compiler.jar.sourceFilename);
+            File testName = new File(this.sourceFilename);
             if (testName.canRead()) {
-                name = FileUtil.normalizeAsFile(options.compiler.jar.sourceFilename);
+                name = FileUtil.normalizeAsFile(this.sourceFilename);
             } else {
-                name = new File(this.outputFile.getParent(), options.compiler.jar.sourceFilename).getAbsolutePath();
+                name = new File(this.outputFile.getParent(), this.sourceFilename).getAbsolutePath();
             }
         }
         return name;
@@ -276,25 +230,25 @@ public class ProjectJava extends ProjectBasics {
      * @return true if the checksums for path match the saved checksums and the jar file exists
      */
     @Override
-    boolean verifyChecksums(BuildOptions options) throws IOException {
-        boolean sourceHashesSame = super.verifyChecksums(options);
+    boolean verifyChecksums() throws IOException {
+        boolean sourceHashesSame = super.verifyChecksums();
         if (!sourceHashesSame) {
             return false;
         }
 
         // if the sources are the same, check the jar file
-        if (options.compiler.jar.includeSourceAsSeparate || options.compiler.jar.buildJar && this.outputFile.canRead()) {
+        if (this.jarable != null && this.outputFile.canRead()) {
             String jarChecksum = generateChecksum(this.outputFile);
             String checkContents = Build.settings.get(this.outputFile.getAbsolutePath(), String.class);
 
             boolean outputFileGood = jarChecksum != null && jarChecksum.equals(checkContents);
 
             if (outputFileGood) {
-                if (!options.compiler.jar.includeSourceAsSeparate) {
+                if (!this.jarable.includeSourceAsSeparate) {
                     return true;
                 } else {
                     // now check the src.zip file (if there was one).
-                    String name = getSourceZipName(options);
+                    String name = getSourceZipName();
                     jarChecksum = generateChecksum(new File(name));
                     checkContents = Build.settings.get(name, String.class);
 
@@ -310,17 +264,17 @@ public class ProjectJava extends ProjectBasics {
      * Saves the checksums for a given path
      */
     @Override
-    void saveChecksums(BuildOptions options) throws IOException {
-        super.saveChecksums(options);
+    void saveChecksums() throws IOException {
+        super.saveChecksums();
 
         // hash/save the jar file (if there was one)
-        if (this.saveChecksums && this.outputFile.exists()) {
+        if (this.outputFile.exists()) {
             String fileChecksum = generateChecksum(this.outputFile);
             Build.settings.save(this.outputFile.getAbsolutePath(), fileChecksum);
 
-            if (options.compiler.jar.includeSourceAsSeparate) {
+            if (this.jarable != null && this.jarable.includeSourceAsSeparate) {
                 // now check the src.zip file (if there was one).
-                String name = getSourceZipName(options);
+                String name = getSourceZipName();
                 fileChecksum = generateChecksum(new File(name));
 
                 Build.settings.save(name, fileChecksum);
@@ -331,7 +285,7 @@ public class ProjectJava extends ProjectBasics {
     /**
      * Compiles into class files.
      */
-    public synchronized void compile(BuildOptions buildOptions) throws IOException {
+    private synchronized void runCompile() throws IOException {
         // if you get messages, such as
         // warning: [path] bad path element "/x/y/z/lib/fubar-all.jar": no such file or directory
         //   That is because that file exists in a MANIFEST.MF somewhere on the classpath! Find the jar that has that, and rip out
@@ -343,14 +297,14 @@ public class ProjectJava extends ProjectBasics {
         }
 
         ArrayList<String> args = new ArrayList<String>();
-        if (buildOptions.compiler.enableCompilerTrace) {
+        if (this.buildOptions.compiler.enableCompilerTrace) {
             // TODO: Interesting to note, that when COMPILING this with verbose, we can get a list (from the compiler) of EVERY CLASS NEEDED
             //         to run our application! This would be useful in "trimming" the necessary files needed by the JVM.
             args.add("-verbose");
         }
 
-        if (buildOptions.compiler.debugEnabled) {
-            Build.log().message("Adding debug info.");
+        if (this.buildOptions.compiler.debugEnabled) {
+            Build.log().message("Adding debug info");
 
             args.add("-g"); // Generate all debugging information, including local variables. By default, only line number and source file information is generated.
         } else {
@@ -359,31 +313,31 @@ public class ProjectJava extends ProjectBasics {
 
         if (this.bytesClassloader == null) {
             // we only want to use an output directory if we have output!
-            FileUtil.delete(this.outputDir);
-            FileUtil.mkdir(this.outputDir);
+            FileUtil.delete(this.stagingDir);
+            FileUtil.mkdir(this.stagingDir);
 
             args.add("-d");
-            args.add(this.outputDir.getAbsolutePath());
+            args.add(this.stagingDir.getAbsolutePath());
         }
 
         args.add("-encoding");
         args.add("UTF-8");
 
-        if (OS.getJavaVersion() > buildOptions.compiler.targetJavaVersion) {
-            Build.log().message("Building cross-platform target!");
+        if (OS.getJavaVersion() > this.buildOptions.compiler.targetJavaVersion) {
+            Build.log().message("Building cross-platform target for version: " + this.buildOptions.compiler.targetJavaVersion);
             // if our runtime env. is NOT equal to our target env.
             args.add("-source");
-            args.add(buildOptions.getTargetVersion());
+            args.add("1." + this.buildOptions.compiler.targetJavaVersion);
 
             args.add("-target");
-            args.add(buildOptions.getTargetVersion());
+            args.add("1." + this.buildOptions.compiler.targetJavaVersion);
 
             args.add("-bootclasspath");
-            args.add(buildOptions.compiler.crossCompileLibrary.getCrossCompileLibraryLocation(buildOptions.compiler.targetJavaVersion));
+            args.add(this.buildOptions.compiler.crossCompileLibrary.getCrossCompileLibraryLocation(this.buildOptions.compiler.targetJavaVersion));
         }
 
         // suppress sun proprietary warnings
-        if (buildOptions.compiler.suppressSunWarnings) {
+        if (this.buildOptions.compiler.suppressSunWarnings) {
             args.add("-XDignore.symbol.file");
         }
 
@@ -471,30 +425,6 @@ public class ProjectJava extends ProjectBasics {
     public static interface OnJarEntryAction {
         boolean canHandle(String fileName);
         int onEntry(String fileName, ByteArrayInputStream inputStream, OutputStream output) throws Exception;
-    }
-
-    public ProjectJava license(License license) {
-        this.licenses.add(license);
-        return this;
-    }
-
-    public ProjectJava license(List<License> licenses) {
-        this.licenses.addAll(licenses);
-        return this;
-    }
-
-    /** Actions that might need to take place before the project is jar'd */
-    public ProjectJava preJarAction(PreJarAction preJarAction) {
-        this.preJarAction = preJarAction;
-        return this;
-    }
-
-    /**
-     * Specify the main class.
-     */
-    public ProjectJava mainClass(Class<?> clazz) {
-        this.mainClass = clazz;
-        return this;
     }
 
     /**

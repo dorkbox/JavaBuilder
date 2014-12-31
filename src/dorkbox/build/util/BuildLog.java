@@ -26,14 +26,22 @@ public class BuildLog {
     private static final String TITLE_SEPERATOR = "─";
 
     public static volatile int TITLE_WIDTH = 14; // so the first one goes to 16
+    public static boolean wasNested = false;
     private static volatile boolean suppressOutput = false;
 
-    public static void start() {
+    public static BuildLog start() {
         TITLE_WIDTH += 2;
+        wasNested = true;
+        BuildLog buildLog = new BuildLog();
+        buildLog.titleStart();
+        return buildLog;
     }
 
-    public static void finish() {
+    public static BuildLog finish() {
+        BuildLog buildLog = new BuildLog();
+        buildLog.titleEnd();
         TITLE_WIDTH -= 2;
+        return buildLog;
     }
 
     public static void enable() {
@@ -63,7 +71,7 @@ public class BuildLog {
         return this;
     }
 
-    public void titleStart() {
+    private void titleStart() {
         this.cachedSize = TITLE_WIDTH;
         String sep = TITLE_SEPERATOR;
 
@@ -84,7 +92,7 @@ public class BuildLog {
         this.printer.println(spacerTitle.toString());
     }
 
-    public void titleEnd() {
+    private void titleEnd() {
         this.cachedSize = TITLE_WIDTH;
         String sep = TITLE_SEPERATOR;
 
@@ -117,7 +125,7 @@ public class BuildLog {
         String spacer1 = " ";
         String spacer2 = "  ";
 
-        if (this.cachedSize != TITLE_WIDTH) {
+        if (this.cachedSize != TITLE_WIDTH || this.cachedSpacer == null) {
             this.cachedSize = TITLE_WIDTH;
             StringBuilder spacerTitle = new StringBuilder(this.cachedSize);
             for (int i = 0; i < this.cachedSize; i++) {
@@ -131,16 +139,16 @@ public class BuildLog {
             this.title = this.cachedSpacer;
         } else {
             int length = this.title.length();
-            int padding = TITLE_WIDTH - length - 1;
+            int padding = this.cachedSize - length - 1;
+            StringBuilder msg = new StringBuilder(this.cachedSize);
             if (padding > 0) {
-                StringBuilder msg = new StringBuilder(TITLE_WIDTH);
                 for (int i = 0; i < padding; i++) {
                     msg.append(spacer1);
                 }
-                msg.append(this.title);
-                msg.append(spacer1);
-                this.title = msg.toString();
             }
+            msg.append(this.title);
+            msg.append(spacer1);
+            this.title = msg.toString();
         }
 
         StringBuilder msg = new StringBuilder(1024);
