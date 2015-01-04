@@ -116,26 +116,26 @@ public class Build {
     public static void make(BuildOptions buildOptions, SimpleArgs args) {
 
         String title = "JavaBuilder";
-        BuildLog.start().title(title).message(args);
+        BuildLog.start().title(title).println(args);
 
         Build build = new Build();
         try {
             build.prepareXcompile();
-            log().message();
+            log().println();
 
             if (Build.isJar) {
                 // when from eclipse, we want to run it directly (in case it changes significantly)
                 build.compileBuildInstructions(args);
-                log().message();
+                log().println();
             }
 
             build.start(buildOptions, args);
 
-            log().message();
+            log().println();
             if (!BuildLog.wasNested || BuildLog.TITLE_WIDTH != BuildLog.STOCK_TITLE_WIDTH) {
-                log().title(title).message(args , new Date(), "Completed in: " + getRuntime(build.startTime) + " seconds.");
+                log().title(title).println(args , new Date(), "Completed in: " + getRuntime(build.startTime) + " seconds.");
             } else {
-                log().title(title).message(args , new Date(), "Completed in: " + getRuntime(Build.startDate) + " seconds.");
+                log().title(title).println(args , new Date(), "Completed in: " + getRuntime(Build.startDate) + " seconds.");
             }
         } catch (Throwable e) {
             e.printStackTrace();
@@ -193,12 +193,12 @@ public class Build {
                 if (!file.canRead() || file.length() == 0) {
                     if (first) {
                         first = false;
-                        log().message("******************************");
-                        log().message("Preparing environment");
-                        log().message("******************************");
+                        log().println("******************************");
+                        log().println("Preparing environment");
+                        log().println("******************************");
                     }
 
-                    log().message("  Decompressing: " + f.getAbsolutePath());
+                    log().println("  Decompressing: " + f.getAbsolutePath());
                     InputStream inputStream = new FileInputStream(f);
                     // now uncompress
                     ByteArrayOutputStream outputStream = LZMA.decode(inputStream);
@@ -218,8 +218,8 @@ public class Build {
         }
 
         if (!first) {
-            log().message("Finished Preparing environment");
-            log().message("******************************\n\n");
+            log().println("Finished Preparing environment");
+            log().println("******************************\n\n");
         }
     }
 
@@ -318,9 +318,9 @@ public class Build {
             }
         }
 
-        log().title("Debug info").message(buildOptions.compiler.debugEnabled ? "Enabled" : "Disabled");
-        log().title("Release status").message(buildOptions.compiler.release ? "Enabled" : "Disabled");
-        log().message();
+        log().title("Debug info").println(buildOptions.compiler.debugEnabled ? "Enabled" : "Disabled");
+        log().title("Release status").println(buildOptions.compiler.release ? "Enabled" : "Disabled");
+        log().println();
 
         // now we want to update/search for all project builders.
         boolean found = false;
@@ -343,13 +343,13 @@ public class Build {
 
             if (!found) {
                 if (methodNameToCall.equals(Build.BUILD_MODE)) {
-                    log().message("Unable to find a builder for " + args);
+                    log().println("Unable to find a builder for " + args);
                 } else {
                     methodNameToCall = Build.BUILD_MODE;
                     found = runBuild(buildOptions, args, found, builders, methodNameToCall, projectToBuild);
 
                     if (!found) {
-                        log().message("Unable to find a builder for " + args);
+                        log().println("Unable to find a builder for " + args);
                     }
                 }
             }
@@ -491,7 +491,7 @@ public class Build {
         target = FileUtil.normalizeAsFile(target);
 
 
-        log().title("Moving file").message("  ╭─ " + source,
+        log().title("Moving file").println("  ╭─ " + source,
                                              "╰─> " + target);
 
         return FileUtil.moveFile(source, target);
@@ -502,7 +502,7 @@ public class Build {
         target = FileUtil.normalize(target);
 
 
-        log().title("Copying file").message("  ╭─ " + source.getAbsolutePath(),
+        log().title("Copying file").println("  ╭─ " + source.getAbsolutePath(),
                                               "╰─> " + target.getAbsolutePath());
 
         return FileUtil.copyFile(source, target);
@@ -512,7 +512,7 @@ public class Build {
         source = FileUtil.normalizeAsFile(source);
         target = FileUtil.normalizeAsFile(target);
 
-        log().title("Copying file").message("  ╭─ " + source,
+        log().title("Copying file").println("  ╭─ " + source,
                                               "╰─> " + target);
 
         FileUtil.copyFile(source, target);
@@ -522,7 +522,7 @@ public class Build {
         source = FileUtil.normalizeAsFile(source);
         target = FileUtil.normalizeAsFile(target);
 
-        log().title("Copying dir").message("  ╭─ " + source,
+        log().title("Copying dir").println("  ╭─ " + source,
                                              "╰─> " + target);
         FileUtil.copyDirectory(source, target, dirNamesToIgnore);
     }

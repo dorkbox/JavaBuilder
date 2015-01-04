@@ -319,7 +319,7 @@ public class ProjectGwt extends Project<ProjectGwt> {
                 // calculate the hash of all the files in the source path
                 saveChecksums();
             } else {
-                Build.log().message("Skipped (nothing changed)");
+                Build.log().println("Skipped (nothing changed)");
             }
         } finally {
             if (shouldBuild) {

@@ -21,6 +21,9 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 import javax.tools.Diagnostic;
 import javax.tools.DiagnosticCollector;
@@ -54,7 +57,6 @@ public class ProjectJava extends Project<ProjectJava> {
     private ByteClassloader bytesClassloader = null;
 
     private Jarable jarable = null;
-    private String sourceFilename = null;
 
     public static ProjectJava create(String projectName) {
         ProjectJava project = new ProjectJava(projectName);
@@ -141,11 +143,11 @@ public class ProjectJava extends Project<ProjectJava> {
             return;
         }
 
-        Build.log().message();
+        Build.log().println();
         if (this.bytesClassloader == null && this.jarable == null) {
-            Build.log().title("Building").message(this.name, "Output - " + this.stagingDir);
+            Build.log().title("Building").println(this.name, "Output - " + this.stagingDir);
         } else {
-            Build.log().title("Building").message(this.name);
+            Build.log().title("Building").println(this.name);
         }
 
         boolean shouldBuild = !verifyChecksums();
@@ -155,30 +157,23 @@ public class ProjectJava extends Project<ProjectJava> {
                 throw new IOException("No source files specified for project: " + this.name);
             }
 
-            // make sure our dependencies are on the classpath.
-            if (this.dependencies != null) {
-                for (String dep : this.dependencies) {
-                    Project<?> project = deps.get(dep);
-                    // dep can be a jar as well
-                    if (project != null) {
-                        if (!project.outputFile.canRead()) {
-                            throw new IOException("Dependency for project :" + this.name + " does not exist. '" + project.outputFile.getAbsolutePath() + "'");
-                        }
-                        // if we are compiling our build instructions (and projects), this won't exist. This is OK,
-                        // because we run from memory instead (in the classloader)
-                        this.classPaths.addFile(project.outputFile.getAbsolutePath());
-                    } else {
-                        File file = new File(dep);
-                        if (!file.canRead()) {
-                            throw new IOException("Dependency for project :" + this.name + " does not exist. '" + dep + "'");
-                        }
-                        this.classPaths.addFile(dep);
-                    }
+            // make sure ALL dependencies are on the classpath.
+            Set<String> depends = new HashSet<String>(this.dependencies);
+            getRecursiveDependencies(depends);
+
+            for (String dep : depends) {
+                Project<?> project = deps.get(dep);
+                // dep can be a jar as well
+                if (!project.outputFile.canRead()) {
+                    throw new IOException("Dependency for project :" + this.name + " does not exist. '" + project.outputFile.getAbsolutePath() + "'");
                 }
+                // if we are compiling our build instructions (and projects), this won't exist. This is OK,
+                // because we run from memory instead (in the classloader)
+                this.classPaths.addFile(project.outputFile.getAbsolutePath());
             }
 
             runCompile();
-            Build.log().message("Compile success");
+            Build.log().println("Compile success");
 
             if (this.jarable != null) {
                 this.jarable.buildJar();
@@ -189,8 +184,10 @@ public class ProjectJava extends Project<ProjectJava> {
 
             FileUtil.delete(this.stagingDir);
         } else {
-            Build.log().message("Skipped (nothing changed)");
+            Build.log().println("Skipped (nothing changed)");
         }
+
+        buildList.add(this.name);
     }
 
     public Jarable jar() {
@@ -198,32 +195,6 @@ public class ProjectJava extends Project<ProjectJava> {
             this.jarable = new Jarable(this);
         }
         return this.jarable;
-    }
-
-    void setSourceZipName(String sourceName) {
-        this.sourceFilename = sourceName;
-    }
-
-    String getSourceZipName() {
-        String name;
-
-        if (this.sourceFilename == null) {
-            name = this.outputFile.getAbsolutePath();
-            int lastIndexOf = name.lastIndexOf('.');
-            if (lastIndexOf > 0) {
-                name = name.substring(0, lastIndexOf);
-            }
-
-            name += "-src.zip";
-        } else {
-            File testName = new File(this.sourceFilename);
-            if (testName.canRead()) {
-                name = FileUtil.normalizeAsFile(this.sourceFilename);
-            } else {
-                name = new File(this.outputFile.getParent(), this.sourceFilename).getAbsolutePath();
-            }
-        }
-        return name;
     }
 
     /**
@@ -248,9 +219,8 @@ public class ProjectJava extends Project<ProjectJava> {
                     return true;
                 } else {
                     // now check the src.zip file (if there was one).
-                    String name = getSourceZipName();
-                    jarChecksum = generateChecksum(new File(name));
-                    checkContents = Build.settings.get(name, String.class);
+                    jarChecksum = generateChecksum(this.outputFileSource);
+                    checkContents = Build.settings.get(this.name, String.class);
 
                     return jarChecksum != null && jarChecksum.equals(checkContents);
                 }
@@ -274,10 +244,9 @@ public class ProjectJava extends Project<ProjectJava> {
 
             if (this.jarable != null && this.jarable.includeSourceAsSeparate) {
                 // now check the src.zip file (if there was one).
-                String name = getSourceZipName();
-                fileChecksum = generateChecksum(new File(name));
+                fileChecksum = generateChecksum(this.outputFileSource);
 
-                Build.settings.save(name, fileChecksum);
+                Build.settings.save(this.name, fileChecksum);
             }
         }
     }
@@ -304,7 +273,7 @@ public class ProjectJava extends Project<ProjectJava> {
         }
 
         if (this.buildOptions.compiler.debugEnabled) {
-            Build.log().message("Adding debug info");
+            Build.log().println("Adding debug info");
 
             args.add("-g"); // Generate all debugging information, including local variables. By default, only line number and source file information is generated.
         } else {
@@ -324,7 +293,7 @@ public class ProjectJava extends Project<ProjectJava> {
         args.add("UTF-8");
 
         if (OS.getJavaVersion() > this.buildOptions.compiler.targetJavaVersion) {
-            Build.log().message("Building cross-platform target for version: " + this.buildOptions.compiler.targetJavaVersion);
+            Build.log().println("Building cross-platform target for version: " + this.buildOptions.compiler.targetJavaVersion);
             // if our runtime env. is NOT equal to our target env.
             args.add("-source");
             args.add("1." + this.buildOptions.compiler.targetJavaVersion);
@@ -470,5 +439,9 @@ public class ProjectJava extends Project<ProjectJava> {
     public ProjectJava compilerClassloader(ByteClassloader bytesClassloader) {
         this.bytesClassloader = bytesClassloader;
         return this;
+    }
+
+    public List<License> getLicenses() {
+        return this.licenses;
     }
 }

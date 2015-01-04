@@ -49,7 +49,7 @@ public class BuildParser {
         }
 
         String normalizeAsFile = FileUtil.normalizeAsFile(fileName);
-        Build.log().title("Build location").message("Compiling build instructions", normalizeAsFile);
+        Build.log().title("Build location").println("Compiling build instructions", normalizeAsFile);
 
         final File file = new File(normalizeAsFile);
         if (!file.canRead()) {

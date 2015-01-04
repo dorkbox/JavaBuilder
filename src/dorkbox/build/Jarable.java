@@ -1,6 +1,5 @@
 package dorkbox.build;
 
-import java.io.File;
 import java.io.IOException;
 
 import com.esotericsoftware.wildcard.Paths;
@@ -54,7 +53,7 @@ public class Jarable {
      * The default is xyz-src.zip
      */
     public Jarable sourceFilename(String sourceFilename) {
-        this.projectJava.setSourceZipName(sourceFilename);
+        this.projectJava.outputFileSource(sourceFilename);
         return this;
     }
 
@@ -97,7 +96,7 @@ public class Jarable {
     /** Builds a jar from the specified source files, class file, and extras */
     void buildJar() throws IOException {
         if (this.preJarAction != null) {
-            Build.log().message("Running action before Jar is created...");
+            Build.log().println("Running action before Jar is created...");
             this.preJarAction.executeBeforeJarHappens(this.projectJava.stagingDir);
         }
 
@@ -120,11 +119,10 @@ public class Jarable {
         JarUtil.jar(jarOptions);
 
         if (this.includeSourceAsSeparate) {
-            String name = this.projectJava.getSourceZipName();
 
             jarOptions = new JarOptions();
             jarOptions.setDateLatest = this.setDateLatest;
-            jarOptions.outputFile = new File(name);
+            jarOptions.outputFile = this.projectJava.outputFileSource;
             jarOptions.extraPaths = this.projectJava.extraFiles;
             jarOptions.sourcePaths = this.projectJava.sourcePaths;
             if (!this.projectJava.licenses.isEmpty()) {

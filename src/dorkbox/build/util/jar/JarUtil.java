@@ -60,6 +60,7 @@ import com.ice.tar.TarInputStream;
 
 import dorkbox.Build;
 import dorkbox.BuildOptions;
+import dorkbox.build.util.BuildLog;
 import dorkbox.license.License;
 import dorkbox.util.Base64Fast;
 import dorkbox.util.FileUtil;
@@ -376,8 +377,8 @@ public class JarUtil {
 
         int totalEntries = options.sourcePaths.count();
 
-        Build.log().message();
-        Build.log().title("Creating ZIP").message("(" + totalEntries + " entries)",
+        Build.log().println();
+        Build.log().title("Creating ZIP").println("(" + totalEntries + " entries)",
                                                   options.outputFile.getAbsolutePath());
 
 
@@ -427,7 +428,7 @@ public class JarUtil {
             if (options.sourcePaths != null && !options.sourcePaths.isEmpty()) {
                 ArrayList<SortedFiles> sortList2 = new ArrayList<SortedFiles>(options.sourcePaths.count());
 
-                Build.log().message("   Adding sources (" + options.sourcePaths.count() + " entries)...");
+                Build.log().println("   Adding sources (" + options.sourcePaths.count() + " entries)...");
 
                 for (int i = 0, n = fullPaths.size(); i < n; i++) {
                     String fileName = relativePaths.get(i).replace('\\', '/');
@@ -463,7 +464,7 @@ public class JarUtil {
             // now include the license, if possible
             ///////////////////////////////////////////////
             if (options.licenses != null) {
-                Build.log().message("   Adding license");
+                Build.log().println("   Adding license");
                 License.install(output, options.licenses);
             }
         } finally {
@@ -573,8 +574,8 @@ public class JarUtil {
         }
 
 
-        Build.log().message();
-        Build.log().title("Creating JAR").message("(" + totalEntries + " entries)",
+        Build.log().println();
+        Build.log().title("Creating JAR").println("(" + totalEntries + " entries)",
                                                   options.outputFile.getAbsolutePath());
 
 
@@ -733,7 +734,7 @@ public class JarUtil {
             if (options.extraPaths != null) {
                 sortList2 = new ArrayList<SortedFiles>(options.extraPaths.count());
 
-                Build.log().message("   Adding extras");
+                Build.log().println("   Adding extras");
 
                 fullPaths = options.extraPaths.getPaths();
                 relativePaths = options.extraPaths.getRelativePaths();
@@ -742,7 +743,7 @@ public class JarUtil {
                     String fileName;
                     fileName = relativePaths.get(i).replace('\\', '/');
 
-                    Build.log().message("\t" + fileName);
+                    Build.log().println("\t" + fileName);
 
                     SortedFiles file = new SortedFiles();
                     file.file = new File(fullPaths.get(i));
@@ -776,7 +777,7 @@ public class JarUtil {
             if (options.sourcePaths != null && !options.sourcePaths.isEmpty()) {
                 sortList2 = new ArrayList<SortedFiles>(options.sourcePaths.count());
 
-                Build.log().message("   Adding sources (" + options.sourcePaths.count() + " entries)...");
+                Build.log().println("   Adding sources (" + options.sourcePaths.count() + " entries)...");
 
                 fullPaths = options.sourcePaths.getPaths();
                 relativePaths = options.sourcePaths.getRelativePaths();
@@ -815,7 +816,7 @@ public class JarUtil {
             // now include the license, if possible
             ///////////////////////////////////////////////
             if (options.licenses != null) {
-                Build.log().message("   Adding license");
+                Build.log().println("   Adding license");
                 License.install(output, options.licenses);
             }
         } finally {
@@ -1057,10 +1058,10 @@ public class JarUtil {
      * @throws IOException
      */
     public static void addArgsToIniInJar(String jarName, String... args) throws IOException {
-        Build.log().message("Modifying config.ini file in jar...");
+        Build.log().println("Modifying config.ini file in jar...");
 
         for (String arg : args) {
-            Build.log().message("\t" + arg);
+            Build.log().println("\t" + arg);
         }
 
         // we have to use a JarFile, so we preserve the comments that might already be in the file.
@@ -1232,7 +1233,7 @@ public class JarUtil {
         boolean addDebug = properties.compiler.debugEnabled;
         boolean release = properties.compiler.release;
 
-        Build.log().message("Adding files to jar: '" + jarName + "'");
+        Build.log().println("Adding files to jar: '" + jarName + "'");
 
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         JarOutputStream jarOutputStream = new JarOutputStream(new BufferedOutputStream(byteArrayOutputStream));
@@ -1253,7 +1254,7 @@ public class JarUtil {
             for (Pack pack : filesToAdd) {
                 String destPath = pack.getDestPath();
                 if (name.equals(destPath)) {
-                    Build.log().message("  Replacing '" + destPath + "'");
+                    Build.log().println("  Replacing '" + destPath + "'");
                     canAdd = false;
                     break;
                 }
@@ -1272,7 +1273,7 @@ public class JarUtil {
             String sourcePath = FileUtil.normalizeAsFile(pack.getSourcePath());
             String destPath = pack.getDestPath();
 
-            Build.log().message("  '" + sourcePath + "' -> '" + destPath + "'");
+            Build.log().println("  '" + sourcePath + "' -> '" + destPath + "'");
 
             InputStream inputStream;
             int length = 0;
@@ -1350,6 +1351,7 @@ public class JarUtil {
             actionsToRemove = new PackAction[] {PackAction.Encrypt};
         }
 
+        BuildLog log = Build.log();
         boolean release = properties.compiler.release;
 
         String tempJarName = jarName+".tmp";
@@ -1406,7 +1408,7 @@ public class JarUtil {
                         repack.remove(actionsToRemove);
                     }
 
-                    System.err.print(".");
+                    log.print(".");
 
                     // load the entry into memory
                     ByteArrayOutputStream baos = new ByteArrayOutputStream(8192);
@@ -1452,9 +1454,9 @@ public class JarUtil {
 
         jarFile.close();
 
-        System.err.println(".");
+        log.println(".");
 
-        FileUtil.moveFile(tempJarName, jarName);
+        Build.moveFile(tempJarName, jarName);
     }
 
     private static void unpackEntry(PackTask task, ExtraDataInterface extraDataWriter, JarOutputStream jarOutputStream) {
@@ -1683,7 +1685,7 @@ public class JarUtil {
      * @throws FileNotFoundException
      */
     public static void merge(File primaryFile, String... files) throws FileNotFoundException, IOException {
-        Build.log().message("Merging files into single jar/zip: '" + primaryFile + "'");
+        Build.log().println("Merging files into single jar/zip: '" + primaryFile + "'");
 
         // write everything to staging dir, then jar it up.
         String tempDirectory = FileUtil.tempDirectory("mergeTemp");

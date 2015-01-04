@@ -10,7 +10,7 @@ import dorkbox.util.FileUtil;
 
 public class ProjectJar extends Project<ProjectJar> {
 
-    private List<File> sources = new ArrayList<File>();
+    public List<File> sources = new ArrayList<File>();
     private String distLocation;
 
     public static ProjectJar create(String projectName) {
