@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,7 +47,7 @@ public abstract class Project<T extends Project<T>> {
 
     @SuppressWarnings("rawtypes")
     public static Map<String, Project> deps = new LinkedHashMap<String, Project>();
-    private static Set<String> buildList = new HashSet<String>();
+    protected static Set<String> buildList = new HashSet<String>();
 
     private static boolean forceRebuild = false;
     private static boolean alreadyChecked = false;
@@ -82,7 +83,7 @@ public abstract class Project<T extends Project<T>> {
                 if (forceRebuild) {
                     if (!alreadyChecked) {
                         alreadyChecked = true;
-                        Build.log().message("Build system changed. Rebuilding.");
+                        Build.log().println("Build system changed. Rebuilding.");
                     }
                     Build.settings.save("BUILD", hashedContents);
                 }
@@ -91,6 +92,10 @@ public abstract class Project<T extends Project<T>> {
         }
     }
 
+    public static Project<?> create(Project<?> project) {
+        deps.put(project.name, project);
+        return project;
+    }
 
     // removes all saved checksums as well as dependencies. Used to "reset everything", similar to if it was relaunched.
     public static void reset() {
@@ -104,6 +109,8 @@ public abstract class Project<T extends Project<T>> {
 
     public File stagingDir;
     public File outputFile;
+    public File outputFileSource = null;
+
     protected Paths extraFiles = new Paths();
 
     protected List<String> dependencies = new ArrayList<String>();
@@ -113,10 +120,9 @@ public abstract class Project<T extends Project<T>> {
     protected BuildOptions buildOptions;
 
 
-    @SuppressWarnings("rawtypes")
-    public static Project get(String projectName) {
+    public static Project<?> get(String projectName) {
         if (deps.containsKey(projectName)) {
-            Project project = deps.get(projectName);
+            Project<?> project = deps.get(projectName);
             // put swt lib into jar!
             return project;
         } else {
@@ -126,41 +132,74 @@ public abstract class Project<T extends Project<T>> {
 
     @SuppressWarnings("rawtypes")
     public static void buildAll() throws Exception {
-        // organize the list of items to build, so that the entries WITH NO DEPENDENCIES always build first!
+
+        // organize the list of items to build, so that our build order is at least SOMEWHAT in order,
+        // were the dependencies build first. This is just an optimization step
         List<Project> copy = new ArrayList<Project>(deps.values());
 
         Collections.sort(copy, new Comparator<Project>() {
             @Override
             public int compare(Project o1, Project o2) {
-                if (o1 == null || o1.dependencies == null || o1.dependencies.isEmpty()) {
+                if (o1 == null || o1.dependencies.isEmpty()) {
                     return -1;
-                } else if (o2 == null || o2.dependencies == null || o2.dependencies.isEmpty()) {
+                } else if (o2 == null || o2.dependencies.isEmpty()) {
                     return 1;
                 }
 
-                return 0;
+                return o1.name.compareTo(o2.name);
             }});
 
+        List<Project> sorted = new ArrayList<Project>(copy.size());
+        Set<String> sortedCheck = new HashSet<String>(0);
 
-        for (Project project : copy) {
-            Project.build(project);
+        while (true) {
+            Iterator<Project> iterator = copy.iterator();
+            while (iterator.hasNext()) {
+                Project<?> next = iterator.next();
+                if (next.dependencies.isEmpty()) {
+                    sorted.add(next);
+                    sortedCheck.add(next.name);
+                    iterator.remove();
+                } else {
+                    List<String> list = next.dependencies;
+                    int size = list.size();
+
+                    for (String d : list) {
+                        if (sortedCheck.contains(d) ) {
+                            size--;
+                        }
+                    }
+
+                    if (size == 0) {
+                        sorted.add(next);
+                        sortedCheck.add(next.name);
+                        iterator.remove();
+                    }
+                }
+            }
+
+            if (copy.isEmpty()) {
+                break;
+            }
+        }
+
+        for (Project project : sorted) {
+            if (!(project instanceof ProjectJar)) {
+                BuildLog.start();
+                project.build();
+                BuildLog.finish();
+            }
         }
     }
 
-    @SuppressWarnings("rawtypes")
     public static void build(String projectName) throws Exception {
-        Project project = get(projectName);
+        Project<?> project = get(projectName);
 
         if (project != null) {
             project.build();
         } else {
             System.err.println("Project is NULL. Aborting build.");
         }
-    }
-
-    @SuppressWarnings("rawtypes")
-    public static void build(Project project) throws Exception {
-        project.build();
     }
 
     public static void remove(String outputDir) {
@@ -191,19 +230,24 @@ public abstract class Project<T extends Project<T>> {
     public abstract String getExtension();
 
 
-    /**
-     * Can be a jar name or a project name
-     */
-    private void getRecursiveDependencies(Set<String> dependencies) {
+    public void getRecursiveLicenses(Set<License> licenses) {
+        licenses.addAll(this.licenses);
+        Set<String> deps = new HashSet<String>();
+        getRecursiveDependencies(deps);
+
+        for (String dep : deps) {
+            Project<?> project = Project.deps.get(dep);
+            project.getRecursiveLicenses(licenses);
+        }
+    }
+
+
+    public void getRecursiveDependencies(Set<String> dependencies) {
         for (String dep : this.dependencies) {
             String dependencyName = dep;
             Project<?> project = deps.get(dependencyName);
-            if (project != null) {
-                dependencies.add(project.name);
-                project.getRecursiveDependencies(dependencies);
-            } else {
-                dependencies.add(dep);
-            }
+            dependencies.add(project.name);
+            project.getRecursiveDependencies(dependencies);
         }
     }
 
@@ -218,7 +262,7 @@ public abstract class Project<T extends Project<T>> {
         // exit early if we already built this project
         if (buildList.contains(this.name)) {
             if (!this.isBuildingDependencies) {
-                Build.log().title("Building").message(this.name + " already built this run");
+                Build.log().title("Building").println(this.name + " already built this run");
             }
             return true;
         }
@@ -234,13 +278,13 @@ public abstract class Project<T extends Project<T>> {
             for (String s : deps) {
                 array[i++] = s;
             }
-            Build.log().title(this.name).message(array);
+            Build.log().title(this.name).println(array);
         }
 
         for (String dep : deps) {
             Project<?> project = Project.deps.get(dep);
             // dep can be a jar as well (don't have to build a jar)
-            if (project != null) {
+            if (!(project instanceof ProjectJar)) {
                 if (!buildList.contains(project.name)) {
                     // check the hashes to see if the project changed before we build it.
                     // a change in the hashes would ALSO mean a dependency of it changed as well.
@@ -260,34 +304,39 @@ public abstract class Project<T extends Project<T>> {
             }
         }
 
-        buildList.add(this.name);
         return false;
     }
 
 
     @SuppressWarnings("unchecked")
-    public T depends(String dependsProjectName) {
-        if (dependsProjectName == null) {
+    public T depends(String projectOrJar) {
+        if (projectOrJar == null) {
             throw new NullPointerException("Dependencies cannot be null!");
         }
 
-        this.dependencies.add(dependsProjectName);
+        // sometimes it's a jar file, not a project
+        File file = new File(projectOrJar);
+        if (file.canRead()) {
+            ProjectJar.create(projectOrJar).outputFile(file);
+        }
+
+        this.dependencies.add(projectOrJar);
 
         return (T) this;
     }
 
 
     @SuppressWarnings("unchecked")
-    public T depends(T project) {
+    public T depends(Project<?> project) {
         if (project == null) {
             throw new NullPointerException("Dependencies cannot be null!");
         }
 
         this.dependencies.add(project.name);
+        this.licenses.addAll(project.licenses);
+
         return (T) this;
     }
-
-
 
     /** extra files to include when you jar the project */
     public T extraFiles(String dir, String... patterns) {
@@ -309,12 +358,14 @@ public abstract class Project<T extends Project<T>> {
     @SuppressWarnings("unchecked")
     public T outputFile(String outputFileName) {
         this.outputFile = FileUtil.normalize(new File(outputFileName));
+        this.outputFileSource = new File(createOutputFileSourceZip());
         return (T) this;
     }
 
     @SuppressWarnings("unchecked")
     public T outputFile(File outputFile) {
         this.outputFile = FileUtil.normalize(outputFile);
+        this.outputFileSource = new File(createOutputFileSourceZip());
         return (T) this;
     }
 
@@ -334,6 +385,21 @@ public abstract class Project<T extends Project<T>> {
     public T license(List<License> licenses) {
         this.licenses.addAll(licenses);
         return (T) this;
+    }
+
+    void outputFileSource(String sourceName) {
+        this.outputFileSource = new File(FileUtil.normalizeAsFile(sourceName));
+    }
+
+    private String createOutputFileSourceZip() {
+        String name = this.outputFile.getAbsolutePath();
+        int lastIndexOf = name.lastIndexOf('.');
+        if (lastIndexOf > 0) {
+            name = name.substring(0, lastIndexOf);
+        }
+
+        name += "-src.zip";
+        return name;
     }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -454,8 +520,7 @@ public abstract class Project<T extends Project<T>> {
         if (getClass() != obj.getClass()) {
             return false;
         }
-        @SuppressWarnings("rawtypes")
-        Project<?> other = (Project) obj;
+        Project<?> other = (Project<?>) obj;
         if (this.name == null) {
             if (other.name != null) {
                 return false;

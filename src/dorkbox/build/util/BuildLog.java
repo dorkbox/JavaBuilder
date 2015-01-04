@@ -53,10 +53,12 @@ public class BuildLog {
     }
 
     private PrintStream printer;
-    private String title;
+    private StringBuilder titleBuilder = null;
 
     private int cachedSize = -1;
-    private String cachedSpacer;
+    private StringBuilder cachedSpacer;
+
+
 
     public BuildLog() {
         this.printer = System.err;
@@ -67,7 +69,7 @@ public class BuildLog {
     }
 
     public BuildLog title(String title) {
-        this.title = title;
+        prepTitle(title, true);
         return this;
     }
 
@@ -113,17 +115,16 @@ public class BuildLog {
         this.printer.println(spacerTitle.toString());
     }
 
-    public void message() {
-        message((String) null);
+    public void println() {
+        println((String) null);
     }
 
-    public void message(Object... message) {
-        if (suppressOutput) {
-            return;
-        }
-
-        String spacer1 = " ";
-        String spacer2 = "  ";
+    /**
+     * Creates everything in front of the message section, so that our "message" can be appended to each log entry if desired
+     * @return
+     */
+    private StringBuilder prepTitle(String title, boolean newLine) {
+        char spacer1 = ' ';
 
         if (this.cachedSize != TITLE_WIDTH || this.cachedSpacer == null) {
             this.cachedSize = TITLE_WIDTH;
@@ -131,14 +132,22 @@ public class BuildLog {
             for (int i = 0; i < this.cachedSize; i++) {
                 spacerTitle.append(spacer1);
             }
-            this.cachedSpacer = spacerTitle.toString();
+            this.cachedSpacer = spacerTitle;
         }
 
+        if (title == null) {
+            if (this.titleBuilder == null) {
+                this.titleBuilder = new StringBuilder(1024);
+                this.titleBuilder.append(this.cachedSpacer).append(TITLE_MESSAGE_DELIMITER).append(spacer1);
+            } else if (!newLine) {
+                this.titleBuilder = new StringBuilder(1024);
+            }
 
-        if (this.title == null) {
-            this.title = this.cachedSpacer;
-        } else {
-            int length = this.title.length();
+            return this.titleBuilder;
+        }
+
+        if (this.titleBuilder == null) {
+            int length = title.length();
             int padding = this.cachedSize - length - 1;
             StringBuilder msg = new StringBuilder(this.cachedSize);
             if (padding > 0) {
@@ -146,55 +155,58 @@ public class BuildLog {
                     msg.append(spacer1);
                 }
             }
-            msg.append(this.title);
+            msg.append(title);
             msg.append(spacer1);
-            this.title = msg.toString();
+
+            this.titleBuilder = new StringBuilder(1024);
+            this.titleBuilder.append(msg).append(TITLE_MESSAGE_DELIMITER).append(spacer1);
         }
 
-        StringBuilder msg = new StringBuilder(1024);
-        String titleMessageDelimiter = TITLE_MESSAGE_DELIMITER;
+        return this.titleBuilder;
+    }
 
-        msg.append(this.title).append(titleMessageDelimiter);
+    public void print(Object... message) {
+        print(false, message);
+    }
+
+    public void println(Object... message) {
+        print(true, message);
+    }
+
+    private final void print(boolean newLine, Object... message) {
+        if (suppressOutput) {
+            return;
+        }
+
+        // only makes it if necessary
+        StringBuilder msg = prepTitle(null, newLine);
 
         if (message != null && message.length > 0 && message[0] != null) {
+            String titleMessageDelimiter = TITLE_MESSAGE_DELIMITER;
             String newLineToken = OS.LINE_SEPARATOR;
-            int width = TITLE_WIDTH + 3;
             int start = 0;
 
+            char spacer1 = ' ';
+
             // if we have more than one message, the messages AFTER the first one are INDENTED
-            msg.append(spacer1).append(message[start++]);
+            msg.append(message[start++]);
+
             if (message.length > 1) {
                 for (int i = start; i < message.length; i++) {
                     String m = message[i].toString();
-                    if (msg.length() > width) {
+                    if (msg.length() > 0) {
                         msg.append(newLineToken);
                     }
-                    msg.append(this.cachedSpacer).append(titleMessageDelimiter).append(spacer1).append(spacer2).append(m);
+                    // next line
+                    msg.append(this.cachedSpacer).append(titleMessageDelimiter).append(spacer1).append(spacer1).append(spacer1).append(m);
                 }
             }
         }
 
-        this.printer.println(msg.toString());
-    }
-
-    public void print(String message) {
-        if (suppressOutput) {
-            return;
+        if (newLine) {
+            this.printer.println(msg.toString());
+        } else {
+            this.printer.print(msg.toString());
         }
-        this.printer.print(message);
-    }
-
-    public void println(String message) {
-        if (suppressOutput) {
-            return;
-        }
-        this.printer.println(message);
-    }
-
-    public void write(int b) {
-        if (suppressOutput) {
-            return;
-        }
-        this.printer.write(b);
     }
 }

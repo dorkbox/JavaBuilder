@@ -68,8 +68,8 @@ public class JarSigner {
 
     public static File sign(String jarName, String name) {
 
-        Build.log().message();
-        Build.log().title("Signing JAR").message(jarName, name.toUpperCase());
+        Build.log().println();
+        Build.log().title("Signing JAR").println(jarName, name.toUpperCase());
 
         if (jarName == null) {
             throw new IllegalArgumentException("jarName cannot be null.");
