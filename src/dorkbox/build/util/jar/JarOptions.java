@@ -43,7 +43,7 @@ public class JarOptions {
     public List<License> licenses;
 
     /**
-     * Specify that all of the dates in the file should be now.
+     * Specify that all of the dates in the file should be overridden to the specified one.
      */
-    public boolean setDateLatest;
+    public long overrideDate = -1;
 }

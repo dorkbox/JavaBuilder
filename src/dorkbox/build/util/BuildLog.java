@@ -150,12 +150,20 @@ public class BuildLog {
             int length = title.length();
             int padding = this.cachedSize - length - 1;
             StringBuilder msg = new StringBuilder(this.cachedSize);
+
+            String adjustedTitle = title;
+            if (length > this.cachedSize) {
+                // too long!
+                adjustedTitle = title.substring(0, this.cachedSize-3) + "..";
+                length = adjustedTitle.length();
+            }
+
             if (padding > 0) {
                 for (int i = 0; i < padding; i++) {
                     msg.append(spacer1);
                 }
             }
-            msg.append(title);
+            msg.append(adjustedTitle);
             msg.append(spacer1);
 
             this.titleBuilder = new StringBuilder(1024);

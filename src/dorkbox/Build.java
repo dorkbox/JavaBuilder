@@ -29,10 +29,12 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.TimeZone;
 
 import com.esotericsoftware.wildcard.Paths;
 
@@ -66,14 +68,29 @@ public class Build {
 
     public static final String BUILD_MODE = "build";
 
-    public static final long startDate = System.currentTimeMillis();
+    private static final long startDate = System.currentTimeMillis();
+    public static long buildDate = startDate;
 
     /** Location where settings are stored */
     public static PropertiesProvider settings = new PropertiesProvider(new File("settings.ini"));
 
     public static boolean isJar;
 
+    public static TimeZone defaultTimeZone;
+    public static int offset;
+
     static {
+        // get the local time zone for use later
+        defaultTimeZone = TimeZone.getDefault();
+        offset = defaultTimeZone.getRawOffset();
+        if (defaultTimeZone.inDaylightTime(new Date())){
+            offset = offset + defaultTimeZone.getDSTSavings();
+        }
+
+        // have to set our default timezone to UTC. EVERYTHING will be UTC, and if we want local, we must explicitly ask for it.
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
+//        System.out.println("UTC Time: " + new Date());
+
         Paths.setDefaultGlobExcludes("**/.svn/**, **/.git/**");
         // are we building from a jar, or a project (from eclipse?)
         String sourceName = LocationResolver.get(dorkbox.Build.class).getName();
@@ -114,28 +131,47 @@ public class Build {
     }
 
     public static void make(BuildOptions buildOptions, SimpleArgs args) {
-
         String title = "JavaBuilder";
-        BuildLog.start().title(title).println(args);
+        BuildLog log = BuildLog.start();
+        log.title(title).println(args);
+
+        Date buildDate = args.getBuildDate();
+        if (buildDate != null) {
+            Build.buildDate = buildDate.getTime();
+
+            Calendar c = Calendar.getInstance(defaultTimeZone);
+            c.setTime(buildDate);
+            c.add(Calendar.HOUR_OF_DAY, offset / 1000 / 60 / 60);
+            c.add(Calendar.MINUTE, offset / 1000 / 60 % 60);
+
+            log.title("Forced Date").println(buildDate, c.getTime().toString().replace("UTC", defaultTimeZone.getID()));
+        }
 
         Build build = new Build();
         try {
             build.prepareXcompile();
-            log().println();
+            log.println();
 
             if (Build.isJar) {
                 // when from eclipse, we want to run it directly (in case it changes significantly)
                 build.compileBuildInstructions(args);
-                log().println();
+                log.println();
             }
 
             build.start(buildOptions, args);
 
-            log().println();
+            log.println();
+
+            Calendar c = Calendar.getInstance(defaultTimeZone);
+            c.setTime(new Date());
+            c.add(Calendar.HOUR_OF_DAY, offset / 1000 / 60 / 60);
+            c.add(Calendar.MINUTE, offset / 1000 / 60 % 60);
+            String localDateString = c.getTime().toString().replace("UTC", defaultTimeZone.getID());
+
             if (!BuildLog.wasNested || BuildLog.TITLE_WIDTH != BuildLog.STOCK_TITLE_WIDTH) {
-                log().title(title).println(args , new Date(), "Completed in: " + getRuntime(build.startTime) + " seconds.");
+                log.title(title).println(args , localDateString, "Completed in: " + getRuntime(build.startTime) + " seconds.");
             } else {
-                log().title(title).println(args , new Date(), "Completed in: " + getRuntime(Build.startDate) + " seconds.");
+                log.title(title).println(args , localDateString, "Completed in: " + getRuntime(Build.startDate) + " seconds.", "Date code: " + Build.buildDate);
             }
         } catch (Throwable e) {
             e.printStackTrace();

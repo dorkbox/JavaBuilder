@@ -31,8 +31,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -143,12 +141,11 @@ public class License implements Comparable<License> {
         }
 
         // copy over full text licenses
-        Map<LicenseType, byte[]> licenseAsBytes = License.getActualLicensesAsBytes(null);
-        for (Entry<LicenseType, byte[]> entry : licenseAsBytes.entrySet()) {
-            LicenseType key = entry.getKey();
-            byte[] bytes = entry.getValue();
+        List<LicenseWrapper> licenseWrappers = License.getActualLicensesAsBytes(null);
+        for (LicenseWrapper entry : licenseWrappers) {
+            byte[] bytes = entry.bytes;
 
-            File targetLicenseFile = new File(targetLocation, "LICENSE." + key.getExtension());
+            File targetLicenseFile = new File(targetLocation, "LICENSE." + entry.license.getExtension());
             FileOutputStream fileOutputStream = new FileOutputStream(targetLicenseFile);
             copyStream(new ByteArrayInputStream(bytes), fileOutputStream);
             fileOutputStream.close();
@@ -200,12 +197,11 @@ public class License implements Comparable<License> {
         output.close();
 
         // copy over full text licenses
-        Map<LicenseType, byte[]> licenseAsBytes = License.getActualLicensesAsBytes(licenses);
-        for (Entry<LicenseType, byte[]> entry : licenseAsBytes.entrySet()) {
-            LicenseType key = entry.getKey();
-            byte[] bytes = entry.getValue();
+        List<LicenseWrapper> licenseWrappers = License.getActualLicensesAsBytes(licenses);
+        for (LicenseWrapper entry : licenseWrappers) {
+            byte[] bytes = entry.bytes;
 
-            File targetLicenseFile = new File(targetLocation, "LICENSE." + key.getExtension());
+            File targetLicenseFile = new File(targetLocation, "LICENSE." + entry.license.getExtension());
             FileOutputStream fileOutputStream = new FileOutputStream(targetLicenseFile);
             copyStream(new ByteArrayInputStream(bytes), fileOutputStream);
             fileOutputStream.close();
@@ -214,8 +210,9 @@ public class License implements Comparable<License> {
 
     /**
      * Install the listed license files + full text licenses into the target zip file.
+     * @param overrideDate
      */
-    public static void install(ZipOutputStream zipOutputStream, List<License> licenses) throws IOException {
+    public static void install(ZipOutputStream zipOutputStream, List<License> licenses, long date) throws IOException {
         if (zipOutputStream == null) {
             throw new IllegalArgumentException("zipOutputStream cannot be null.");
         }
@@ -223,27 +220,28 @@ public class License implements Comparable<License> {
             throw new IllegalArgumentException("licenses cannot be null or empty");
         }
 
-        long time = System.currentTimeMillis();
+        if (date == -1) {
+            date = System.currentTimeMillis();
+        }
 
         String licenseFile = License.buildString(licenses);
 
         // WHAT IF LICENSE ALREADY EXISTS?!?!
         ZipEntry zipEntry = new ZipEntry("LICENSE");
-        zipEntry.setTime(time);
+        zipEntry.setTime(date);
         zipOutputStream.putNextEntry(zipEntry);
 
         ByteArrayInputStream input = new ByteArrayInputStream(licenseFile.getBytes(UTF_8));
         copyStream(input, zipOutputStream);
         zipOutputStream.closeEntry();
 
+        // iterator is different every time...
+        List<LicenseWrapper> licenseWrappers = License.getActualLicensesAsBytes(licenses);
+        for (LicenseWrapper entry : licenseWrappers) {
+            byte[] bytes = entry.bytes;
 
-        Map<LicenseType, byte[]> licenseAsBytes = License.getActualLicensesAsBytes(licenses);
-        for (Entry<LicenseType, byte[]> entry : licenseAsBytes.entrySet()) {
-            LicenseType key = entry.getKey();
-            byte[] bytes = entry.getValue();
-
-            zipEntry = new ZipEntry("LICENSE." + key.getExtension());
-            zipEntry.setTime(time);
+            zipEntry = new ZipEntry("LICENSE." + entry.license.getExtension());
+            zipEntry.setTime(date);
             zipOutputStream.putNextEntry(zipEntry);
 
             zipOutputStream.write(bytes, 0, bytes.length);
@@ -254,7 +252,7 @@ public class License implements Comparable<License> {
     /**
      * @param licenses if NULL, then it returns ALL of the license types
      */
-    private static Map<LicenseType, byte[]> getActualLicensesAsBytes(List<License> licenses) throws IOException {
+    private static List<LicenseWrapper> getActualLicensesAsBytes(List<License> licenses) throws IOException {
         // de-duplicate types
         Set<LicenseType> types = new HashSet<LicenseType>(0);
         if (licenses != null) {
@@ -267,7 +265,7 @@ public class License implements Comparable<License> {
             }
         }
 
-        HashMap<LicenseType, byte[]> hashMap = new HashMap<LicenseType, byte[]>(types.size());
+        List<LicenseWrapper> licenseList = new ArrayList<LicenseWrapper>(types.size());
 
         // look on disk, or look in a jar for the licenses.
         // Either way, we want the BYTES of those files!
@@ -301,7 +299,7 @@ public class License implements Comparable<License> {
                 copyStream(input, output);
                 input.close();
 
-                hashMap.put(lt, output.toByteArray());
+                licenseList.add(new LicenseWrapper(lt, output.toByteArray()));
             }
         } else if (rootPath.endsWith(".jar") && isZipFile(rootFile)) {
             // have to go digging for it!
@@ -323,16 +321,18 @@ public class License implements Comparable<License> {
                     ByteArrayOutputStream output = new ByteArrayOutputStream(4096);
                     copyStream(zipInputStream, output);
 
-                    hashMap.put(licenseType, output.toByteArray());
+                    licenseList.add(new LicenseWrapper(licenseType, output.toByteArray()));
                     zipInputStream.closeEntry();
                 }
             }
             zipInputStream.close();
         } else {
-            throw new IOException("Don't know what this is, but - KAPOW_ON_GET_CLASS_PATH");
+            throw new IOException("Don't know what this is, but - KAPOW_ON_getActualLicensesAsBytes");
         }
 
-        return hashMap;
+        Collections.sort(licenseList);
+
+        return licenseList;
     }
 
     /**
