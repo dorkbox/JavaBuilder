@@ -38,6 +38,7 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.jar.Attributes;
@@ -306,13 +307,12 @@ public class JarUtil {
      * removes all of the (META-INF, OSGI-INF, etc) information (removes the entire directory), AND ALSO removes all comments from the files
      */
     public static InputStream removeManifestCommentsAndFiles(String fileName, InputStream inputStream,
-                                                             String[] pathToRemove, String[] pathToKeep) throws IOException {
+                                                             String[] pathToRemove, String[] pathToKeep,
+                                                             Set<String> stripped) throws IOException {
         // shortcut out -- nothing to do
         if (pathToRemove == null || pathToRemove.length == 0) {
             return inputStream;
         }
-
-        Set<String> stripped = new HashSet<String>();
 
         // by default, this will not have access to the manifest! (not that we care...)
         // we will ALSO lose entry comments!
@@ -341,7 +341,6 @@ public class JarUtil {
                 for (String dir : pathToRemove) {
                     if (name.startsWith(dir)) {
                         if (!stripped.contains(fileName)) {
-                            System.err.println("Removing " + dir + " directory & signatures... (" + fileName + ")");
                             stripped.add(fileName);
                         }
                         continue JAR_PROCESSING;
@@ -363,8 +362,7 @@ public class JarUtil {
 
         // return the regular stream if we didn't strip anything!
         // convert the output stream to an input stream
-        int length = byteArrayOutputStream.size();
-        return new ByteArrayInputStream(byteArrayOutputStream.toByteArray(), 0, length);
+        return new ByteArrayInputStream(byteArrayOutputStream.toByteArray());
     }
 
     /**
@@ -484,7 +482,8 @@ public class JarUtil {
     }
 
     /**
-     * This will ALSO normalize (pack+unpack) the jar
+     * This will ALSO normalize (pack+unpack) the jar AND strip/purge all LICENSE*.* info from sub-dirs/jars (ONLY the
+     * specified licenses will be included)
      *
      * Note about JarOutputStream:
      *  The JAR_MAGIC "0xCAFE" in the extra field data of the first JAR entry from our JarOutputStream implementation is
@@ -511,28 +510,10 @@ public class JarUtil {
 
         List<String> fullPaths = options.inputPaths.getPaths();
         List<String> relativePaths = options.inputPaths.getRelativePaths();
-        String manifestFile = null;
-
-        String manifestName = JarFile.MANIFEST_NAME;
-        int manifestIndex = relativePaths.indexOf(manifestName);
-
-        // manage the MANIFEST
-        if (manifestIndex > 0) {
-            // Ensure MANIFEST.MF is first.
-            relativePaths.remove(manifestIndex);
-            relativePaths.add(0, manifestName);
-
-            String manifestFullPath = fullPaths.get(manifestIndex);
-            fullPaths.remove(manifestIndex);
-            fullPaths.add(0, manifestFullPath);
-        } else
+        Manifest manifest = null;
 
         if (options.mainClass != null) {
-            manifestFile = FileUtil.tempFile("manifest").getAbsolutePath();
-            relativePaths.add(0, manifestName);
-            fullPaths.add(0, manifestFile);
-
-            Manifest manifest = new Manifest();
+            manifest = new Manifest();
             Attributes attributes = manifest.getMainAttributes();
             attributes.putValue(Attributes.Name.MANIFEST_VERSION.toString(), "1.0");
 
@@ -554,13 +535,6 @@ public class JarUtil {
                 }
             }
             attributes.putValue(Attributes.Name.CLASS_PATH.toString(), buffer.toString());
-
-            FileOutputStream output = new FileOutputStream(manifestFile);
-            try {
-                manifest.write(output);
-            } finally {
-                Sys.close(output);
-            }
         }
 
         int totalEntries = options.inputPaths.count();
@@ -574,9 +548,10 @@ public class JarUtil {
         }
 
 
-        Build.log().println();
-        Build.log().title("Creating JAR").println("(" + totalEntries + " entries)",
-                                                  options.outputFile.getAbsolutePath());
+        BuildLog log = Build.log();
+        log.println();
+        log.title("Creating JAR").println(totalEntries + " total entries",
+                                          options.outputFile.getAbsolutePath());
 
 
         // CLEANUP DIRECTORIES
@@ -593,138 +568,136 @@ public class JarUtil {
             // - Directory names must end with a slash '/'
             // - All paths must use '/' style slashes, not '\'
             // - JarEntry names should NOT begin with '/'
-            InputStream input = null;
-            boolean foundManifest = false;
 
-            // MANIFEST FIRST! There is only the manifest, as we are creating
-            // the jar from scratch.
-            // this means that there won't be any other "META-INF" files.
-            if (manifestIndex >= 0) {
-                for (int i = 0, n = fullPaths.size(); i < n; i++) {
-                    String fileName = relativePaths.get(i).replace('\\', '/');
-                    if (fileName.equals(manifestName)) {
-                        File file = new File(fullPaths.get(i));
 
-                        JarEntry jarEntry = new JarEntry(fileName);
-                        if (options.setDateLatest) {
-                            jarEntry.setTime(Build.startDate);
-                        } else {
-                            jarEntry.setTime(file.lastModified());
-                        }
-                        output.putNextEntry(jarEntry);
+            ///////////////////////////////////////////////
+            // MANIFEST FIRST! There is only the manifest, as we are creating the jar from scratch.
+            ///////////////////////////////////////////////
+            if (manifest != null) {
+                JarEntry jarEntry = new JarEntry(JarFile.MANIFEST_NAME);
+                jarEntry.setTime(Build.startDate);
+                output.putNextEntry(jarEntry);
 
-                        input = new BufferedInputStream(new FileInputStream(file));
-                        Sys.copyStream(input, output);
-                        Sys.close(input);
-                        output.closeEntry();
-
-                        FileUtil.delete(manifestFile);
-                        foundManifest = true;
-                    }
-                    if (foundManifest) {
-                        fullPaths.remove(i);
-                        relativePaths.remove(i);
-
-                        break;
-                    }
-                }
+                manifest.write(output);
+                output.closeEntry();
             }
-
             // there won't be any OTHER manifest files, since we haven't signed
             // the jar yet...
 
+
+
+            ///////////////////////////////////////////////
             // NEXT all directories
-            List<String> sortList = new ArrayList<String>(directories.size());
-            for (String dirName : directories) {
-                if (!dirName.endsWith("/")) {
-                    dirName += "/";
+            ///////////////////////////////////////////////
+            {
+                List<String> sortedDirectories = new ArrayList<String>(directories.size());
+                for (String dirName : directories) {
+                    if (!dirName.endsWith("/")) {
+                        dirName += "/";
+                    }
+
+                    sortedDirectories.add(dirName);
                 }
 
-                sortList.add(dirName);
+                // sort them
+                Collections.sort(sortedDirectories);
+                for (String dirName : sortedDirectories) {
+                    JarEntry jarEntry = new JarEntry(dirName);
+                    output.putNextEntry(jarEntry);
+                    output.closeEntry();
+                }
             }
 
-            // sort them
-            Collections.sort(sortList);
-            for (String dirName : sortList) {
-                JarEntry jarEntry = new JarEntry(dirName);
-                output.putNextEntry(jarEntry);
-                output.closeEntry();
-            }
 
+            {
+                List<SortedFiles> sortedClassFiles = new ArrayList<SortedFiles>(fullPaths.size());
+                List<SortedFiles> sortedOtherFiles = new ArrayList<SortedFiles>(fullPaths.size());
 
-
-            ///////////////////////////////////////////////
-            // THEN all CLASS files. Skip the MANIFEST
-            ///////////////////////////////////////////////
-            List<SortedFiles> sortList2 = new ArrayList<SortedFiles>(fullPaths.size());
-            for (int i = 0, n = fullPaths.size(); i < n; i++) {
-                String fileName = relativePaths.get(i).replace('\\', '/');
-                if (!fileName.equals(manifestName) && fileName.endsWith(".class")) {
+                for (int i = 0, n = fullPaths.size(); i < n; i++) {
+                    String fileName = relativePaths.get(i).replace('\\', '/');
 
                     SortedFiles file = new SortedFiles();
                     file.file = new File(fullPaths.get(i));
                     file.fileName = fileName;
-                    sortList2.add(file);
 
-                    // mucking with the backing array so our indexing still works
-                    fullPaths.remove(i);
-                    relativePaths.remove(i);
-                    i--;
-                    n--;
+                    ///////////////////////////////////////////////
+                    // THEN all CLASS files.
+                    ///////////////////////////////////////////////
+                    if (fileName.endsWith(".class")) {
+                        sortedClassFiles.add(file);
+                    }
+
+                    ///////////////////////////////////////////////
+                    // files other than class files.
+                    ///////////////////////////////////////////////
+                    else {
+                        sortedOtherFiles.add(file);
+                    }
+                }
+
+                InputStream input = null;
+
+                //sort them
+                Collections.sort(sortedClassFiles);
+                for (SortedFiles cf : sortedClassFiles) {
+                    JarEntry jarEntry = new JarEntry(cf.fileName);
+                    if (options.setDateLatest) {
+                        jarEntry.setTime(Build.startDate);
+                    } else {
+                        jarEntry.setTime(cf.file.lastModified());
+                    }
+                    output.putNextEntry(jarEntry);
+
+                    // else just copy the file over
+                    input = new BufferedInputStream(new FileInputStream(cf.file));
+                    Sys.copyStream(input, output);
+                    Sys.close(input);
+                    output.closeEntry();
+                }
+
+                // sort them
+                Collections.sort(sortedOtherFiles);
+                for (SortedFiles cf : sortedOtherFiles) {
+                    //System.err.println('\t' + fullPaths.get(i));
+
+                    String fileName = cf.fileName;
+                    JarEntry jarEntry = new JarEntry(fileName);
+                    if (options.setDateLatest) {
+                        jarEntry.setTime(Build.startDate);
+                    } else {
+                        jarEntry.setTime(cf.file.lastModified());
+                    }
+                    output.putNextEntry(jarEntry);
+
+                    // else just copy the file over
+                    input = new BufferedInputStream(new FileInputStream(cf.file));
+
+                    if (JarUtil.isZipFile(cf.file)) {
+                        ByteArrayOutputStream outputStream = new ByteArrayOutputStream((int) cf.file.length());
+                        Sys.copyStream(input, outputStream);
+                        Sys.close(input);
+
+                        input = new ByteArrayInputStream(outputStream.toByteArray());
+                        // will not do anything if there was a manifest in the target jar
+                        JarInputStream jarInputStream = new JarInputStream(input, false);
+                        Manifest targetManifest = jarInputStream.getManifest();
+
+                        // DON'T touch if there is a manifest!
+                        if (targetManifest == null) {
+                            outputStream = JarUtil.removeLicenseInfo(jarInputStream);
+                            input = new ByteArrayInputStream(outputStream.toByteArray());
+                        } else {
+                            input.reset();
+                        }
+                    }
+
+                    Sys.copyStream(input, output);
+                    Sys.close(input);
+                    output.closeEntry();
                 }
             }
 
-            //sort them
-            Collections.sort(sortList2);
-            for (SortedFiles cf : sortList2) {
-                JarEntry jarEntry = new JarEntry(cf.fileName);
-                if (options.setDateLatest) {
-                    jarEntry.setTime(Build.startDate);
-                } else {
-                    jarEntry.setTime(cf.file.lastModified());
-                }
-                output.putNextEntry(jarEntry);
 
-                // else just copy the file over
-                input = new BufferedInputStream(new FileInputStream(cf.file));
-                Sys.copyStream(input, output);
-                Sys.close(input);
-                output.closeEntry();
-            }
-
-
-            ///////////////////////////////////////////////
-            // files other than class files.
-            ///////////////////////////////////////////////
-            sortList2 = new ArrayList<SortedFiles>(fullPaths.size());
-            for (int i = 0, n = fullPaths.size(); i < n; i++) {
-                String fileName = relativePaths.get(i).replace('\\', '/');
-
-                SortedFiles file = new SortedFiles();
-                file.file = new File(fullPaths.get(i));
-                file.fileName = fileName;
-                sortList2.add(file);
-            }
-
-            // sort them
-            Collections.sort(sortList2);
-            for (SortedFiles cf : sortList2) {
-                //System.err.println('\t' + fullPaths.get(i));
-
-                JarEntry jarEntry = new JarEntry(cf.fileName);
-                if (options.setDateLatest) {
-                    jarEntry.setTime(Build.startDate);
-                } else {
-                    jarEntry.setTime(cf.file.lastModified());
-                }
-                output.putNextEntry(jarEntry);
-
-                // else just copy the file over
-                input = new BufferedInputStream(new FileInputStream(cf.file));
-                Sys.copyStream(input, output);
-                Sys.close(input);
-                output.closeEntry();
-            }
 
 
             ///////////////////////////////////////////////
@@ -732,9 +705,9 @@ public class JarUtil {
             // These files will MATCH the path hierarchy in the jar
             ///////////////////////////////////////////////
             if (options.extraPaths != null) {
-                sortList2 = new ArrayList<SortedFiles>(options.extraPaths.count());
+                List<SortedFiles> sortList = new ArrayList<SortedFiles>(options.extraPaths.count());
 
-                Build.log().println("   Adding extras");
+                log.println("   Adding extras");
 
                 fullPaths = options.extraPaths.getPaths();
                 relativePaths = options.extraPaths.getRelativePaths();
@@ -743,18 +716,19 @@ public class JarUtil {
                     String fileName;
                     fileName = relativePaths.get(i).replace('\\', '/');
 
-                    Build.log().println("\t" + fileName);
+                    log.println("\t" + fileName);
 
                     SortedFiles file = new SortedFiles();
                     file.file = new File(fullPaths.get(i));
                     file.fileName = fileName;
-                    sortList2.add(file);
+                    sortList.add(file);
                 }
 
-                // sort them
-                Collections.sort(sortList2);
-                for (SortedFiles cf : sortList2) {
+                InputStream input = null;
 
+                // sort them
+                Collections.sort(sortList);
+                for (SortedFiles cf : sortList) {
                     JarEntry jarEntry = new JarEntry(cf.fileName);
                     if (options.setDateLatest) {
                         jarEntry.setTime(Build.startDate);
@@ -775,9 +749,9 @@ public class JarUtil {
             // include the source code if possible
             ///////////////////////////////////////////////
             if (options.sourcePaths != null && !options.sourcePaths.isEmpty()) {
-                sortList2 = new ArrayList<SortedFiles>(options.sourcePaths.count());
+                List<SortedFiles> sortList = new ArrayList<SortedFiles>(options.sourcePaths.count());
 
-                Build.log().println("   Adding sources (" + options.sourcePaths.count() + " entries)...");
+                log.println("   Adding sources (" + options.sourcePaths.count() + " entries)...");
 
                 fullPaths = options.sourcePaths.getPaths();
                 relativePaths = options.sourcePaths.getRelativePaths();
@@ -789,12 +763,14 @@ public class JarUtil {
                     SortedFiles file = new SortedFiles();
                     file.file = new File(fullPaths.get(i));
                     file.fileName = fileName;
-                    sortList2.add(file);
+                    sortList.add(file);
                 }
 
+                InputStream input = null;
+
                 // sort them
-                Collections.sort(sortList2);
-                for (SortedFiles cf : sortList2) {
+                Collections.sort(sortList);
+                for (SortedFiles cf : sortList) {
 
                     JarEntry jarEntry = new JarEntry(cf.fileName);
                     if (options.setDateLatest) {
@@ -812,11 +788,12 @@ public class JarUtil {
                 }
             }
 
+
             ///////////////////////////////////////////////
             // now include the license, if possible
             ///////////////////////////////////////////////
             if (options.licenses != null) {
-                Build.log().println("   Adding license");
+                log.println("   Adding license");
                 License.install(output, options.licenses);
             }
         } finally {
@@ -833,6 +810,42 @@ public class JarUtil {
 
         Sys.copyStream(byteArrayInputStream, fileOutputStream);
         Sys.close(fileOutputStream);
+    }
+
+    /**
+     * Removes the license information in a jar input stream. (IE: LICENSE, LICENSE.MIT, license.md, etc)
+     * <p>
+     * Be CAREFUL if there is a manifest present, as THIS DOES NOT COPY IT OVER.
+     */
+    public static ByteArrayOutputStream removeLicenseInfo(JarInputStream jarInputStream) throws IOException {
+        // by default, this will not have access to the manifest! (CHECK BEFORE CALLING THIS, if you want to remove the manifest!)
+        // we will ALSO lose entry comments!
+
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        JarOutputStream jarOutputStream = new JarOutputStream(byteArrayOutputStream);
+        jarOutputStream.setLevel(JAR_COMPRESSION_LEVEL);
+
+        JarEntry entry;
+        while ((entry = jarInputStream.getNextJarEntry()) != null) {
+            String name = entry.getName();
+
+            String lowerCase = name.toLowerCase(Locale.US);
+            if (lowerCase.startsWith("license")) {
+                continue;
+            }
+
+            // create a new entry to avoid ZipException: invalid entry compressed size
+            // we want to COPY this over. hashes should remain the same between builds!
+            writeZipEntry(entry, jarInputStream, jarOutputStream);
+        }
+
+
+        // finish the stream that we have been writing to
+        jarOutputStream.finish();
+        Sys.close(jarOutputStream);
+        Sys.close(jarInputStream);
+
+        return byteArrayOutputStream;
     }
 
     /**
@@ -988,7 +1001,9 @@ public class JarUtil {
         Sys.close(outputStream);
     }
 
-
+    /**
+     * Also sets the time to the build time for all META-INF files!
+     */
     public static long addTimeStampToJar(String jarName) throws IOException {
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         JarOutputStream jarOutputStream = new JarOutputStream(new BufferedOutputStream(byteArrayOutputStream));
@@ -998,14 +1013,26 @@ public class JarUtil {
         // the contents of the jar.
         JarFile jarFile = new JarFile(jarName);
 
-        // MANIFEST ENTRIES MUST BE FIRST
-        Enumeration<JarEntry> metaEntries = jarFile.entries();
+        // MANIFEST MUST BE FIRST
+        Manifest manifest = jarFile.getManifest();
+        JarEntry jarEntry = new JarEntry(JarFile.MANIFEST_NAME);
+        jarEntry.setTime(Build.startDate);
+        jarOutputStream.putNextEntry(jarEntry);
+        manifest.write(jarOutputStream);
+        jarOutputStream.closeEntry();
 
+
+        // META-INF FILES ARE NEXT
+        Enumeration<JarEntry> metaEntries = jarFile.entries();
         while (metaEntries.hasMoreElements()) {
             JarEntry metaEntry = metaEntries.nextElement();
             String name = metaEntry.getName();
+            if (name.equals(JarFile.MANIFEST_NAME)) {
+                continue;
+            }
 
             if (name.startsWith(metaInfName) && !metaEntry.isDirectory()) {
+                metaEntry.setTime(Build.startDate);
                 JarUtil.writeZipEntry(metaEntry, jarFile, jarOutputStream);
             } else {
                 // since this is already a valid jar, the META-INF data is
@@ -1017,8 +1044,8 @@ public class JarUtil {
         // now add our TIMESTAMP.
         // It will ALWAYS calculate the timestamp from the BUILD SYSTEM, not the
         // LOCAL/REMOTE SYSTEM (which can exist with incorrect/different clocks)
-        long timeStamp = System.currentTimeMillis();
-        JarEntry jarEntry = new JarEntry(metaInfName + "___" + Long.toString(timeStamp));
+        long timeStamp = Build.startDate;
+        jarEntry = new JarEntry(metaInfName + "___" + Long.toString(timeStamp));
         jarOutputStream.putNextEntry(jarEntry);
         jarOutputStream.closeEntry();
 

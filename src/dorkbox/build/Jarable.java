@@ -140,4 +140,8 @@ public class Jarable {
     public ProjectJava outputFile(String jarOutputFileName) {
         return this.projectJava.outputFile(jarOutputFileName);
     }
+
+    public ProjectJava asProject() {
+        return this.projectJava;
+    }
 }

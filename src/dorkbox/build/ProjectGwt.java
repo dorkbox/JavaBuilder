@@ -131,8 +131,7 @@ public class ProjectGwt extends Project<ProjectGwt> {
             if (shouldBuild) {
                 // make sure our dependencies are on the classpath.
                 if (this.dependencies != null) {
-                    for (String dep : this.dependencies) {
-                        Project<?> project = deps.get(dep);
+                    for (Project<?> project : this.dependencies) {
                         if (project != null) {
                             this.sourcePaths.addFile(project.outputFile.getAbsolutePath());
                         }

@@ -158,11 +158,10 @@ public class ProjectJava extends Project<ProjectJava> {
             }
 
             // make sure ALL dependencies are on the classpath.
-            Set<String> depends = new HashSet<String>(this.dependencies);
+            Set<Project<?>> depends = new HashSet<Project<?>>(this.dependencies);
             getRecursiveDependencies(depends);
 
-            for (String dep : depends) {
-                Project<?> project = deps.get(dep);
+            for (Project<?> project : depends) {
                 // dep can be a jar as well
                 if (!project.outputFile.canRead()) {
                     throw new IOException("Dependency for project :" + this.name + " does not exist. '" + project.outputFile.getAbsolutePath() + "'");
