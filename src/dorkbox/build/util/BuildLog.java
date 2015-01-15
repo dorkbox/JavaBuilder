@@ -205,6 +205,7 @@ public class BuildLog {
 
         if (newLine) {
             this.printer.println(msg.toString());
+            this.titleBuilder = null;
         } else {
             this.printer.print(msg.toString());
         }
