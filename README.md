@@ -20,7 +20,7 @@ For example:
  
 For a real world example:
 
- - See the build code in the "build" directory, which is the build code used to build OAK    
+ - See the build code in the "build" directory, which is the build code used to build itself.    
    - If you want to compile it yourself, copy the entire contents of the libs directory into the dist directory.  
    - Then (from the project root), java -jar dist/JavaBuilder.jar build javabuilder dist  
   
