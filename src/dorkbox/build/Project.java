@@ -113,11 +113,13 @@ public abstract class Project<T extends Project<T>> {
 
     protected Paths extraFiles = new Paths();
 
-    protected List<String> dependencies = new ArrayList<String>();
+    protected List<Project<?>> dependencies = new ArrayList<Project<?>>();
 
     private transient Paths checksumPaths = new Paths();
     protected List<License> licenses = new ArrayList<License>();
     protected BuildOptions buildOptions;
+
+    private ArrayList<String> unresolvedDependencies = new ArrayList<String>();
 
 
     public static Project<?> get(String projectName) {
@@ -132,7 +134,6 @@ public abstract class Project<T extends Project<T>> {
 
     @SuppressWarnings("rawtypes")
     public static void buildAll() throws Exception {
-
         // organize the list of items to build, so that our build order is at least SOMEWHAT in order,
         // were the dependencies build first. This is just an optimization step
         List<Project> copy = new ArrayList<Project>(deps.values());
@@ -156,16 +157,19 @@ public abstract class Project<T extends Project<T>> {
             Iterator<Project> iterator = copy.iterator();
             while (iterator.hasNext()) {
                 Project<?> next = iterator.next();
+                // first, we have to make sure that ALL of the dependencies are RESOLVED
+                next.resolveDeps();
+
                 if (next.dependencies.isEmpty()) {
                     sorted.add(next);
                     sortedCheck.add(next.name);
                     iterator.remove();
                 } else {
-                    List<String> list = next.dependencies;
+                    List<Project<?>> list = next.dependencies;
                     int size = list.size();
 
-                    for (String d : list) {
-                        if (sortedCheck.contains(d) ) {
+                    for (Project<?> d : list) {
+                        if (sortedCheck.contains(d.name) ) {
                             size--;
                         }
                     }
@@ -188,6 +192,19 @@ public abstract class Project<T extends Project<T>> {
                 BuildLog.start();
                 project.build();
                 BuildLog.finish();
+            }
+        }
+    }
+
+    /** resolves all of the dependencies for this project, since the build order can be specified in ANY order */
+    protected void resolveDeps() {
+        Iterator<String> iterator = this.unresolvedDependencies.iterator();
+        while (iterator.hasNext()) {
+            String unresolved = iterator.next();
+            Project<?> project = deps.get(unresolved);
+            if (project != null) {
+                this.dependencies.add(project);
+                iterator.remove();
             }
         }
     }
@@ -232,21 +249,18 @@ public abstract class Project<T extends Project<T>> {
 
     public void getRecursiveLicenses(Set<License> licenses) {
         licenses.addAll(this.licenses);
-        Set<String> deps = new HashSet<String>();
+        Set<Project<?>> deps = new HashSet<Project<?>>();
         getRecursiveDependencies(deps);
 
-        for (String dep : deps) {
-            Project<?> project = Project.deps.get(dep);
+        for (Project<?> project : deps) {
             project.getRecursiveLicenses(licenses);
         }
     }
 
 
-    public void getRecursiveDependencies(Set<String> dependencies) {
-        for (String dep : this.dependencies) {
-            String dependencyName = dep;
-            Project<?> project = deps.get(dependencyName);
-            dependencies.add(project.name);
+    public void getRecursiveDependencies(Set<Project<?>> dependencies) {
+        for (Project<?> project : this.dependencies) {
+            dependencies.add(project);
             project.getRecursiveDependencies(dependencies);
         }
     }
@@ -259,6 +273,8 @@ public abstract class Project<T extends Project<T>> {
      */
     @SuppressWarnings("all")
     protected boolean checkAndBuildDependencies() throws IOException {
+        resolveDeps();
+
         // exit early if we already built this project
         if (buildList.contains(this.name)) {
             if (!this.isBuildingDependencies) {
@@ -268,21 +284,20 @@ public abstract class Project<T extends Project<T>> {
         }
 
         // ONLY build the dependencies as well
-        HashSet<String> deps = new HashSet<String>();
+        HashSet<Project<?>> deps = new HashSet<Project<?>>();
         getRecursiveDependencies(deps);
 
         if (!deps.isEmpty()) {
             String[] array = new String[deps.size() + 1];
             array[0] = "Depends";
             int i = 1;
-            for (String s : deps) {
-                array[i++] = s;
+            for (Project<?> s : deps) {
+                array[i++] = s.name;
             }
             Build.log().title(this.name).println(array);
         }
 
-        for (String dep : deps) {
-            Project<?> project = Project.deps.get(dep);
+        for (Project<?> project : deps) {
             // dep can be a jar as well (don't have to build a jar)
             if (!(project instanceof ProjectJar)) {
                 if (!buildList.contains(project.name)) {
@@ -320,7 +335,14 @@ public abstract class Project<T extends Project<T>> {
             ProjectJar.create(projectOrJar).outputFile(file);
         }
 
-        this.dependencies.add(projectOrJar);
+        Project<?> project = deps.get(projectOrJar);
+        if (project != null) {
+            this.dependencies.add(project);
+        } else {
+            this.unresolvedDependencies.add(projectOrJar);
+        }
+
+
 
         return (T) this;
     }
@@ -332,23 +354,29 @@ public abstract class Project<T extends Project<T>> {
             throw new NullPointerException("Dependencies cannot be null!");
         }
 
-        this.dependencies.add(project.name);
+        this.dependencies.add(project);
         this.licenses.addAll(project.licenses);
 
         return (T) this;
     }
 
-    /** extra files to include when you jar the project */
-    public T extraFiles(String dir, String... patterns) {
-        if (new File(dir).isFile() && (patterns == null || patterns.length == 0)) {
-            Paths paths = new Paths();
-            paths.addFile(dir);
-            return extraFiles(paths);
-        }
-        return extraFiles(new Paths(dir, patterns));
-    }
-
-    /** extra files to include when you jar the project */
+    /**
+     * extra files to include when you jar the project
+     * <p>
+     * The TARGET location in the JAR, is the RELATIVE location when adding the paths. <br>
+     * For Example: <br>
+     * extraFiles(new Paths("foo", "bar/x.bmp"))  <br>
+     *   jar  <br>
+     *    - a  <br>
+     *    - b  <br>
+     *    - bar/x.bmp  <br>
+     *  <br>
+     * extraFiles(new Paths("foo/bar", "x.bmp"))  <br>
+     *   jar  <br>
+     *    - a  <br>
+     *    - b  <br>
+     *    - x.bmp
+     */
     @SuppressWarnings("unchecked")
     public T extraFiles(Paths filePaths) {
         this.extraFiles.add(filePaths);

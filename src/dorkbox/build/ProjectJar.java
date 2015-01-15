@@ -70,8 +70,7 @@ public class ProjectJar extends Project<ProjectJar> {
         }
 
         // now copy out dependencies
-        for (String name : this.dependencies) {
-            Project<?> project = deps.get(name);
+        for (Project<?> project : this.dependencies) {
             if (project instanceof ProjectJar) {
                 ((ProjectJar) project).copyFiles(targetLocation);
             }
