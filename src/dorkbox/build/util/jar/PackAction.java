@@ -49,7 +49,7 @@ public enum PackAction {
     /**
      * Load native libraries, or load jar's that are incompatible with our box file.
      * <p>
-     * There's a comment that is the hash and pack+LZMA
+     * The extra data is the header + hash
      * <p>
      * It's not always possible to load our OWN libraries dll's, since some Java libraries have their
      * own method to loading dll's.
