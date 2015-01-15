@@ -13,7 +13,7 @@ import dorkbox.build.util.jar.JarUtil;
 public class Jarable {
     private ProjectJava projectJava;
 
-    private boolean setDateLatest = false;
+    private long overrideDate = -1;
 
     private boolean includeSource = false;
 
@@ -35,9 +35,9 @@ public class Jarable {
         this.projectJava = projectJava;
     }
 
-    /** Specify that all of the dates in the file should be now. */
-    public Jarable setDateLatest() {
-        this.setDateLatest = true;
+    /** Specify that all of the dates in the file should the Build date (which can be overridden) */
+    public Jarable overrideDate(long time) {
+        this.overrideDate = time;
         return this;
     }
 
@@ -101,7 +101,7 @@ public class Jarable {
         }
 
         JarOptions jarOptions = new JarOptions();
-        jarOptions.setDateLatest = this.setDateLatest;
+        jarOptions.overrideDate = this.overrideDate;
         jarOptions.outputFile = this.projectJava.outputFile;
         jarOptions.inputPaths = new Paths(this.projectJava.stagingDir.getAbsolutePath());
         jarOptions.extraPaths = this.projectJava.extraFiles;
@@ -119,9 +119,8 @@ public class Jarable {
         JarUtil.jar(jarOptions);
 
         if (this.includeSourceAsSeparate) {
-
             jarOptions = new JarOptions();
-            jarOptions.setDateLatest = this.setDateLatest;
+            jarOptions.overrideDate = this.overrideDate;
             jarOptions.outputFile = this.projectJava.outputFileSource;
             jarOptions.extraPaths = this.projectJava.extraFiles;
             jarOptions.sourcePaths = this.projectJava.sourcePaths;

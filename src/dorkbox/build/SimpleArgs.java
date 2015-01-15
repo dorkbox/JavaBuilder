@@ -16,6 +16,7 @@
 package dorkbox.build;
 
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
@@ -25,6 +26,7 @@ public class SimpleArgs {
     private final Set<String> argsAsSet;
     private final String[] args;
     private int lastIndex = 0;
+    private Date buildDate = null;
 
     public SimpleArgs(String[] args) {
         if (args == null) {
@@ -37,6 +39,11 @@ public class SimpleArgs {
             String arg = args[i];
             String lowerCase = arg.toLowerCase(Locale.US);
             this.argsAsSet.add(lowerCase);
+
+            if (lowerCase.startsWith("date")) {
+                String string = arg.split("=")[1];
+                this.buildDate = new Date(Long.parseLong(string));
+            }
         }
     }
 
@@ -78,6 +85,10 @@ public class SimpleArgs {
 
     public String getMode() {
         return this.args[0];
+    }
+
+    public Date getBuildDate() {
+        return this.buildDate;
     }
 
     public boolean isBuild() {

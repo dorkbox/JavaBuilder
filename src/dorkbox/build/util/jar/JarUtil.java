@@ -35,6 +35,7 @@ import java.io.Writer;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.List;
@@ -402,22 +403,27 @@ public class JarUtil {
             // there won't be any OTHER manifest files, since we haven't signed
             // the jar yet...
 
-            // FIRST all directories
-            List<String> sortList = new ArrayList<String>(directories.size());
-            for (String dirName : directories) {
-                if (!dirName.endsWith("/")) {
-                    dirName += "/";
+            ///////////////////////////////////////////////
+            // NEXT all directories
+            ///////////////////////////////////////////////
+            {
+                List<String> sortList = new ArrayList<String>(directories.size());
+                for (String dirName : directories) {
+                    if (!dirName.endsWith("/")) {
+                        dirName += "/";
+                    }
+
+                    sortList.add(dirName);
                 }
 
-                sortList.add(dirName);
-            }
-
-            // sort them
-            Collections.sort(sortList);
-            for (String dirName : sortList) {
-                ZipEntry jarEntry = new ZipEntry(dirName);
-                output.putNextEntry(jarEntry);
-                output.closeEntry();
+                // sort them
+                Collections.sort(sortList);
+                for (String dirName : sortList) {
+                    ZipEntry zipEntry = new ZipEntry(dirName);
+                    zipEntry.setTime(Build.buildDate);  // hidden when view as a jar, but it's always there
+                    output.putNextEntry(zipEntry);
+                    output.closeEntry();
+                }
             }
 
             ///////////////////////////////////////////////
@@ -443,8 +449,8 @@ public class JarUtil {
                 for (SortedFiles cf : sortList2) {
 
                     ZipEntry zipEntry = new ZipEntry(cf.fileName);
-                    if (options.setDateLatest) {
-                        zipEntry.setTime(Build.startDate);
+                    if (options.overrideDate > -1) {
+                        zipEntry.setTime(options.overrideDate);
                     } else {
                         zipEntry.setTime(cf.file.lastModified());
                     }
@@ -463,7 +469,7 @@ public class JarUtil {
             ///////////////////////////////////////////////
             if (options.licenses != null) {
                 Build.log().println("   Adding license");
-                License.install(output, options.licenses);
+                License.install(output, options.licenses, options.overrideDate);
             }
         } finally {
             output.finish();
@@ -574,8 +580,11 @@ public class JarUtil {
             // MANIFEST FIRST! There is only the manifest, as we are creating the jar from scratch.
             ///////////////////////////////////////////////
             if (manifest != null) {
+                Attributes attributes = manifest.getMainAttributes();
+                attributes.putValue("Build-Date", new Date(Build.buildDate).toString() + " (" + Long.toString(Build.buildDate) + ")");
+
                 JarEntry jarEntry = new JarEntry(JarFile.MANIFEST_NAME);
-                jarEntry.setTime(Build.startDate);
+                jarEntry.setTime(Build.buildDate);
                 output.putNextEntry(jarEntry);
 
                 manifest.write(output);
@@ -603,6 +612,7 @@ public class JarUtil {
                 Collections.sort(sortedDirectories);
                 for (String dirName : sortedDirectories) {
                     JarEntry jarEntry = new JarEntry(dirName);
+                    jarEntry.setTime(Build.buildDate); // hidden when view a jar, but it's always there
                     output.putNextEntry(jarEntry);
                     output.closeEntry();
                 }
@@ -641,8 +651,8 @@ public class JarUtil {
                 Collections.sort(sortedClassFiles);
                 for (SortedFiles cf : sortedClassFiles) {
                     JarEntry jarEntry = new JarEntry(cf.fileName);
-                    if (options.setDateLatest) {
-                        jarEntry.setTime(Build.startDate);
+                    if (options.overrideDate > -1) {
+                        jarEntry.setTime(options.overrideDate);
                     } else {
                         jarEntry.setTime(cf.file.lastModified());
                     }
@@ -662,8 +672,8 @@ public class JarUtil {
 
                     String fileName = cf.fileName;
                     JarEntry jarEntry = new JarEntry(fileName);
-                    if (options.setDateLatest) {
-                        jarEntry.setTime(Build.startDate);
+                    if (options.overrideDate > -1) {
+                        jarEntry.setTime(options.overrideDate);
                     } else {
                         jarEntry.setTime(cf.file.lastModified());
                     }
@@ -730,8 +740,8 @@ public class JarUtil {
                 Collections.sort(sortList);
                 for (SortedFiles cf : sortList) {
                     JarEntry jarEntry = new JarEntry(cf.fileName);
-                    if (options.setDateLatest) {
-                        jarEntry.setTime(Build.startDate);
+                    if (options.overrideDate > -1) {
+                        jarEntry.setTime(options.overrideDate);
                     } else {
                         jarEntry.setTime(cf.file.lastModified());
                     }
@@ -773,8 +783,8 @@ public class JarUtil {
                 for (SortedFiles cf : sortList) {
 
                     JarEntry jarEntry = new JarEntry(cf.fileName);
-                    if (options.setDateLatest) {
-                        jarEntry.setTime(Build.startDate);
+                    if (options.overrideDate > -1) {
+                        jarEntry.setTime(options.overrideDate);
                     } else {
                         jarEntry.setTime(cf.file.lastModified());
                     }
@@ -794,7 +804,7 @@ public class JarUtil {
             ///////////////////////////////////////////////
             if (options.licenses != null) {
                 log.println("   Adding license");
-                License.install(output, options.licenses);
+                License.install(output, options.licenses, options.overrideDate);
             }
         } finally {
             output.finish();
@@ -1016,7 +1026,7 @@ public class JarUtil {
         // MANIFEST MUST BE FIRST
         Manifest manifest = jarFile.getManifest();
         JarEntry jarEntry = new JarEntry(JarFile.MANIFEST_NAME);
-        jarEntry.setTime(Build.startDate);
+        jarEntry.setTime(Build.buildDate);
         jarOutputStream.putNextEntry(jarEntry);
         manifest.write(jarOutputStream);
         jarOutputStream.closeEntry();
@@ -1032,7 +1042,7 @@ public class JarUtil {
             }
 
             if (name.startsWith(metaInfName) && !metaEntry.isDirectory()) {
-                metaEntry.setTime(Build.startDate);
+                metaEntry.setTime(Build.buildDate);
                 JarUtil.writeZipEntry(metaEntry, jarFile, jarOutputStream);
             } else {
                 // since this is already a valid jar, the META-INF data is
@@ -1044,7 +1054,7 @@ public class JarUtil {
         // now add our TIMESTAMP.
         // It will ALWAYS calculate the timestamp from the BUILD SYSTEM, not the
         // LOCAL/REMOTE SYSTEM (which can exist with incorrect/different clocks)
-        long timeStamp = Build.startDate;
+        long timeStamp = Build.buildDate;
         jarEntry = new JarEntry(metaInfName + "___" + Long.toString(timeStamp));
         jarOutputStream.putNextEntry(jarEntry);
         jarOutputStream.closeEntry();
