@@ -40,6 +40,9 @@ import dorkbox.util.Base64Fast;
 import dorkbox.util.FileUtil;
 
 public abstract class Project<T extends Project<T>> {
+    public static final String JAR_EXTENSION = ".jar";
+    public static final String SRC_EXTENSION = "_src.zip";
+
     public static final String STAGING = "staging";
 
     public static final String Java_Pattern = "**" + File.separator + "*.java";
@@ -107,9 +110,17 @@ public abstract class Project<T extends Project<T>> {
 
     public final String name;
 
+    protected String versionString;
+    // has the version been set?
+    protected boolean setVersion = false;
+
     public File stagingDir;
     public File outputFile;
     public File outputFileSource = null;
+
+    public List<File> sources = new ArrayList<File>();
+    // could also be called native lib location
+    private String distLocation;
 
     protected Paths extraFiles = new Paths();
 
@@ -240,7 +251,7 @@ public abstract class Project<T extends Project<T>> {
 
         String lowerCase_outputDir = projectName.toLowerCase();
         this.stagingDir = new File(FileUtil.normalizeAsFile(STAGING + File.separator + lowerCase_outputDir));
-        this.outputFile = new File(this.stagingDir.getParentFile(), this.name + getExtension());
+        outputFile(new File(this.stagingDir.getParentFile(), this.name + getExtension()));
     }
 
     public abstract void build() throws IOException;
@@ -383,18 +394,57 @@ public abstract class Project<T extends Project<T>> {
         return (T) this;
     }
 
-    @SuppressWarnings("unchecked")
-    public T outputFile(String outputFileName) {
-        this.outputFile = FileUtil.normalize(new File(outputFileName));
-        this.outputFileSource = new File(createOutputFileSourceZip());
-        return (T) this;
+    public T outputFile(File outputFile) {
+        return outputFile(outputFile.getAbsolutePath());
     }
 
     @SuppressWarnings("unchecked")
-    public T outputFile(File outputFile) {
-        this.outputFile = FileUtil.normalize(outputFile);
-        this.outputFileSource = new File(createOutputFileSourceZip());
+    public T outputFile(String outputFileName) {
+        this.setVersion = true;
+        String withVersionName;
+        // version string is appended to the fileName
+        if (this.versionString != null) {
+            int index = outputFileName.lastIndexOf('.');
+            if (index < 0) {
+                withVersionName = outputFileName + "_" + this.versionString;
+            } else {
+                String first = outputFileName.substring(0, index);
+                String extension = outputFileName.substring(index);
+
+                withVersionName = first + "_" + this.versionString + extension;
+            }
+        } else {
+            withVersionName = outputFileName;
+        }
+
+        this.outputFile = FileUtil.normalize(new File(withVersionName));
+
+
+        String name = this.outputFile.getAbsolutePath();
+        int lastIndexOf = name.lastIndexOf('.');
+        if (lastIndexOf > 0) {
+            name = name.substring(0, lastIndexOf);
+        }
+
+        name += SRC_EXTENSION;
+        this.outputFileSource = new File(name);
+
         return (T) this;
+    }
+
+    public Project<T> addSrc(String file) {
+        this.sources.add(new File(FileUtil.normalizeAsFile(file)));
+        return this;
+    }
+
+    public Project<T> addSrc(File file) {
+        this.sources.add(file);
+        return this;
+    }
+
+    public Project<T> dist(String distLocation) {
+        this.distLocation = FileUtil.normalizeAsFile(distLocation);
+        return this;
     }
 
     @SuppressWarnings("unchecked")
@@ -415,20 +465,56 @@ public abstract class Project<T extends Project<T>> {
         return (T) this;
     }
 
-    void outputFileSource(String sourceName) {
-        this.outputFileSource = new File(FileUtil.normalizeAsFile(sourceName));
-    }
 
-    private String createOutputFileSourceZip() {
-        String name = this.outputFile.getAbsolutePath();
-        int lastIndexOf = name.lastIndexOf('.');
-        if (lastIndexOf > 0) {
-            name = name.substring(0, lastIndexOf);
+    public void copyFiles(File targetLocation) throws IOException {
+        // copy dist dir over
+        boolean canCopySingles = false;
+        if (this.distLocation != null) {
+            Build.copyDirectory(this.distLocation, targetLocation.getAbsolutePath());
+
+            if (this.outputFile == null || !this.outputFile.getAbsolutePath().startsWith(this.distLocation)) {
+                canCopySingles = true;
+            }
+        } else {
+            canCopySingles = true;
         }
 
-        name += "-src.zip";
-        return name;
+        if (canCopySingles) {
+            if (this.outputFile != null && this.outputFile.canRead()) {
+                Build.copyFile(this.outputFile, new File(targetLocation, this.outputFile.getName()));
+            }
+
+            // do we have a "source" file as well?
+            if (this.outputFileSource != null && this.outputFileSource.canRead()) {
+                Build.copyFile(this.outputFileSource, new File(targetLocation, this.outputFileSource.getName()));
+            }
+
+            for (File f : this.sources) {
+                Build.copyFile(f, new File(targetLocation, f.getName()));
+            }
+        }
+
+        // now copy out extra files
+        List<String> fullPaths = this.extraFiles.getPaths();
+        List<String> relativePaths = this.extraFiles.getRelativePaths();
+
+
+        for (int i = 0; i < fullPaths.size(); i++) {
+            File source = new File(fullPaths.get(i));
+
+            if (source.isFile()) {
+                Build.copyFile(source, new File(targetLocation, relativePaths.get(i)));
+            }
+        }
+
+        // now copy out dependencies
+        for (Project<?> project : this.dependencies) {
+            if (project instanceof ProjectJar) {
+                ((ProjectJar) project).copyFiles(targetLocation);
+            }
+        }
     }
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 //// CHECKSUM LOGIC
@@ -522,6 +608,11 @@ public abstract class Project<T extends Project<T>> {
             String fileChecksums = Base64Fast.encodeToString(hashBytes, false);
             return fileChecksums;
         }
+    }
+
+    public Project<?> version(String versionString) {
+        this.versionString = versionString;
+        return this;
     }
 
     @Override

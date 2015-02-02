@@ -387,7 +387,7 @@ public class ProjectJava extends Project<ProjectJava> {
 
     @Override
     public String getExtension() {
-        return ".jar";
+        return  Project.JAR_EXTENSION;
     }
 
     public static interface OnJarEntryAction {
@@ -442,5 +442,11 @@ public class ProjectJava extends Project<ProjectJava> {
 
     public List<License> getLicenses() {
         return this.licenses;
+    }
+
+    @Override
+    public ProjectJava version(String versionString) {
+        super.version(versionString);
+        return this;
     }
 }

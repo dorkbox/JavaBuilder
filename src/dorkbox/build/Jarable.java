@@ -48,16 +48,6 @@ public class Jarable {
     }
 
     /**
-     * When ALSO creating a source jar, this lets you override the NAME (either relative or absolute) for the source file
-     * <p>
-     * The default is xyz-src.zip
-     */
-    public Jarable sourceFilename(String sourceFilename) {
-        this.projectJava.outputFileSource(sourceFilename);
-        return this;
-    }
-
-    /**
      * Sign the jar with a self-signed certificate
      */
     public Jarable sign() {
