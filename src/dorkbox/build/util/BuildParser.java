@@ -40,7 +40,9 @@ import dorkbox.util.Sys;
 
 public class BuildParser {
     @SuppressWarnings("unchecked")
-    public static HashMap<String, HashMap<String, Object>> parse(SimpleArgs args) throws IOException {
+    public static HashMap<String, HashMap<String, Object>> parse(SimpleArgs args) {
+        HashMap<String, HashMap<String, Object>> data = new HashMap<String, HashMap<String, Object>>();
+
         String buildDir = "build";
         String fileName = new File(buildDir, "build.oak").getPath();
 
@@ -53,13 +55,13 @@ public class BuildParser {
 
         final File file = new File(normalizeAsFile);
         if (!file.canRead()) {
-            throw new IOException("Unable to load build file: " + normalizeAsFile);
+            Build.log().println("Unable to load/read build file: " + normalizeAsFile);
+            return data;
         }
 
         // replace $dir$ with the parent dir, for use in parameters
         final File parentDir = file.getParentFile();
 
-        HashMap<String, HashMap<String, Object>> data = new HashMap<String, HashMap<String, Object>>();
 
         BufferedReader fileReader = null;
         try {
