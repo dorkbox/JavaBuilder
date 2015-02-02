@@ -1,4 +1,4 @@
-name: OAK
+name: JavaBuilder
 classpath:
  - ../../resources/Dependencies/javassist/javassist.jar
 
