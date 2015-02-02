@@ -7,10 +7,8 @@
 	<classpathentry kind="lib" path="libs/wildcard-1.03.jar" sourcepath="libs/wildcard-1.03-src.zip"/>
 	<classpathentry kind="lib" path="libs/fast-md5/fast-md5.jar" sourcepath="libs/fast-md5/fast-md5-source.zip"/>
 	<classpathentry kind="lib" path="libs/javatar-2.5.jar" sourcepath="libs/javatar-2.5-src.zip"/>
-	<classpathentry combineaccessrules="false" kind="src" path="/Dorkbox-Util"/>
-	<classpathentry combineaccessrules="false" kind="src" path="/JavaLauncher-Util"/>
 	<classpathentry kind="lib" path="libs/bcprov-jdk15on-151.jar"/>
 	<classpathentry kind="lib" path="libs/yamlbeans-1.08.jar"/>
-	<classpathentry kind="lib" path="/Dependencies/javassist/javassist.jar" sourcepath="/Dependencies/javassist/javassist-src.zip"/>
+	<classpathentry kind="lib" path="libs/dorkboxUtil_v1.0.jar"/>
 	<classpathentry kind="output" path="classes"/>
 </classpath>

@@ -94,7 +94,7 @@ public class Build {
         Paths.setDefaultGlobExcludes("**/.svn/**, **/.git/**");
         // are we building from a jar, or a project (from eclipse?)
         String sourceName = LocationResolver.get(dorkbox.Build.class).getName();
-        isJar = sourceName.endsWith(".jar");
+        isJar = sourceName.endsWith(Project.JAR_EXTENSION);
     }
 
     public static void main(String... _args) {

@@ -30,6 +30,7 @@ import com.esotericsoftware.wildcard.Paths;
 import dorkbox.Build;
 import dorkbox.BuildOptions;
 import dorkbox.build.Project;
+import dorkbox.build.ProjectJar;
 import dorkbox.build.ProjectJava;
 import dorkbox.build.util.BuildLog;
 import dorkbox.build.util.PreJarAction;
@@ -70,7 +71,7 @@ public class JavaBuilder {
 
         // if we are running from a jar, DO NOT try to do certain things
         String utilSourcePath = LocationResolver.get(dorkbox.Build.class).getAbsolutePath();
-        boolean runningFromJar = utilSourcePath.endsWith(".jar");
+        boolean runningFromJar = utilSourcePath.endsWith(Project.JAR_EXTENSION);
 
         if (!runningFromJar) {
             // install license files
@@ -79,7 +80,7 @@ public class JavaBuilder {
 
         String distDir = FileUtil.normalizeAsFile(Build.path(root, "dist"));
         File dists = new File(distDir);
-        FileUtil.delete(dists, name + ".jar", name + "-src.zip");
+        FileUtil.delete(dists, name + Project.JAR_EXTENSION, name + Project.SRC_EXTENSION);
         dists.mkdirs();
 
 
@@ -89,7 +90,7 @@ public class JavaBuilder {
 
             // copy over jar deps
             File libDir = new File(libsPath);
-            FileUtil.delete(libDir, "dorkboxUtil.jar", "dorkboxUtil-src.zip");
+            FileUtil.delete(libDir, "dorkboxUtil.jar", "dorkboxUtil_src.zip");
             libDir.mkdirs();
 
             Build.copyDirectory(Dirs.JavaTar, libsPath);

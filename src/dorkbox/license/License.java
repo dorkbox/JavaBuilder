@@ -36,6 +36,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
+import dorkbox.build.Project;
 import dorkbox.util.LocationResolver;
 
 public class License implements Comparable<License> {
@@ -301,7 +302,7 @@ public class License implements Comparable<License> {
 
                 licenseList.add(new LicenseWrapper(lt, output.toByteArray()));
             }
-        } else if (rootPath.endsWith(".jar") && isZipFile(rootFile)) {
+        } else if (rootPath.endsWith(Project.JAR_EXTENSION) && isZipFile(rootFile)) {
             // have to go digging for it!
             String nameAsFile = fileName.replace('.', '/').substring(0, fileName.lastIndexOf('.')+1);
 
