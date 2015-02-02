@@ -204,7 +204,7 @@ public class Build {
 
 
     private long startTime = System.currentTimeMillis();
-    private ByteClassloader classloader;
+    private ByteClassloader classloader = null;
     private Build() {
         Project.reset();
     }
@@ -287,21 +287,24 @@ public class Build {
             }
         }
 
-        try {
-            BuildLog.disable();
-            BuildOptions buildOptions = new BuildOptions();
-            buildOptions.compiler.forceRebuild = true;
+        // only if we have data, should we build
+        if (!data.isEmpty()) {
+            try {
+                BuildLog.disable();
+                BuildOptions buildOptions = new BuildOptions();
+                buildOptions.compiler.forceRebuild = true;
 
-            // this automatically takes care of build dependency ordering
-            Project.buildAll();
-            Project.reset();
-            BuildLog.enable();
-        } catch (Exception e) {
-            BuildLog.enable();
-            throw e;
+                // this automatically takes care of build dependency ordering
+                Project.buildAll();
+                Project.reset();
+                BuildLog.enable();
+            } catch (Exception e) {
+                BuildLog.enable();
+                throw e;
+            }
+
+            this.classloader = bytesClassloader;
         }
-
-        this.classloader = bytesClassloader;
     }
 
 
@@ -310,7 +313,7 @@ public class Build {
 
         dorkbox.util.annotation.Builder detector;
 
-        if (Build.isJar) {
+        if (this.classloader != null) {
             detector = AnnotationDetector.scan(this.classloader, new ClassByteIterator(this.classloader, null));
         } else {
             detector = AnnotationDetector.scanClassPath();
@@ -360,7 +363,7 @@ public class Build {
 
         // now we want to update/search for all project builders.
         boolean found = false;
-        if (Build.isJar) {
+        if (this.classloader != null) {
             detector = AnnotationDetector.scan(this.classloader, new ClassByteIterator(this.classloader, null));
         } else {
             detector = AnnotationDetector.scanClassPath();
