@@ -51,13 +51,15 @@ public class BuildParser {
         }
 
         String normalizeAsFile = FileUtil.normalizeAsFile(fileName);
-        Build.log().title("Build location").println("Compiling build instructions", normalizeAsFile);
 
         final File file = new File(normalizeAsFile);
         if (!file.canRead()) {
-            Build.log().println("Unable to load/read build file: " + normalizeAsFile);
+            Build.log().title("Build location").println("Build instructions not found", normalizeAsFile);
             return data;
         }
+
+        Build.log().title("Build location").println("Compiling build instructions", normalizeAsFile);
+
 
         // replace $dir$ with the parent dir, for use in parameters
         final File parentDir = file.getParentFile();

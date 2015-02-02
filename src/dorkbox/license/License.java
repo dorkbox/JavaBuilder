@@ -43,37 +43,55 @@ public class License implements Comparable<License> {
     private static final Charset UTF_8 = Charset.forName("UTF-8");
     private static final String LINE_SEPARATOR = System.getProperty("line.separator");
 
-    private static int maxLicenseFileSize = Integer.MAX_VALUE/16;
+    private static int maxLicenseFileSize = Integer.MAX_VALUE/16; // arbitrary limit
 
+    /**
+     * Duplicates are OK, since they are pruned when processing the license info
+     */
     public static List<License> list(Object... licenses) {
         List<License> list = new ArrayList<License>(licenses.length);
         for (Object l : licenses) {
-            if (l instanceof License) {
-                list.add((License) l);
-            } else  if (l instanceof Collection) {
-                List<License> list2 = convert((Collection<?>) l);
-                list.addAll(list2);
-            } else {
-                throw new RuntimeException("Not a license! Whoops!");
-            }
+            processListForLicenseInfo(list, l);
         }
         return list;
     }
 
+    /**
+     * Duplicates are OK, since they are pruned when processing the license info
+     */
     private static List<License> convert(Collection<?> collection) {
         List<License> list = new ArrayList<License>(collection.size());
         for (Object c : collection) {
-            if (c instanceof License) {
-                list.add((License) c);
-            } else  if (c instanceof Collection) {
-                List<License> list2 = convert((Collection<?>) c);
-                list.addAll(list2);
-            } else {
-                throw new RuntimeException("Not a license! Whoops!");
-            }
+            processListForLicenseInfo(list, c);
         }
 
         return list;
+    }
+
+    private static void processListForLicenseInfo(List<License> list, Object object) {
+        if (object instanceof License) {
+            list.add((License) object);
+        }
+        else if (object instanceof Project) {
+            Project<?> proj = (Project<?>)object;
+
+            Set<Project<?>> deps = new HashSet<Project<?>>();
+            proj.getRecursiveDependencies(deps);
+
+            Set<License> lics = new HashSet<License>();
+            for (Project<?> project : deps) {
+                project.getRecursiveLicenses(lics);
+            }
+
+            List<License> list2 = convert(lics);
+            list.addAll(list2);
+        }
+        else if (object instanceof Collection) {
+            List<License> list2 = convert((Collection<?>) object);
+            list.addAll(list2);
+        } else {
+            throw new RuntimeException("Not able to process license info: " + object.getClass().getSimpleName());
+        }
     }
 
     /**
