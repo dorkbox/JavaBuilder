@@ -219,7 +219,7 @@ public class ProjectJava extends Project<ProjectJava> {
                 } else {
                     // now check the src.zip file (if there was one).
                     jarChecksum = generateChecksum(this.outputFileSource);
-                    checkContents = Build.settings.get(this.name, String.class);
+                    checkContents = Build.settings.get(this.outputFileSource.getAbsolutePath(), String.class);
 
                     return jarChecksum != null && jarChecksum.equals(checkContents);
                 }
@@ -245,7 +245,7 @@ public class ProjectJava extends Project<ProjectJava> {
                 // now check the src.zip file (if there was one).
                 fileChecksum = generateChecksum(this.outputFileSource);
 
-                Build.settings.save(this.name, fileChecksum);
+                Build.settings.save(this.outputFileSource.getAbsolutePath(), fileChecksum);
             }
         }
     }
