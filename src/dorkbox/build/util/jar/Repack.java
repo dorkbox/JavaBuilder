@@ -15,9 +15,15 @@
  */
 package dorkbox.build.util.jar;
 
+import dorkbox.build.Project;
+
 public class Repack {
     private final String  name;
     private int           actionValue = 0;
+
+    public Repack(Project<?> project, PackAction... actions) {
+        this(project.outputFile.getName(), actions);
+    }
 
     public Repack(String name, PackAction... actions) {
         this.name = name;
