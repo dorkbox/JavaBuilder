@@ -102,7 +102,7 @@ class Build {
     }
 
     static
-    void start(String... _args) {
+    void start(String... _args) throws Exception {
         for (int i = 0; i < _args.length; i++) {
             _args[i] = _args[i].toLowerCase();
         }
@@ -119,12 +119,12 @@ class Build {
     }
 
     public static
-    void build(String projectName, String... arguments) {
+    void build(String projectName, String... arguments) throws Exception {
         build(new BuildOptions(), projectName, arguments);
     }
 
     public static
-    void build(BuildOptions buildOptions, String projectName, String... arguments) {
+    void build(BuildOptions buildOptions, String projectName, String... arguments) throws Exception {
         String[] _args = new String[2 + arguments.length];
         _args[0] = "build";
         _args[1] = projectName;
@@ -138,7 +138,7 @@ class Build {
     }
 
     public static
-    void make(BuildOptions buildOptions, SimpleArgs args) {
+    void make(BuildOptions buildOptions, SimpleArgs args) throws Exception {
         String title = "JavaBuilder";
         BuildLog log = BuildLog.start();
         log.title(title).println(args);
@@ -156,6 +156,7 @@ class Build {
         }
 
         Build build = new Build();
+        Exception e = null;
         try {
             Build.prepareXcompile();
             log.println();
@@ -183,7 +184,9 @@ class Build {
                 log.title(title).println(args, localDateString, "Completed in: " + getRuntime(Build.startDate) + " seconds.",
                                          "Date code: " + Build.buildDate);
             }
-        } catch (Throwable e) {
+        } catch (Exception e1) {
+            e = e1;
+            
             log.title("ERROR").println(e.getMessage());
             StackTraceElement[] stackTrace = e.getStackTrace();
             if (stackTrace.length > 0) {
@@ -192,6 +195,9 @@ class Build {
         }
 
         BuildLog.finish();
+        if (e != null) {
+            throw e;
+        }
     }
 
     private static
@@ -329,7 +335,7 @@ class Build {
 
 
     private
-    void start(BuildOptions buildOptions, SimpleArgs args) throws Throwable {
+    void start(BuildOptions buildOptions, SimpleArgs args) throws Exception {
 
         dorkbox.util.annotation.Builder detector;
 
@@ -405,8 +411,10 @@ class Build {
 
             found = runBuild(buildOptions, args, builders, methodNameToCall, projectToBuild);
 
-            if (!found) {
-                log.println("Unable to find a builder for: " + args.getParameters());
+            if (controllers != null && !found) {
+                final IOException ioException = new IOException("Unable to find a builder for: " + args.getParameters());
+                ioException.setStackTrace(new StackTraceElement[0]);
+                throw ioException;
             }
         }
 
@@ -436,7 +444,7 @@ class Build {
 
     private static
     boolean runBuild(BuildOptions buildOptions, SimpleArgs args, List<Class<?>> builders, String methodNameToCall, String projectToBuild)
-                    throws Throwable {
+                    throws Exception {
         if (builders == null) {
             return false;
         }
@@ -458,7 +466,11 @@ class Build {
                                 try {
                                     m.invoke(c);
                                 } catch (InvocationTargetException e) {
-                                    throw e.getCause();
+                                    if (e.getCause() instanceof Exception) {
+                                        throw (Exception) e.getCause();
+                                    }
+
+                                    throw new Exception(e);
                                 }
                                 found = true;
                                 break;
@@ -469,7 +481,11 @@ class Build {
                                     try {
                                         m.invoke(c, args);
                                     } catch (InvocationTargetException e) {
-                                        throw e.getCause();
+                                        if (e.getCause() instanceof Exception) {
+                                            throw (Exception) e.getCause();
+                                        }
+
+                                        throw new Exception(e);
                                     }
                                     found = true;
                                     break;
@@ -479,7 +495,11 @@ class Build {
                                     try {
                                         m.invoke(c, buildOptions);
                                     } catch (InvocationTargetException e) {
-                                        throw e.getCause();
+                                        if (e.getCause() instanceof Exception) {
+                                            throw (Exception) e.getCause();
+                                        }
+
+                                        throw new Exception(e);
                                     }
                                     found = true;
                                     break;
@@ -491,7 +511,11 @@ class Build {
                                 try {
                                     m.invoke(c, buildOptions, args);
                                 } catch (InvocationTargetException e) {
-                                    throw e.getCause();
+                                    if (e.getCause() instanceof Exception) {
+                                        throw (Exception) e.getCause();
+                                    }
+
+                                    throw new Exception(e);
                                 }
                                 found = true;
                                 break;
