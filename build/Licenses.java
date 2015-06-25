@@ -17,13 +17,14 @@ import dorkbox.license.License;
 import dorkbox.license.LicenseType;
 
 // these are licenese's that are have code embedded into the various projects
+// @formatter:off
 public class Licenses {
     public static class OAK {
         public static final License
-        OAK = new License("Dorkbox OAK", LicenseType.APACHE)
-                       .u("https://github.com/dorkbox")
-                       .c("Copyright 2012, dorkbox, llc")
-                       .n("Java project management and build tool, using the Java language");
+        JavaBuilder = new License("Dorkbox JavaBuilder", LicenseType.APACHE)
+                               .u("https://github.com/dorkbox")
+                               .c("Copyright 2012, dorkbox, llc")
+                               .n("Java project management and build tool, using the Java language");
 
         public static final License
         Scar = new License("Scar", LicenseType.BSD)
@@ -32,6 +33,11 @@ public class Licenses {
     }
 
     public static class DorkboxUtil {
+        public static final License
+        Annotations = new License("Dorkbox Annotations", LicenseType.APACHE)
+                               .u("https://github.com/dorkbox")
+                               .c("Copyright 2014, dorkbox, llc");
+
         public static final License
         AnnotationDetector = new License("AnnotationDetector", LicenseType.APACHE)
                                       .u("https://github.com/rmuller/infomas-asl")
@@ -57,3 +63,4 @@ public class Licenses {
                              .n("High performance base64 encoder & decoder");
     }
 }
+// @formatter:on
