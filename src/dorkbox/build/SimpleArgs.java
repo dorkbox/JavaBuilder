@@ -28,7 +28,7 @@ public class SimpleArgs {
     private int lastIndex = 0;
     private Date buildDate = null;
 
-    public SimpleArgs(String[] args) {
+    public SimpleArgs(final String[] args) {
         if (args == null) {
             throw new NullPointerException("args cannot be null");
         }
@@ -101,5 +101,14 @@ public class SimpleArgs {
         }
 
         return this.args[i];
+    }
+
+    public String getParameters() {
+        if (this.args.length > 0) {
+            String[] copyOfRange = Arrays.copyOfRange(this.args, 1, this.args.length);
+            return Arrays.toString(copyOfRange);
+        } else {
+            return "No args specified.";
+        }
     }
 }
