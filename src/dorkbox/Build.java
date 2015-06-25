@@ -186,7 +186,7 @@ class Build {
             }
         } catch (Exception e1) {
             e = e1;
-            
+
             log.title("ERROR").println(e.getMessage());
             StackTraceElement[] stackTrace = e.getStackTrace();
             if (stackTrace.length > 0) {
@@ -545,7 +545,7 @@ class Build {
     /**
      * Gets the java file (from class file) when running from an IDE.
      */
-    private static
+    public static
     File getJavaFileIDE(File rootFile) throws IOException {
         String rootPath = rootFile.getAbsolutePath();
 
@@ -616,7 +616,7 @@ class Build {
 
     /**
      * Gets all of the .java files accessible which belong to the
-     * package and subpackages of the given class
+     * package (but NOT subpackages) of the given class
      */
     public static
     Paths getJavaFilesInPackage(Class<?> clazz) throws IOException {
@@ -625,19 +625,18 @@ class Build {
 
         String rootPath = rootFile.getAbsolutePath();
         String fileName = clazz.getCanonicalName();
+        String directoryName = fileName.replace('.', File.separatorChar).substring(0, fileName.lastIndexOf('.'));
 
         final File javaFile = getJavaFileIDE(rootFile);
 
         if (javaFile != null) {
-            String convertJava = fileName.replace('.', File.separatorChar) + ".java";
-            return new Paths(javaFile.getAbsolutePath(), convertJava);
+            return new Paths(javaFile.getAbsolutePath(), directoryName + "/*.java");
         }
         else if (rootPath.endsWith(Project.JAR_EXTENSION) && isZipFile(rootFile)) {
             // check to see if it's a zip file
 
             // have to go digging for it!
             // the sources can be IN THE FILE, or they are my sources, and are in the src file.
-            String directoryName = fileName.replace('.', File.separatorChar).substring(0, fileName.lastIndexOf('.'));
 
             Paths paths = extractPackageFilesFromZip(rootFile, directoryName);
             if (paths != null) {
