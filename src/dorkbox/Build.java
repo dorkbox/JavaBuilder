@@ -15,29 +15,7 @@
  */
 package dorkbox;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.PrintStream;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map.Entry;
-import java.util.TimeZone;
-
 import com.esotericsoftware.wildcard.Paths;
-
 import dorkbox.build.Project;
 import dorkbox.build.ProjectJava;
 import dorkbox.build.SimpleArgs;
@@ -48,42 +26,62 @@ import dorkbox.build.util.classloader.ClassByteIterator;
 import dorkbox.build.util.jar.Pack200Util;
 import dorkbox.util.FileUtil;
 import dorkbox.util.LZMA;
-import dorkbox.util.LocationResolver;
 import dorkbox.util.Sys;
 import dorkbox.util.annotation.AnnotationDefaults;
 import dorkbox.util.annotation.AnnotationDetector;
 import dorkbox.util.properties.PropertiesProvider;
 
-public class Build {
+import java.io.*;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.*;
+import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+
+public
+class Build {
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target({ElementType.TYPE})
+    public
+    @interface Builder {}
+
 
     @Retention(RetentionPolicy.RUNTIME)
     @Target({ElementType.TYPE})
-    public @interface Builder {
-    }
+    public
+    @interface Configure {}
 
-    @Retention(RetentionPolicy.RUNTIME)
-    @Target({ElementType.TYPE})
-    public @interface Configure {
-    }
 
     public static final String BUILD_MODE = "build";
+
+    private static final ConcurrentHashMap<String, File> moduleCache = new ConcurrentHashMap<String, File>();
 
     private static final long startDate = System.currentTimeMillis();
     public static long buildDate = startDate;
 
-    /** Location where settings are stored */
-    public static PropertiesProvider settings = new PropertiesProvider(new File("settings.ini"));
+    private static final File tempDir;
 
-    public static boolean isJar;
+    /**
+     * Location where settings are stored
+     */
+    public static final PropertiesProvider settings = new PropertiesProvider(new File("settings.ini"));
 
-    public static TimeZone defaultTimeZone;
+    public static final boolean isJar;
+
+    public static final TimeZone defaultTimeZone;
     public static int offset;
 
     static {
         // get the local time zone for use later
         defaultTimeZone = TimeZone.getDefault();
         offset = defaultTimeZone.getRawOffset();
-        if (defaultTimeZone.inDaylightTime(new Date())){
+        if (defaultTimeZone.inDaylightTime(new Date())) {
             offset = offset + defaultTimeZone.getDSTSavings();
         }
 
@@ -91,14 +89,21 @@ public class Build {
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
 //        System.out.println("UTC Time: " + new Date());
 
+        try {
+            tempDir = new File(FileUtil.tempDirectory("Builder"));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
         Paths.setDefaultGlobExcludes("**/.svn/**, **/.git/**");
-        // are we building from a jar, or a project (from eclipse?)
-        String sourceName = LocationResolver.get(dorkbox.Build.class).getName();
+        // are we building from a jar, or a project (from an IDE?)
+        String sourceName = Oak.get().getName();
         isJar = sourceName.endsWith(Project.JAR_EXTENSION);
     }
 
-    public static void main(String... _args) {
-        for (int i=0;i<_args.length;i++) {
+    static
+    void start(String... _args) {
+        for (int i = 0; i < _args.length; i++) {
             _args[i] = _args[i].toLowerCase();
         }
 
@@ -113,16 +118,18 @@ public class Build {
         make(new BuildOptions(), args);
     }
 
-    public static void build(String projectName, String... arguments) {
+    public static
+    void build(String projectName, String... arguments) {
         build(new BuildOptions(), projectName, arguments);
     }
 
-    public static void build(BuildOptions buildOptions, String projectName, String... arguments) {
-        String _args[] = new String[2 + arguments.length];
+    public static
+    void build(BuildOptions buildOptions, String projectName, String... arguments) {
+        String[] _args = new String[2 + arguments.length];
         _args[0] = "build";
         _args[1] = projectName;
         for (int i = 0; i < arguments.length; i++) {
-            _args[i+2] = arguments[i];
+            _args[i + 2] = arguments[i];
         }
 
         SimpleArgs args = new SimpleArgs(_args);
@@ -130,7 +137,8 @@ public class Build {
         make(buildOptions, args);
     }
 
-    public static void make(BuildOptions buildOptions, SimpleArgs args) {
+    public static
+    void make(BuildOptions buildOptions, SimpleArgs args) {
         String title = "JavaBuilder";
         BuildLog log = BuildLog.start();
         log.title(title).println(args);
@@ -149,7 +157,7 @@ public class Build {
 
         Build build = new Build();
         try {
-            build.prepareXcompile();
+            Build.prepareXcompile();
             log.println();
 
             if (Build.isJar) {
@@ -169,19 +177,26 @@ public class Build {
             String localDateString = c.getTime().toString().replace("UTC", defaultTimeZone.getID());
 
             if (!BuildLog.wasNested || BuildLog.TITLE_WIDTH != BuildLog.STOCK_TITLE_WIDTH) {
-                log.title(title).println(args , localDateString, "Completed in: " + getRuntime(build.startTime) + " seconds.");
-            } else {
-                log.title(title).println(args , localDateString, "Completed in: " + getRuntime(Build.startDate) + " seconds.", "Date code: " + Build.buildDate);
+                log.title(title).println(args, localDateString, "Completed in: " + getRuntime(build.startTime) + " seconds.");
+            }
+            else {
+                log.title(title).println(args, localDateString, "Completed in: " + getRuntime(Build.startDate) + " seconds.",
+                                         "Date code: " + Build.buildDate);
             }
         } catch (Throwable e) {
-            e.printStackTrace();
+            log.title("ERROR").println(e.getMessage());
+            StackTraceElement[] stackTrace = e.getStackTrace();
+            if (stackTrace.length > 0) {
+                e.printStackTrace();
+            }
         }
 
         BuildLog.finish();
     }
 
-    private static String getRuntime(long startTime) {
-        String time = Double.toString((System.currentTimeMillis()-startTime)/1000D);
+    private static
+    String getRuntime(long startTime) {
+        String time = Double.toString((System.currentTimeMillis() - startTime) / 1000D);
         int index = time.indexOf('.');
         if (index > -1 && index < time.length() - 2) {
             return time.substring(0, index + 2);
@@ -190,32 +205,36 @@ public class Build {
         return time;
     }
 
-    public static BuildLog log() {
+    public static
+    BuildLog log() {
         return new BuildLog();
     }
 
-    public static BuildLog log(PrintStream printer) {
+    public static
+    BuildLog log(PrintStream printer) {
         return new BuildLog(printer);
     }
 
 
 
-
-
-
-    private long startTime = System.currentTimeMillis();
+    private final long startTime = System.currentTimeMillis();
     private ByteClassloader classloader = null;
-    private Build() {
+
+    private
+    Build() {
         Project.reset();
     }
 
     /**
      * check to see if our jdk files have been decompressed (necessary for cross target builds)
      */
-    private void prepareXcompile() throws IOException {
+    private static
+    void prepareXcompile() throws IOException {
         String jdkDist = FileUtil.normalizeAsFile(Build.path("libs", "jdkRuntimes"));
         List<File> jdkFiles = FileUtil.parseDir(jdkDist);
         boolean first = true;
+        BuildLog log = log();
+
         for (File f : jdkFiles) {
             // unLZMA + unpack200
             String name = f.getName();
@@ -229,12 +248,12 @@ public class Build {
                 if (!file.canRead() || file.length() == 0) {
                     if (first) {
                         first = false;
-                        log().println("******************************");
-                        log().println("Preparing environment");
-                        log().println("******************************");
+                        log.println("******************************");
+                        log.println("Preparing environment");
+                        log.println("******************************");
                     }
 
-                    log().println("  Decompressing: " + f.getAbsolutePath());
+                    log.println("  Decompressing: " + f.getAbsolutePath());
                     InputStream inputStream = new FileInputStream(f);
                     // now uncompress
                     ByteArrayOutputStream outputStream = LZMA.decode(inputStream);
@@ -254,13 +273,16 @@ public class Build {
         }
 
         if (!first) {
-            log().println("Finished Preparing environment");
-            log().println("******************************\n\n");
+            log.println("Finished Preparing environment");
+            log.println("******************************");
+            log.println();
+            log.println();
         }
     }
 
     // loads the build.oak file information
-    private void compileBuildInstructions(SimpleArgs args) throws Exception {
+    private
+    void compileBuildInstructions(SimpleArgs args) throws Exception {
         ByteClassloader bytesClassloader = new ByteClassloader(Thread.currentThread().getContextClassLoader());
         HashMap<String, HashMap<String, Object>> data = BuildParser.parse(args);
 
@@ -275,10 +297,8 @@ public class Build {
             // BY DEFAULT, will use build/**/*.java path
             Paths sourcePaths = BuildParser.getPathsFromMap(projectData, "source");
 
-            ProjectJava project = ProjectJava.create(projectName)
-                                             .classPath(classPaths)
-                                             .compilerClassloader(bytesClassloader)
-                                             .sourcePath(sourcePaths);
+            ProjectJava project = ProjectJava.create(projectName).classPath(classPaths).compilerClassloader(bytesClassloader).sourcePath(
+                            sourcePaths);
 
 
             List<String> dependencies = BuildParser.getStringsFromMap(projectData, "depends");
@@ -308,19 +328,19 @@ public class Build {
     }
 
 
-    private void start(BuildOptions buildOptions, SimpleArgs args) throws IOException, IllegalAccessException, IllegalArgumentException,
-                                                                          InvocationTargetException, InstantiationException {
+    private
+    void start(BuildOptions buildOptions, SimpleArgs args) throws Throwable {
 
         dorkbox.util.annotation.Builder detector;
 
         if (this.classloader != null) {
             detector = AnnotationDetector.scan(this.classloader, new ClassByteIterator(this.classloader, null));
-        } else {
+        }
+        else {
             detector = AnnotationDetector.scanClassPath();
         }
 
-        List<Class<?>> controllers = detector.forAnnotations(Build.Configure.class)
-                                             .collect(AnnotationDefaults.getType);
+        List<Class<?>> controllers = detector.forAnnotations(Build.Configure.class).collect(AnnotationDefaults.getType);
 
         if (controllers != null) {
             // do we have something to control the build process??
@@ -332,20 +352,23 @@ public class Build {
                 // setup(Args)
                 try {
                     buildTargeted = c.getMethod("setup", params);
-                } catch (Exception e) {}
+                } catch (Exception ignored) {
+                }
 
                 if (buildTargeted != null) {
                     Object newInstance = c.newInstance();
                     // see if we can build a targeted build
                     buildOptions = (BuildOptions) buildTargeted.invoke(newInstance, args);
                     break;
-                } else {
+                }
+                else {
                     params = new Class<?>[] {BuildOptions.class, SimpleArgs.class};
 
                     // setup(BuildOptions, Args)
                     try {
                         buildTargeted = c.getMethod("setup", params);
-                    } catch (Exception e) {}
+                    } catch (Exception ignored) {
+                    }
 
                     if (buildTargeted != null) {
                         Object newInstance = c.newInstance();
@@ -357,40 +380,33 @@ public class Build {
             }
         }
 
-        log().title("Debug info").println(buildOptions.compiler.debugEnabled ? "Enabled" : "Disabled");
-        log().title("Release status").println(buildOptions.compiler.release ? "Enabled" : "Disabled");
-        log().println();
+        BuildLog log = log();
+        log.title("Debug info").println(buildOptions.compiler.debugEnabled ? "Enabled" : "Disabled");
+        log.title("Release status").println(buildOptions.compiler.release ? "Enabled" : "Disabled");
+        log.println();
 
         // now we want to update/search for all project builders.
-        boolean found = false;
+        boolean found;
         if (this.classloader != null) {
             detector = AnnotationDetector.scan(this.classloader, new ClassByteIterator(this.classloader, null));
-        } else {
+        }
+        else {
             detector = AnnotationDetector.scanClassPath();
         }
-        List<Class<?>> builders = detector.forAnnotations(Build.Builder.class)
-                                          .collect(AnnotationDefaults.getType);
+        List<Class<?>> builders = detector.forAnnotations(Build.Builder.class).collect(AnnotationDefaults.getType);
 
         if (args.getMode().equals(Build.BUILD_MODE)) {
             String projectToBuild = args.get(1);
             String methodNameToCall = args.get(2);
             if (methodNameToCall == null) {
+                log.title("Warning").println("No build method specified. Using default: '" + Build.BUILD_MODE + "'");
                 methodNameToCall = Build.BUILD_MODE;
             }
 
-            found = runBuild(buildOptions, args, found, builders, methodNameToCall, projectToBuild);
+            found = runBuild(buildOptions, args, builders, methodNameToCall, projectToBuild);
 
             if (!found) {
-                if (methodNameToCall.equals(Build.BUILD_MODE)) {
-                    log().println("Unable to find a builder for " + args);
-                } else {
-                    methodNameToCall = Build.BUILD_MODE;
-                    found = runBuild(buildOptions, args, found, builders, methodNameToCall, projectToBuild);
-
-                    if (!found) {
-                        log().println("Unable to find a builder for " + args);
-                    }
-                }
+                log.println("Unable to find a builder for: " + args.getParameters());
             }
         }
 
@@ -405,7 +421,8 @@ public class Build {
                 // finish(BuildOptions, Args)
                 try {
                     buildTargeted = c.getMethod("takedown", params);
-                } catch (Exception e) {}
+                } catch (Exception ignored) {
+                }
 
                 if (buildTargeted != null) {
                     Object newInstance = c.newInstance();
@@ -417,12 +434,14 @@ public class Build {
         }
     }
 
-    private boolean runBuild(BuildOptions buildOptions, SimpleArgs args, boolean found, List<Class<?>> builders, String methodNameToCall,
-                    String projectToBuild) throws IllegalAccessException, InvocationTargetException {
+    private static
+    boolean runBuild(BuildOptions buildOptions, SimpleArgs args, List<Class<?>> builders, String methodNameToCall, String projectToBuild)
+                    throws Throwable {
         if (builders == null) {
             return false;
         }
 
+        boolean found = false;
         for (Class<?> c : builders) {
             String simpleName = c.getSimpleName().toLowerCase();
 
@@ -436,19 +455,32 @@ public class Build {
                         switch (p.length) {
                             case 0: {
                                 // build()
-                                m.invoke(c);
+                                try {
+                                    m.invoke(c);
+                                } catch (InvocationTargetException e) {
+                                    throw e.getCause();
+                                }
                                 found = true;
                                 break;
                             }
                             case 1: {
                                 if (p[0].equals(SimpleArgs.class)) {
                                     // build(Args)
-                                    m.invoke(c, args);
+                                    try {
+                                        m.invoke(c, args);
+                                    } catch (InvocationTargetException e) {
+                                        throw e.getCause();
+                                    }
                                     found = true;
                                     break;
-                                } if (p[0].equals(BuildOptions.class)) {
+                                }
+                                if (p[0].equals(BuildOptions.class)) {
                                     // build(BuildOptions)
-                                    m.invoke(c, buildOptions);
+                                    try {
+                                        m.invoke(c, buildOptions);
+                                    } catch (InvocationTargetException e) {
+                                        throw e.getCause();
+                                    }
                                     found = true;
                                     break;
                                 }
@@ -456,7 +488,11 @@ public class Build {
                             }
                             case 2: {
                                 // build(BuildOptions, Args)
-                                m.invoke(c, buildOptions, args);
+                                try {
+                                    m.invoke(c, buildOptions, args);
+                                } catch (InvocationTargetException e) {
+                                    throw e.getCause();
+                                }
                                 found = true;
                                 break;
                             }
@@ -468,7 +504,8 @@ public class Build {
         return found;
     }
 
-    public static String path(String... paths) {
+    public static
+    String path(String... paths) {
         StringBuilder buffer = new StringBuilder(128);
 
         for (String p : paths) {
@@ -476,93 +513,352 @@ public class Build {
         }
 
         int length = buffer.length();
-        buffer.delete(length-1, length);
+        buffer.delete(length - 1, length);
 
-       return buffer.toString();
+        return buffer.toString();
+    }
+
+    /**
+     * Gets the java file (from class file) when running from an IDE.
+     */
+    private static
+    File getJavaFileIDE(File rootFile) throws IOException {
+        String rootPath = rootFile.getAbsolutePath();
+
+        if (rootFile.isDirectory()) {
+            final File eclipseSrc = new File(rootFile.getParentFile(), "src");
+
+            if (eclipseSrc.exists()) {
+                // eclipse (default)
+                return eclipseSrc.getAbsoluteFile();
+            }
+            else {
+                // intellij (default)
+                String moduleName = rootPath.substring(rootPath.lastIndexOf(File.separatorChar) + 1);
+                File parent = rootFile.getParentFile().getParentFile().getParentFile().getParentFile().getParentFile();
+                // our src directory is always under the module dir
+                final File dir = getModuleDir(parent, moduleName);
+
+                return new File(dir, "src").getAbsoluteFile();
+            }
+        }
+
+        return null;
     }
 
     /**
      * Converts a class to it's .java file.
      */
-    public static Paths getClassPath(Class<?> clazz) throws IOException {
-        String rootPath = LocationResolver.get(clazz).getAbsolutePath();
+    public static
+    Paths getJavaFile(Class<?> clazz) throws IOException {
+        File rootFile = Oak.get(clazz);
+        assert rootFile != null;
 
+        String rootPath = rootFile.getAbsolutePath();
         String fileName = clazz.getCanonicalName();
-        String convert = fileName.replace('.', File.separatorChar) + ".java";
-        File rootFile = new File(rootPath);
 
-        if (rootFile.isDirectory()) {
-            File location = rootFile.getParentFile();
-            location = new File(location, "src");
+        final File javaFile = getJavaFileIDE(rootFile);
 
-            Paths path = new Paths(location.getAbsolutePath(), convert);
-            return path;
-        } else {
-            throw new IOException("we can only support listing files that are not in a container!");
+        if (javaFile != null) {
+            String convertJava = fileName.replace('.', File.separatorChar) + ".java";
+            return new Paths(javaFile.getAbsolutePath(), convertJava);
         }
+        else if (rootPath.endsWith(Project.JAR_EXTENSION) && isZipFile(rootFile)) {
+            // check to see if it's a zip file
+
+            // have to go digging for it!
+            // the sources can be IN THE FILE, or they are my sources, and are in the src file.
+            String nameAsFile = fileName.replace('.', File.separatorChar) + ".java";
+
+            boolean found = extractFilesFromZip(rootFile, nameAsFile);
+
+            if (found) {
+                return new Paths(tempDir.getAbsolutePath(), nameAsFile);
+            }
+
+            // try the source file
+            rootPath = rootPath.replace(".jar", "_src.zip");
+            rootFile = new File(rootPath);
+
+            found = extractFilesFromZip(rootFile, nameAsFile);
+
+            if (found) {
+                return new Paths(tempDir.getAbsolutePath(), nameAsFile);
+            }
+        }
+        // not found
+        throw new IOException("Cannot find source file: '" + fileName + "'");
     }
 
     /**
      * Gets all of the .java files accessible which belong to the
      * package and subpackages of the given class
      */
-    public static Paths getClassPathPackage(Class<?> clazz) throws IOException {
-        String rootPath = LocationResolver.get(clazz).getAbsolutePath();
+    public static
+    Paths getJavaFilesInPackage(Class<?> clazz) throws IOException {
+        File rootFile = Oak.get(clazz);
+        assert rootFile != null;
 
-        String dirName = clazz.getPackage().getName();
-        String convert = dirName.replace('.', File.separatorChar);
-        File rootFile = new File(rootPath);
+        String rootPath = rootFile.getAbsolutePath();
+        String fileName = clazz.getCanonicalName();
 
-        if (rootFile.isDirectory()) {
-            File location = rootFile.getParentFile();
-            location = new File(location, "src");
-            location = new File(location, convert);
+        final File javaFile = getJavaFileIDE(rootFile);
 
-            Paths paths = new Paths(location.getAbsolutePath(), "**.java");
+        if (javaFile != null) {
+            String convertJava = fileName.replace('.', File.separatorChar) + ".java";
+            return new Paths(javaFile.getAbsolutePath(), convertJava);
+        }
+        else if (rootPath.endsWith(Project.JAR_EXTENSION) && isZipFile(rootFile)) {
+            // check to see if it's a zip file
+
+            // have to go digging for it!
+            // the sources can be IN THE FILE, or they are my sources, and are in the src file.
+            String directoryName = fileName.replace('.', File.separatorChar).substring(0, fileName.lastIndexOf('.'));
+
+            Paths paths = extractPackageFilesFromZip(rootFile, directoryName);
+            if (paths != null) {
+                return paths;
+            }
+
+
+            // try the source file
+            rootPath = rootPath.replace(".jar", "_src.zip");
+            rootFile = new File(rootPath);
+
+            paths = extractPackageFilesFromZip(rootFile, directoryName);
+            if (paths != null) {
+                return paths;
+            }
+        }
+
+
+        // not found
+        throw new IOException("Cannot find source file location: '" + fileName + "'");
+    }
+
+    private static
+    boolean extractFilesFromZip(final File rootFile, final String nameAsFile) throws IOException {
+        boolean found = false;
+        ZipInputStream zipInputStream = new ZipInputStream(new FileInputStream(rootFile));
+        ZipEntry entry;
+        try {
+            while ((entry = zipInputStream.getNextEntry()) != null) {
+                String name = entry.getName();
+
+                if (name.equals(nameAsFile)) {
+                    // read out bytes!
+                    final File file = new File(tempDir, nameAsFile);
+                    if (!file.getParentFile().exists() && !file.getParentFile().mkdirs()) {
+                        throw new IOException("Unable to create temp dir: " + file.getParentFile());
+                    }
+
+                    final FileOutputStream fileOutputStream = new FileOutputStream(file);
+                    try {
+                        copyStream(zipInputStream, fileOutputStream);
+                        found = true;
+                    } finally {
+                        fileOutputStream.close();
+                    }
+
+                    zipInputStream.closeEntry();
+                    break;
+                }
+            }
+        } finally {
+            zipInputStream.close();
+        }
+
+        return found;
+    }
+
+    /**
+     * Extracts all of the directoryName files found in the zip file to temp dir. Only extracts the SAME LEVEL, not subdirs.
+     */
+    private static
+    Paths extractPackageFilesFromZip(final File rootFile, final String directoryName) throws IOException {
+        final int length = directoryName.length();
+        boolean found = false;
+        Paths paths = new Paths();
+
+        ZipInputStream zipInputStream = new ZipInputStream(new FileInputStream(rootFile));
+        ZipEntry entry;
+        try {
+            while ((entry = zipInputStream.getNextEntry()) != null) {
+                String name = entry.getName();
+
+                if (name.startsWith(directoryName) && !entry.isDirectory() && name.lastIndexOf('/') <= length && name.endsWith(".java")) {
+                    // read out bytes!
+                    final File file = new File(tempDir, directoryName);
+                    if (!file.exists() && !file.mkdirs()) {
+                        throw new IOException("Unable to create temp dir: " + file);
+                    }
+
+                    final FileOutputStream fileOutputStream = new FileOutputStream(new File(tempDir, name));
+                    try {
+                        copyStream(zipInputStream, fileOutputStream);
+                        paths.add(tempDir.getAbsolutePath(), name);
+                        found = true;
+                    } finally {
+                        fileOutputStream.close();
+                    }
+
+                    zipInputStream.closeEntry();
+                }
+            }
+        } finally {
+            zipInputStream.close();
+        }
+
+        if (found) {
             return paths;
-        } else {
-            throw new IOException("we can only support listing class path packages that are not in a container!");
+        }
+        return null;
+    }
+
+
+    private static
+    File getModuleDir(final File parent, final String moduleName) {
+        final File file = moduleCache.get(moduleName);
+        if (file != null) {
+            return file;
+        }
+
+        ArrayList<File> candidates = new ArrayList<File>();
+
+        getDirs(0, candidates, parent, moduleName);
+
+        for (File candidate : candidates) {
+            // our src directory is always under the module dir
+            if (new File(candidate, "src").isDirectory()) {
+                // we also want to CACHE the module dir, as the search can take a while.
+                moduleCache.put(moduleName, candidate);
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private static
+    void getDirs(final int i, ArrayList<File> candidates, final File parent, final String moduleName) {
+        if (i > 4) {
+            return;
+        }
+
+        for (File file : parent.listFiles()) {
+            if (file.isDirectory()) {
+                if (file.getName().equals(moduleName)) {
+                    candidates.add(file);
+                }
+                else {
+                    getDirs(i + 1, candidates, file, moduleName);
+                }
+            }
         }
     }
 
-    public static File moveFile(String source, String target) throws IOException {
+    /**
+     * Copy the contents of the input stream to the output stream.
+     * <p/>
+     * DOES NOT CLOSE THE STEAMS!
+     */
+    public static
+    <T extends OutputStream> T copyStream(InputStream inputStream, T outputStream) throws IOException {
+        byte[] buffer = new byte[4096];
+        int read;
+        while ((read = inputStream.read(buffer)) > 0) {
+            outputStream.write(buffer, 0, read);
+        }
+
+        return outputStream;
+    }
+
+    /**
+     * @return true if the file is a zip/jar file
+     */
+    public static
+    boolean isZipFile(File file) {
+        byte[] ZIP_HEADER = {'P', 'K', 0x3, 0x4};
+        boolean isZip = true;
+        byte[] buffer = new byte[ZIP_HEADER.length];
+
+        RandomAccessFile raf = null;
+        try {
+            raf = new RandomAccessFile(file, "r");
+            raf.readFully(buffer);
+            for (int i = 0; i < ZIP_HEADER.length; i++) {
+                if (buffer[i] != ZIP_HEADER[i]) {
+                    isZip = false;
+                    break;
+                }
+            }
+        } catch (Exception e) {
+            isZip = false;
+        } finally {
+            if (raf != null) {
+                try {
+                    raf.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        return isZip;
+    }
+
+
+    public static
+    boolean deleteFile(String target) {
+        return deleteFile(new File(FileUtil.normalizeAsFile(target)));
+    }
+
+    public static
+    boolean deleteFile(File target) {
+        target = FileUtil.normalize(target);
+
+        log().title("Deleting file").println(target.getAbsolutePath());
+
+        return target.delete();
+    }
+
+    public static
+    File moveFile(String source, String target) throws IOException {
         source = FileUtil.normalizeAsFile(source);
         target = FileUtil.normalizeAsFile(target);
 
 
-        log().title("Moving file").println("  ╭─ " + source,
-                                             "╰─> " + target);
+        log().title("Moving file").println("  ╭─ " + source, "╰─> " + target);
 
         return FileUtil.moveFile(source, target);
     }
 
-    public static File copyFile(File source, File target) throws IOException {
+    public static
+    File copyFile(File source, File target) throws IOException {
         source = FileUtil.normalize(source);
         target = FileUtil.normalize(target);
 
 
-        log().title("Copying file").println("  ╭─ " + source.getAbsolutePath(),
-                                              "╰─> " + target.getAbsolutePath());
+        log().title("Copying file").println("  ╭─ " + source.getAbsolutePath(), "╰─> " + target.getAbsolutePath());
 
         return FileUtil.copyFile(source, target);
     }
 
-    public static void copyFile(String source, String target) throws IOException {
+    public static
+    void copyFile(String source, String target) throws IOException {
         source = FileUtil.normalizeAsFile(source);
         target = FileUtil.normalizeAsFile(target);
 
-        log().title("Copying file").println("  ╭─ " + source,
-                                              "╰─> " + target);
+        log().title("Copying file").println("  ╭─ " + source, "╰─> " + target);
 
         FileUtil.copyFile(source, target);
     }
 
-    public static void copyDirectory(String source, String target, String... dirNamesToIgnore) throws IOException {
+    public static
+    void copyDirectory(String source, String target, String... dirNamesToIgnore) throws IOException {
         source = FileUtil.normalizeAsFile(source);
         target = FileUtil.normalizeAsFile(target);
 
-        log().title("Copying dir").println("  ╭─ " + source,
-                                             "╰─> " + target);
+        log().title("Copying dir").println("  ╭─ " + source, "╰─> " + target);
         FileUtil.copyDirectory(source, target, dirNamesToIgnore);
     }
 }

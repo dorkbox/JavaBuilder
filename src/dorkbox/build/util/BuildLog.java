@@ -15,11 +15,12 @@
  */
 package dorkbox.build.util;
 
-import java.io.PrintStream;
-
 import dorkbox.util.OS;
 
-public class BuildLog {
+import java.io.PrintStream;
+
+public
+class BuildLog {
     public static final int STOCK_TITLE_WIDTH = 16;
 
     private static final String TITLE_MESSAGE_DELIMITER = "│";
@@ -29,30 +30,32 @@ public class BuildLog {
     public static boolean wasNested = false;
     private static volatile boolean suppressOutput = false;
 
-    public static BuildLog start() {
-        TITLE_WIDTH += 2;
+    public static
+    BuildLog start() {
         wasNested = true;
         BuildLog buildLog = new BuildLog();
         buildLog.titleStart();
         return buildLog;
     }
 
-    public static BuildLog finish() {
+    public static
+    BuildLog finish() {
         BuildLog buildLog = new BuildLog();
         buildLog.titleEnd();
-        TITLE_WIDTH -= 2;
         return buildLog;
     }
 
-    public static void enable() {
+    public static
+    void enable() {
         suppressOutput = false;
     }
 
-    public static void disable() {
+    public static
+    void disable() {
         suppressOutput = true;
     }
 
-    private PrintStream printer;
+    private final PrintStream printer;
     private StringBuilder titleBuilder = null;
 
     private int cachedSize = -1;
@@ -60,20 +63,26 @@ public class BuildLog {
 
 
 
-    public BuildLog() {
-        this.printer = System.err;
+    public
+    BuildLog() {
+        this(System.err);
     }
 
-    public BuildLog(PrintStream printer) {
+    public
+    BuildLog(PrintStream printer) {
         this.printer = printer;
     }
 
-    public BuildLog title(String title) {
+    public
+    BuildLog title(String title) {
         prepTitle(title, true);
         return this;
     }
 
-    private void titleStart() {
+    private
+    void titleStart() {
+        TITLE_WIDTH += 2;
+
         this.cachedSize = TITLE_WIDTH;
         String sep = TITLE_SEPERATOR;
 
@@ -86,7 +95,8 @@ public class BuildLog {
             spacerTitle.append(sep);
             spacerTitle.append(sep);
             spacerTitle.append('╮');
-        } else {
+        }
+        else {
             spacerTitle.append('┴');
             spacerTitle.append(sep);
             spacerTitle.append('╮');
@@ -94,7 +104,8 @@ public class BuildLog {
         this.printer.println(spacerTitle.toString());
     }
 
-    private void titleEnd() {
+    private
+    void titleEnd() {
         this.cachedSize = TITLE_WIDTH;
         String sep = TITLE_SEPERATOR;
 
@@ -107,23 +118,29 @@ public class BuildLog {
             spacerTitle.append(sep);
             spacerTitle.append(sep);
             spacerTitle.append('╯');
-        } else {
+        }
+        else {
             spacerTitle.append('┬');
             spacerTitle.append(sep);
             spacerTitle.append('╯');
         }
         this.printer.println(spacerTitle.toString());
+
+        TITLE_WIDTH -= 2;
     }
 
-    public void println() {
+    public
+    void println() {
         println((String) null);
     }
 
     /**
      * Creates everything in front of the message section, so that our "message" can be appended to each log entry if desired
+     *
      * @return
      */
-    private StringBuilder prepTitle(String title, boolean newLine) {
+    private
+    StringBuilder prepTitle(String title, boolean newLine) {
         char spacer1 = ' ';
 
         if (this.cachedSize != TITLE_WIDTH || this.cachedSpacer == null) {
@@ -139,7 +156,8 @@ public class BuildLog {
             if (this.titleBuilder == null) {
                 this.titleBuilder = new StringBuilder(1024);
                 this.titleBuilder.append(this.cachedSpacer).append(TITLE_MESSAGE_DELIMITER).append(spacer1);
-            } else if (!newLine) {
+            }
+            else if (!newLine) {
                 this.titleBuilder = new StringBuilder(1024);
             }
 
@@ -159,7 +177,7 @@ public class BuildLog {
             }
             else if (length > this.cachedSize) {
                 // too long!
-                adjustedTitle = title.substring(0, this.cachedSize-2) + "..";
+                adjustedTitle = title.substring(0, this.cachedSize - 2) + "..";
                 length = adjustedTitle.length();
                 addFollowingSpacer = false;
             }
@@ -181,15 +199,18 @@ public class BuildLog {
         return this.titleBuilder;
     }
 
-    public void print(Object... message) {
+    public
+    void print(Object... message) {
         print(false, message);
     }
 
-    public void println(Object... message) {
+    public
+    void println(Object... message) {
         print(true, message);
     }
 
-    private final void print(boolean newLine, Object... message) {
+    private final
+    void print(boolean newLine, Object... message) {
         if (suppressOutput) {
             return;
         }
@@ -222,7 +243,8 @@ public class BuildLog {
         if (newLine) {
             this.printer.println(msg.toString());
             this.titleBuilder = null;
-        } else {
+        }
+        else {
             this.printer.print(msg.toString());
         }
     }

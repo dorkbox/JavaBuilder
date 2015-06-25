@@ -40,6 +40,7 @@ import com.esotericsoftware.yamlbeans.YamlWriter;
 import com.esotericsoftware.yamlbeans.scalar.ScalarSerializer;
 
 import dorkbox.Build;
+import dorkbox.build.util.BuildLog;
 import dorkbox.build.util.classloader.ByteClassloader;
 import dorkbox.build.util.classloader.JavaMemFileManager;
 import dorkbox.license.License;
@@ -47,7 +48,8 @@ import dorkbox.license.LicenseType;
 import dorkbox.util.FileUtil;
 import dorkbox.util.OS;
 
-public class ProjectJava extends Project<ProjectJava> {
+public
+class ProjectJava extends Project<ProjectJava> {
 
     protected ArrayList<String> extraArgs;
 
@@ -58,18 +60,21 @@ public class ProjectJava extends Project<ProjectJava> {
 
     private Jarable jarable = null;
 
-    public static ProjectJava create(String projectName) {
+    public static
+    ProjectJava create(String projectName) {
         ProjectJava project = new ProjectJava(projectName);
         deps.put(projectName, project);
 
         return project;
     }
 
-    private ProjectJava(String projectName) {
+    private
+    ProjectJava(String projectName) {
         super(projectName);
     }
 
-    public ProjectJava sourcePath(Paths sourcePaths) {
+    public
+    ProjectJava sourcePath(Paths sourcePaths) {
         if (sourcePaths == null) {
             throw new NullPointerException("Source paths cannot be null!");
         }
@@ -81,7 +86,8 @@ public class ProjectJava extends Project<ProjectJava> {
         return this;
     }
 
-    public ProjectJava sourcePath(String srcDir) {
+    public
+    ProjectJava sourcePath(String srcDir) {
         if (srcDir.endsWith("src")) {
             String parent = new File(srcDir).getAbsoluteFile().getParent();
             checksum(new Paths(parent));
@@ -90,11 +96,13 @@ public class ProjectJava extends Project<ProjectJava> {
         return sourcePath(new Paths(srcDir, "./"));
     }
 
-    public ProjectJava sourcePath(String dir, String... patterns) {
+    public
+    ProjectJava sourcePath(String dir, String... patterns) {
         return sourcePath(new Paths(dir, patterns));
     }
 
-    public ProjectJava classPath(ProjectJar project) {
+    public
+    ProjectJava classPath(ProjectJar project) {
         if (project == null) {
             throw new NullPointerException("Project cannot be null!");
         }
@@ -106,7 +114,8 @@ public class ProjectJava extends Project<ProjectJava> {
         return this;
     }
 
-    public ProjectJava classPath(Paths classPaths) {
+    public
+    ProjectJava classPath(Paths classPaths) {
         if (classPaths == null) {
             throw new NullPointerException("Class paths cannot be null!");
         }
@@ -116,7 +125,8 @@ public class ProjectJava extends Project<ProjectJava> {
         return this;
     }
 
-    public ProjectJava classPath(String dir, String... patterns) {
+    public
+    ProjectJava classPath(String dir, String... patterns) {
         if (new File(dir).isFile() && (patterns == null || patterns.length == 0)) {
             Paths paths = new Paths();
             paths.addFile(dir);
@@ -126,7 +136,8 @@ public class ProjectJava extends Project<ProjectJava> {
     }
 
 
-    public ProjectJava addArg(String arg) {
+    public
+    ProjectJava addArg(String arg) {
         if (this.extraArgs == null) {
             this.extraArgs = new ArrayList<String>();
         }
@@ -137,7 +148,8 @@ public class ProjectJava extends Project<ProjectJava> {
 
 
     @Override
-    public void build() throws IOException {
+    public
+    void build() throws IOException {
         // exit early if we already built this project
         if (checkAndBuildDependencies()) {
             return;
@@ -146,7 +158,8 @@ public class ProjectJava extends Project<ProjectJava> {
         Build.log().println();
         if (this.bytesClassloader == null && this.jarable == null) {
             Build.log().title("Building").println(this.name, "Output - " + this.stagingDir);
-        } else {
+        }
+        else {
             Build.log().title("Building").println(this.name);
         }
 
@@ -164,7 +177,9 @@ public class ProjectJava extends Project<ProjectJava> {
             for (Project<?> project : depends) {
                 // dep can be a jar as well
                 if (!project.outputFile.canRead()) {
-                    throw new IOException("Dependency for project :" + this.name + " does not exist. '" + project.outputFile.getAbsolutePath() + "'");
+                    throw new IOException(
+                                    "Dependency for project :" + this.name + " does not exist. '" + project.outputFile.getAbsolutePath() +
+                                    "'");
                 }
                 // if we are compiling our build instructions (and projects), this won't exist. This is OK,
                 // because we run from memory instead (in the classloader)
@@ -182,14 +197,16 @@ public class ProjectJava extends Project<ProjectJava> {
             saveChecksums();
 
             FileUtil.delete(this.stagingDir);
-        } else {
+        }
+        else {
             Build.log().println("Skipped (nothing changed)");
         }
 
         buildList.add(this.name);
     }
 
-    public Jarable jar() {
+    public
+    Jarable jar() {
         if (this.jarable == null) {
             this.jarable = new Jarable(this);
         }
@@ -216,7 +233,8 @@ public class ProjectJava extends Project<ProjectJava> {
             if (outputFileGood) {
                 if (!this.jarable.includeSourceAsSeparate) {
                     return true;
-                } else {
+                }
+                else {
                     // now check the src.zip file (if there was one).
                     jarChecksum = generateChecksum(this.outputFileSource);
                     checkContents = Build.settings.get(this.outputFileSource.getAbsolutePath(), String.class);
@@ -253,7 +271,8 @@ public class ProjectJava extends Project<ProjectJava> {
     /**
      * Compiles into class files.
      */
-    private synchronized void runCompile() throws IOException {
+    private synchronized
+    void runCompile() throws IOException {
         // if you get messages, such as
         // warning: [path] bad path element "/x/y/z/lib/fubar-all.jar": no such file or directory
         //   That is because that file exists in a MANIFEST.MF somewhere on the classpath! Find the jar that has that, and rip out
@@ -275,7 +294,8 @@ public class ProjectJava extends Project<ProjectJava> {
             Build.log().println("Adding debug info");
 
             args.add("-g"); // Generate all debugging information, including local variables. By default, only line number and source file information is generated.
-        } else {
+        }
+        else {
             args.add("-g:none");
         }
 
@@ -301,7 +321,8 @@ public class ProjectJava extends Project<ProjectJava> {
             args.add("1." + this.buildOptions.compiler.targetJavaVersion);
 
             args.add("-bootclasspath");
-            args.add(this.buildOptions.compiler.crossCompileLibrary.getCrossCompileLibraryLocation(this.buildOptions.compiler.targetJavaVersion));
+            args.add(this.buildOptions.compiler.crossCompileLibrary.getCrossCompileLibraryLocation(
+                            this.buildOptions.compiler.targetJavaVersion));
         }
 
         // suppress sun proprietary warnings
@@ -344,40 +365,51 @@ public class ProjectJava extends Project<ProjectJava> {
         try {
             Iterable<? extends JavaFileObject> javaFileObjectsFromFiles;
             if (this.bytesClassloader == null) {
-                javaFileObjectsFromFiles = ((StandardJavaFileManager)fileManager).getJavaFileObjectsFromFiles(this.sourcePaths.getFiles());
-            } else {
-                fileManager = new JavaMemFileManager((StandardJavaFileManager)fileManager, this.bytesClassloader);
-                ((JavaMemFileManager)fileManager).setSource(this.sourcePaths);
-                javaFileObjectsFromFiles = ((JavaMemFileManager)fileManager).getSourceFiles();
+                javaFileObjectsFromFiles = ((StandardJavaFileManager) fileManager).getJavaFileObjectsFromFiles(this.sourcePaths.getFiles());
+            }
+            else {
+                fileManager = new JavaMemFileManager((StandardJavaFileManager) fileManager, this.bytesClassloader);
+                ((JavaMemFileManager) fileManager).setSource(this.sourcePaths);
+                javaFileObjectsFromFiles = ((JavaMemFileManager) fileManager).getSourceFiles();
             }
 
-            compiler.getTask(null, fileManager, diagnostics, args, null,
-                             javaFileObjectsFromFiles).call();
+            compiler.getTask(null, fileManager, diagnostics, args, null, javaFileObjectsFromFiles).call();
         } finally {
             fileManager.close();
         }
 
 
         boolean hasError = false;
-        for (@SuppressWarnings("rawtypes") Diagnostic diagnostic : diagnostics.getDiagnostics()) {
+        for (Diagnostic<? extends JavaFileObject> diagnostic : diagnostics.getDiagnostics()) {
             if (diagnostic.getKind() == javax.tools.Diagnostic.Kind.ERROR) {
                 hasError = true;
                 break;
             }
         }
         if (hasError) {
-            StringBuilder buffer = new StringBuilder(1024);
-            for (@SuppressWarnings("rawtypes") Diagnostic diagnostic : diagnostics.getDiagnostics()) {
-                if (buffer.length() > 0) {
-                    buffer.append("\n");
+            BuildLog.enable();
+            for (Diagnostic<? extends JavaFileObject> diagnostic : diagnostics.getDiagnostics()) {
+                BuildLog log = BuildLog.start();
+                log.title(diagnostic.getKind().toString()).println(diagnostic.getMessage(null));
+
+                String info = "Line: " + Long.toString(diagnostic.getLineNumber()) + ":" + Long.toString(diagnostic.getColumnNumber());
+                log.title("Location").println(info);
+
+                final JavaFileObject source = diagnostic.getSource();
+                if (source != null) {
+                    log.println(source.getName());
+                } else {
+                    log.println("Unknown location");
                 }
-                buffer.append("Line ").append(diagnostic.getLineNumber()).append(": ");
-                buffer.append(diagnostic.getMessage(null));
+                BuildLog.finish();
             }
-            throw new RuntimeException("Compilation errors:\n" + buffer);
+            BuildLog.disable();
+//            throw new RuntimeException("Compilation errors:\n" + buffer);
+            RuntimeException runtimeException = new RuntimeException("Compilation errors");
+            runtimeException.setStackTrace(new StackTraceElement[0]);
+            throw runtimeException;
         }
 
-        compiler = null;
         System.gc();
         try {
             Thread.sleep(100);
@@ -386,20 +418,25 @@ public class ProjectJava extends Project<ProjectJava> {
     }
 
     @Override
-    public String getExtension() {
-        return  Project.JAR_EXTENSION;
+    public
+    String getExtension() {
+        return Project.JAR_EXTENSION;
     }
 
-    public static interface OnJarEntryAction {
+    public static
+    interface OnJarEntryAction {
         boolean canHandle(String fileName);
+
         int onEntry(String fileName, ByteArrayInputStream inputStream, OutputStream output) throws Exception;
     }
 
     /**
      * Take all of the parameters of this project, and convert it to a text file.
+     *
      * @throws IOException
      */
-    public void toBuildFile() throws IOException {
+    public
+    void toBuildFile() throws IOException {
         YamlWriter writer = new YamlWriter(new FileWriter("build.oak"));
         YamlConfig config = writer.getConfig();
 
@@ -408,12 +445,14 @@ public class ProjectJava extends Project<ProjectJava> {
         config.setPropertyElementType(ProjectJava.class, "licenses", License.class);
         config.setPrivateFields(true);
 
-        config.readConfig.setConstructorParameters(License.class, new Class[]{String.class, LicenseType.class}, new String[] {"licenseName", "licenseType"});
-        config.readConfig.setConstructorParameters(ProjectJava.class, new Class[]{String.class}, new String[] {"projectName"});
+        config.readConfig.setConstructorParameters(License.class, new Class[] {String.class, LicenseType.class},
+                                                   new String[] {"licenseName", "licenseType"});
+        config.readConfig.setConstructorParameters(ProjectJava.class, new Class[] {String.class}, new String[] {"projectName"});
 
         config.setScalarSerializer(Paths.class, new ScalarSerializer<Paths>() {
             @Override
-            public Paths read (String value) throws YamlException {
+            public
+            Paths read(String value) throws YamlException {
                 String[] split = value.split(File.pathSeparator);
                 Paths paths = new Paths();
                 for (String s : split) {
@@ -423,7 +462,8 @@ public class ProjectJava extends Project<ProjectJava> {
             }
 
             @Override
-            public String write (Paths paths) throws YamlException {
+            public
+            String write(Paths paths) throws YamlException {
                 return paths.toString(File.pathSeparator);
             }
         });
@@ -435,17 +475,20 @@ public class ProjectJava extends Project<ProjectJava> {
     /**
      * The specified byte loading classloader to save the compiled class bytes into,
      */
-    public ProjectJava compilerClassloader(ByteClassloader bytesClassloader) {
+    public
+    ProjectJava compilerClassloader(ByteClassloader bytesClassloader) {
         this.bytesClassloader = bytesClassloader;
         return this;
     }
 
-    public List<License> getLicenses() {
+    public
+    List<License> getLicenses() {
         return this.licenses;
     }
 
     @Override
-    public ProjectJava version(String versionString) {
+    public
+    ProjectJava version(String versionString) {
         super.version(versionString);
         return this;
     }

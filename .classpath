@@ -10,6 +10,6 @@
 	<classpathentry kind="lib" path="libs/bcprov-jdk15on-151.jar"/>
 	<classpathentry kind="lib" path="libs/yamlbeans-1.08.jar"/>
 	<classpathentry kind="lib" path="libs/Annotations_v1.0.jar"/>
-	<classpathentry kind="lib" path="libs/dorkboxUtil_v1.2.jar"/>
+	<classpathentry kind="lib" path="libs/dorkboxUtil_v1.3.jar" sourcepath="libs/dorkboxUtil_v1.3_src.zip"/>
 	<classpathentry kind="output" path="classes"/>
 </classpath>
