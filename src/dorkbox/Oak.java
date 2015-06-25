@@ -108,7 +108,7 @@ class Oak {
     }
 
     public static
-    void main(String... _args) {
+    void main(String... _args) throws Exception {
         // now startup like normal
         Build.start(_args);
     }

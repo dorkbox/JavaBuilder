@@ -15,31 +15,22 @@
  */
 package dorkbox.build;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import org.bouncycastle.crypto.digests.MD5Digest;
-
 import com.esotericsoftware.wildcard.Paths;
 import com.twmacinta.util.MD5;
-
 import dorkbox.Build;
 import dorkbox.BuildOptions;
 import dorkbox.build.util.BuildLog;
 import dorkbox.license.License;
 import dorkbox.util.Base64Fast;
 import dorkbox.util.FileUtil;
+import org.bouncycastle.crypto.digests.MD5Digest;
 
-public abstract class Project<T extends Project<T>> {
+import java.io.File;
+import java.io.IOException;
+import java.util.*;
+
+public abstract
+class Project<T extends Project<T>> {
     public static final String JAR_EXTENSION = ".jar";
     public static final String SRC_EXTENSION = "_src.zip";
 
@@ -59,6 +50,7 @@ public abstract class Project<T extends Project<T>> {
     protected boolean isBuildingDependencies = false;
 
     public static List<File> builderFiles = new ArrayList<File>();
+
     static {
         if (!Build.isJar) {
             // check to see if our deploy code has changed. if yes, then we have to rebuild everything since
@@ -79,7 +71,8 @@ public abstract class Project<T extends Project<T>> {
                     if (!oldHash.equals(hashedContents)) {
                         forceRebuild = true;
                     }
-                } else {
+                }
+                else {
                     forceRebuild = true;
                 }
 
@@ -95,13 +88,15 @@ public abstract class Project<T extends Project<T>> {
         }
     }
 
-    public static Project<?> create(Project<?> project) {
+    public static
+    Project<?> create(Project<?> project) {
         deps.put(project.name, project);
         return project;
     }
 
     // removes all saved checksums as well as dependencies. Used to "reset everything", similar to if it was relaunched.
-    public static void reset() {
+    public static
+    void reset() {
         deps.clear();
         buildList.clear();
     }
@@ -133,33 +128,39 @@ public abstract class Project<T extends Project<T>> {
     private ArrayList<String> unresolvedDependencies = new ArrayList<String>();
 
 
-    public static Project<?> get(String projectName) {
+    public static
+    Project<?> get(String projectName) {
         if (deps.containsKey(projectName)) {
             Project<?> project = deps.get(projectName);
             // put swt lib into jar!
             return project;
-        } else {
+        }
+        else {
             throw new IllegalArgumentException(projectName + " project must exist!");
         }
     }
 
     @SuppressWarnings("rawtypes")
-    public static void buildAll() throws Exception {
+    public static
+    void buildAll() throws Exception {
         // organize the list of items to build, so that our build order is at least SOMEWHAT in order,
         // were the dependencies build first. This is just an optimization step
         List<Project> copy = new ArrayList<Project>(deps.values());
 
         Collections.sort(copy, new Comparator<Project>() {
             @Override
-            public int compare(Project o1, Project o2) {
+            public
+            int compare(Project o1, Project o2) {
                 if (o1 == null || o1.dependencies.isEmpty()) {
                     return -1;
-                } else if (o2 == null || o2.dependencies.isEmpty()) {
+                }
+                else if (o2 == null || o2.dependencies.isEmpty()) {
                     return 1;
                 }
 
                 return o1.name.compareTo(o2.name);
-            }});
+            }
+        });
 
         List<Project> sorted = new ArrayList<Project>(copy.size());
         Set<String> sortedCheck = new HashSet<String>(0);
@@ -175,12 +176,13 @@ public abstract class Project<T extends Project<T>> {
                     sorted.add(next);
                     sortedCheck.add(next.name);
                     iterator.remove();
-                } else {
+                }
+                else {
                     List<Project<?>> list = next.dependencies;
                     int size = list.size();
 
                     for (Project<?> d : list) {
-                        if (sortedCheck.contains(d.name) ) {
+                        if (sortedCheck.contains(d.name)) {
                             size--;
                         }
                     }
@@ -207,8 +209,11 @@ public abstract class Project<T extends Project<T>> {
         }
     }
 
-    /** resolves all of the dependencies for this project, since the build order can be specified in ANY order */
-    protected void resolveDeps() {
+    /**
+     * resolves all of the dependencies for this project, since the build order can be specified in ANY order
+     */
+    protected
+    void resolveDeps() {
         Iterator<String> iterator = this.unresolvedDependencies.iterator();
         while (iterator.hasNext()) {
             String unresolved = iterator.next();
@@ -220,32 +225,27 @@ public abstract class Project<T extends Project<T>> {
         }
     }
 
-    public static void build(String projectName) throws Exception {
+    public static
+    void build(String projectName) throws Exception {
         Project<?> project = get(projectName);
 
         if (project != null) {
             project.build();
-        } else {
+        }
+        else {
             System.err.println("Project is NULL. Aborting build.");
         }
     }
 
-    public static void remove(String outputDir) {
+    public static
+    void remove(String outputDir) {
         deps.remove(outputDir);
     }
 
 
 
-
-
-
-
-
-
-
-
-
-    protected Project(String projectName) {
+    protected
+    Project(String projectName) {
         this.name = projectName;
         this.buildOptions = new BuildOptions();
 
@@ -254,11 +254,15 @@ public abstract class Project<T extends Project<T>> {
         outputFile(new File(this.stagingDir.getParentFile(), this.name + getExtension()));
     }
 
-    public abstract void build() throws IOException;
-    public abstract String getExtension();
+    public abstract
+    void build() throws IOException;
+
+    public abstract
+    String getExtension();
 
 
-    public void getRecursiveLicenses(Set<License> licenses) {
+    public
+    void getRecursiveLicenses(Set<License> licenses) {
         licenses.addAll(this.licenses);
         Set<Project<?>> deps = new HashSet<Project<?>>();
         getRecursiveDependencies(deps);
@@ -269,7 +273,8 @@ public abstract class Project<T extends Project<T>> {
     }
 
 
-    public void getRecursiveDependencies(Set<Project<?>> dependencies) {
+    public
+    void getRecursiveDependencies(Set<Project<?>> dependencies) {
         for (Project<?> project : this.dependencies) {
             dependencies.add(project);
             project.getRecursiveDependencies(dependencies);
@@ -283,7 +288,8 @@ public abstract class Project<T extends Project<T>> {
      * @return true if we can skip building this project
      */
     @SuppressWarnings("all")
-    protected boolean checkAndBuildDependencies() throws IOException {
+    protected
+    boolean checkAndBuildDependencies() throws IOException {
         resolveDeps();
 
         // exit early if we already built this project
@@ -305,7 +311,7 @@ public abstract class Project<T extends Project<T>> {
             for (Project<?> s : deps) {
                 array[i++] = s.name;
             }
-            Build.log().title(this.name).println(array);
+            Build.log().title(this.name).println((Object[]) array);
         }
 
         for (Project<?> project : deps) {
@@ -335,7 +341,8 @@ public abstract class Project<T extends Project<T>> {
 
 
     @SuppressWarnings("unchecked")
-    public T depends(String projectOrJar) {
+    public
+    T depends(String projectOrJar) {
         if (projectOrJar == null) {
             throw new NullPointerException("Dependencies cannot be null!");
         }
@@ -349,7 +356,8 @@ public abstract class Project<T extends Project<T>> {
         Project<?> project = deps.get(projectOrJar);
         if (project != null) {
             this.dependencies.add(project);
-        } else {
+        }
+        else {
             this.unresolvedDependencies.add(projectOrJar);
         }
 
@@ -360,7 +368,8 @@ public abstract class Project<T extends Project<T>> {
 
 
     @SuppressWarnings("unchecked")
-    public T depends(Project<?> project) {
+    public
+    T depends(Project<?> project) {
         if (project == null) {
             throw new NullPointerException("Dependencies cannot be null!");
         }
@@ -373,33 +382,36 @@ public abstract class Project<T extends Project<T>> {
 
     /**
      * extra files to include when you jar the project
-     * <p>
+     * <p/>
      * The TARGET location in the JAR, is the RELATIVE location when adding the paths. <br>
      * For Example: <br>
      * extraFiles(new Paths("foo", "bar/x.bmp"))  <br>
-     *   jar  <br>
-     *    - a  <br>
-     *    - b  <br>
-     *    - bar/x.bmp  <br>
-     *  <br>
+     * jar  <br>
+     * - a  <br>
+     * - b  <br>
+     * - bar/x.bmp  <br>
+     * <br>
      * extraFiles(new Paths("foo/bar", "x.bmp"))  <br>
-     *   jar  <br>
-     *    - a  <br>
-     *    - b  <br>
-     *    - x.bmp
+     * jar  <br>
+     * - a  <br>
+     * - b  <br>
+     * - x.bmp
      */
     @SuppressWarnings("unchecked")
-    public T extraFiles(Paths filePaths) {
+    public
+    T extraFiles(Paths filePaths) {
         this.extraFiles.add(filePaths);
         return (T) this;
     }
 
-    public T outputFile(File outputFile) {
+    public
+    T outputFile(File outputFile) {
         return outputFile(outputFile.getAbsolutePath());
     }
 
     @SuppressWarnings("unchecked")
-    public T outputFile(String outputFileName) {
+    public
+    T outputFile(String outputFileName) {
         this.setVersion = true;
         String withVersionName;
         // version string is appended to the fileName
@@ -407,13 +419,15 @@ public abstract class Project<T extends Project<T>> {
             int index = outputFileName.lastIndexOf('.');
             if (index < 0) {
                 withVersionName = outputFileName + "_" + this.versionString;
-            } else {
+            }
+            else {
                 String first = outputFileName.substring(0, index);
                 String extension = outputFileName.substring(index);
 
                 withVersionName = first + "_" + this.versionString + extension;
             }
-        } else {
+        }
+        else {
             withVersionName = outputFileName;
         }
 
@@ -432,41 +446,48 @@ public abstract class Project<T extends Project<T>> {
         return (T) this;
     }
 
-    public Project<T> addSrc(String file) {
+    public
+    Project<T> addSrc(String file) {
         this.sources.add(new File(FileUtil.normalizeAsFile(file)));
         return this;
     }
 
-    public Project<T> addSrc(File file) {
+    public
+    Project<T> addSrc(File file) {
         this.sources.add(file);
         return this;
     }
 
-    public Project<T> dist(String distLocation) {
+    public
+    Project<T> dist(String distLocation) {
         this.distLocation = FileUtil.normalizeAsFile(distLocation);
         return this;
     }
 
     @SuppressWarnings("unchecked")
-    public T options(BuildOptions buildOptions) {
+    public
+    T options(BuildOptions buildOptions) {
         this.buildOptions = buildOptions;
         return (T) this;
     }
 
     @SuppressWarnings("unchecked")
-    public T license(License license) {
+    public
+    T license(License license) {
         this.licenses.add(license);
         return (T) this;
     }
 
     @SuppressWarnings("unchecked")
-    public T license(List<License> licenses) {
+    public
+    T license(List<License> licenses) {
         this.licenses.addAll(licenses);
         return (T) this;
     }
 
 
-    public void copyFiles(File targetLocation) throws IOException {
+    public
+    void copyFiles(File targetLocation) throws IOException {
         // copy dist dir over
         boolean canCopySingles = false;
         if (this.distLocation != null) {
@@ -475,7 +496,8 @@ public abstract class Project<T extends Project<T>> {
             if (this.outputFile == null || !this.outputFile.getAbsolutePath().startsWith(this.distLocation)) {
                 canCopySingles = true;
             }
-        } else {
+        }
+        else {
             canCopySingles = true;
         }
 
@@ -519,10 +541,12 @@ public abstract class Project<T extends Project<T>> {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 //// CHECKSUM LOGIC
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
+
     /**
      * Add a path to be checksum'd.
      */
-    public final void checksum(Paths path) {
+    public final
+    void checksum(Paths path) {
         this.checksumPaths.add(path);
     }
 
@@ -553,7 +577,8 @@ public abstract class Project<T extends Project<T>> {
     /**
      * Generates checksums for the given path
      */
-    public static final String generateChecksum(File file) throws IOException {
+    public static final
+    String generateChecksum(File file) throws IOException {
         synchronized (Project.class) {
             // calculate the hash of file
             boolean found = false;
@@ -575,7 +600,8 @@ public abstract class Project<T extends Project<T>> {
     /**
      * Generates checksums for the given path
      */
-    public static final String generateChecksums(Paths... paths) throws IOException {
+    public static final
+    String generateChecksums(Paths... paths) throws IOException {
         synchronized (Project.class) {
             // calculate the hash of all the files in the source path
             Set<String> names = new HashSet<String>(64);
@@ -610,18 +636,21 @@ public abstract class Project<T extends Project<T>> {
         }
     }
 
-    public Project<?> version(String versionString) {
+    public
+    Project<?> version(String versionString) {
         this.versionString = versionString;
         return this;
     }
 
     @Override
-    public String toString() {
+    public
+    String toString() {
         return this.name;
     }
 
     @Override
-    public int hashCode() {
+    public
+    int hashCode() {
         final int prime = 31;
         int result = 1;
         result = prime * result + (this.name == null ? 0 : this.name.hashCode());
@@ -629,7 +658,8 @@ public abstract class Project<T extends Project<T>> {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public
+    boolean equals(Object obj) {
         if (this == obj) {
             return true;
         }
@@ -644,7 +674,8 @@ public abstract class Project<T extends Project<T>> {
             if (other.name != null) {
                 return false;
             }
-        } else if (!this.name.equals(other.name)) {
+        }
+        else if (!this.name.equals(other.name)) {
             return false;
         }
         return true;
