@@ -27,7 +27,7 @@ import java.util.Map.Entry;
 
 import com.esotericsoftware.wildcard.Paths;
 
-import dorkbox.Build;
+import dorkbox.Builder;
 import dorkbox.build.util.jar.JarUtil;
 import dorkbox.util.FileUtil;
 import dorkbox.util.gwt.GwtSymbolMapParser;
@@ -89,7 +89,7 @@ public class ProjectGwt extends Project<ProjectGwt> {
         // if the sources are the same, check the output dir
         if (this.stagingDir.exists()) {
             String dirChecksum = generateChecksum(this.stagingDir);
-            String checkContents = Build.settings.get(this.stagingDir.getAbsolutePath(), String.class);
+            String checkContents = Builder.settings.get(this.stagingDir.getAbsolutePath(), String.class);
 
             return dirChecksum != null && dirChecksum.equals(checkContents);
         }
@@ -108,7 +108,7 @@ public class ProjectGwt extends Project<ProjectGwt> {
         // hash/save the output files (if there are any)
         if (this.stagingDir.exists()) {
             String fileChecksum = generateChecksum(this.stagingDir);
-            Build.settings.save(this.stagingDir.getAbsolutePath(), fileChecksum);
+            Builder.settings.save(this.stagingDir.getAbsolutePath(), fileChecksum);
         }
     }
 
@@ -144,18 +144,18 @@ public class ProjectGwt extends Project<ProjectGwt> {
 
                 String clientString = "Client";
 
-                String stagingWar = Build.path(STAGING, "war");
-                String stagingWarWebINF = Build.path(stagingWar, "WEB-INF");
-                String stagingWarWebINFDeploy = Build.path(stagingWarWebINF, "deploy");
+                String stagingWar = Builder.path(STAGING, "war");
+                String stagingWarWebINF = Builder.path(stagingWar, "WEB-INF");
+                String stagingWarWebINFDeploy = Builder.path(stagingWarWebINF, "deploy");
 
 
-                String stagingJunk = Build.path(STAGING, "junk");
-                String stagingUnitCache = Build.path(STAGING, "gwt-unitCache");
-                String stagingSymbols = Build.path(STAGING, "symbolMaps");
-                String clientTempLocation = Build.path(STAGING, clientString + "_javascript");
+                String stagingJunk = Builder.path(STAGING, "junk");
+                String stagingUnitCache = Builder.path(STAGING, "gwt-unitCache");
+                String stagingSymbols = Builder.path(STAGING, "symbolMaps");
+                String clientTempLocation = Builder.path(STAGING, clientString + "_javascript");
 
 
-                String srcWarPath = Build.path("..", this.projectLocation, "war");
+                String srcWarPath = Builder.path("..", this.projectLocation, "war");
 
                 // make the output directory
                 FileUtil.delete(stagingWar);
@@ -244,15 +244,15 @@ public class ProjectGwt extends Project<ProjectGwt> {
 
                 // move the symbol maps to the correct spot
                 FileUtil.mkdir(stagingSymbols);
-                Paths symbolMapPaths = new Paths(Build.path(stagingWarWebINFDeploy, clientString, "symbolMaps"), "*.symbolMap");
+                Paths symbolMapPaths = new Paths(Builder.path(stagingWarWebINFDeploy, clientString, "symbolMaps"), "*.symbolMap");
                 for (File file : symbolMapPaths.getFiles()) {
                     // clean up the symbolmaps first!
-                    parseAndCopyGwtSymbols(file, new File(Build.path(stagingSymbols, file.getName())));
+                    parseAndCopyGwtSymbols(file, new File(Builder.path(stagingSymbols, file.getName())));
                 }
 
 
                 // move the client generated javascript to the correct spot
-                FileUtil.moveDirectory(Build.path(stagingWar, clientString), clientTempLocation);
+                FileUtil.moveDirectory(Builder.path(stagingWar, clientString), clientTempLocation);
 
 
                 // remove directories that are not needed/wanted in the deployment
@@ -269,18 +269,18 @@ public class ProjectGwt extends Project<ProjectGwt> {
                 // todo: pass in the hive-webclient project name somehow?
                 Paths warFiles = new Paths(srcWarPath, "*.html", "*.ico");
                 for (File file : warFiles.getFiles()) {
-                    FileUtil.copyFile(file.getAbsolutePath(), Build.path(stagingWar, file.getName()));
+                    FileUtil.copyFile(file.getAbsolutePath(), Builder.path(stagingWar, file.getName()));
                 }
 
                 // copy over images
-                FileUtil.copyDirectory(Build.path(srcWarPath, "images"), Build.path(stagingWar, "images"), ".svn");
+                FileUtil.copyDirectory(Builder.path(srcWarPath, "images"), Builder.path(stagingWar, "images"), ".svn");
 
 
                 // make the web-INF directory
                 FileUtil.mkdir(stagingWarWebINF);
 
                 // move the symbolMaps into the correct spot.
-                FileUtil.moveDirectory(stagingSymbols, Build.path(stagingWarWebINF, "symbolMaps"));
+                FileUtil.moveDirectory(stagingSymbols, Builder.path(stagingWarWebINF, "symbolMaps"));
 
                 // add any extra files to the output war dir.
                 File warDir = new File(stagingWar);
@@ -294,7 +294,7 @@ public class ProjectGwt extends Project<ProjectGwt> {
                 }
 
                 // move the client generated javascript to the correct spot
-                FileUtil.moveDirectory(clientTempLocation, Build.path(stagingWar, clientString));
+                FileUtil.moveDirectory(clientTempLocation, Builder.path(stagingWar, clientString));
 
 
                 // war it up
@@ -318,7 +318,7 @@ public class ProjectGwt extends Project<ProjectGwt> {
                 // calculate the hash of all the files in the source path
                 saveChecksums();
             } else {
-                Build.log().println("Skipped (nothing changed)");
+                Builder.log().println("Skipped (nothing changed)");
             }
         } finally {
             if (shouldBuild) {

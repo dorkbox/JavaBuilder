@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import dorkbox.Build;
+import dorkbox.Builder;
 import dorkbox.util.FileUtil;
 
 public class BuildStrings {
@@ -24,11 +24,11 @@ public class BuildStrings {
     public static final String STAGING = "staging";
 
     public static class ProjectPath {
-        public static final String Resources = Build.path("..", "..", "resources");
-        public static final String GitHub = Build.path("..", "..", "github_projects");
+        public static final String Resources = Builder.path("..", "..", "resources");
+        public static final String GitHub = Builder.path("..", "..", "github_projects");
     }
 
     static String path(String... path) {
-        return FileUtil.normalizeAsFile(Build.path(path));
+        return FileUtil.normalizeAsFile(Builder.path(path));
     }
 }

@@ -15,9 +15,9 @@
  */
 
 import com.esotericsoftware.wildcard.Paths;
-import dorkbox.Build;
+import dorkbox.Builder;
 import dorkbox.BuildOptions;
-import dorkbox.Oak;
+import dorkbox.Build;
 import dorkbox.build.Project;
 import dorkbox.build.ProjectJava;
 import dorkbox.build.util.BuildLog;
@@ -31,7 +31,7 @@ import java.util.List;
 
 
 // @formatter:off
-@Build.Builder
+@Builder.Builder
 public class JavaBuilder {
 
     // ALSO copied over to JavaBuilder build dir (as an example), so make sure to update in both locations
@@ -68,38 +68,38 @@ public class JavaBuilder {
         buildOptions.compiler.targetJavaVersion = 6;
 
         // if we are running from a jar, DO NOT try to do certain things
-        String utilSourcePath = Oak.get().getAbsolutePath();
+        String utilSourcePath = Build.get().getAbsolutePath();
 
-        String distDir = FileUtil.normalizeAsFile(Build.path(root, "dist"));
+        String distDir = FileUtil.normalizeAsFile(Builder.path(root, "dist"));
         File dists = new File(distDir);
         dists.mkdirs();
 
-        String libsPath = FileUtil.normalizeAsFile(Build.path(root, "libs"));
+        String libsPath = FileUtil.normalizeAsFile(Builder.path(root, "libs"));
 
-        BuildLog log = Build.log();
+        BuildLog log = Builder.log();
 
         PreJarAction preJarAction = new PreJarAction() {
             @Override
             public void executeBeforeJarHappens(File outputDir) throws IOException {
-                Build.log().println("Installing license files...");
-                File targetLocation = new File(outputDir, Build.path("dorkbox", "license"));
+                Builder.log().println("Installing license files...");
+                File targetLocation = new File(outputDir, Builder.path("dorkbox", "license"));
                 License.install(targetLocation);
             }
         };
 
         // now build the project
         ProjectJava project = ProjectJava.create(name)
-                        .classPath(new Paths(Build.path(root, "libs"), Project.Jar_Pattern, "!jdkRuntimes"))
+                        .classPath(new Paths(Builder.path(root, "libs"), Project.Jar_Pattern, "!jdkRuntimes"))
                         .license(license)
                         .version(version)
                         .extraFiles(new Paths(root, "README.md"))
                         .sourcePath(src, Project.Java_Pattern)
                         .options(buildOptions)
-                        .jar().overrideDate(Build.buildDate)
-                              .mainClass(Oak.class)
+                        .jar().overrideDate(Builder.buildDate)
+                              .mainClass(Build.class)
                               .preJarAction(preJarAction)
                               .includeSourceAsSeparate()
-                              .outputFile(Build.path(distDir, name + Project.JAR_EXTENSION));
+                              .outputFile(Builder.path(distDir, name + Project.JAR_EXTENSION));
         project.build();
     }
 }

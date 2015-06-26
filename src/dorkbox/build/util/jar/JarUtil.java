@@ -15,73 +15,37 @@
  */
 package dorkbox.build.util.jar;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.io.RandomAccessFile;
-import java.io.Writer;
-import java.security.MessageDigest;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.Enumeration;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map.Entry;
-import java.util.Set;
-import java.util.jar.Attributes;
-import java.util.jar.JarEntry;
-import java.util.jar.JarFile;
-import java.util.jar.JarInputStream;
-import java.util.jar.JarOutputStream;
-import java.util.jar.Manifest;
-import java.util.zip.GZIPInputStream;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
-import java.util.zip.ZipInputStream;
-import java.util.zip.ZipOutputStream;
-
-import org.bouncycastle.crypto.digests.SHA512Digest;
-
 import com.esotericsoftware.wildcard.Paths;
 import com.ice.tar.TarEntry;
 import com.ice.tar.TarInputStream;
-
-import dorkbox.Build;
 import dorkbox.BuildOptions;
+import dorkbox.Builder;
 import dorkbox.build.util.BuildLog;
 import dorkbox.license.License;
-import dorkbox.util.Base64Fast;
-import dorkbox.util.FileUtil;
-import dorkbox.util.LZMA;
-import dorkbox.util.OS;
-import dorkbox.util.Sys;
+import dorkbox.util.*;
+import org.bouncycastle.crypto.digests.SHA512Digest;
 
-public class JarUtil {
+import java.io.*;
+import java.security.MessageDigest;
+import java.util.*;
+import java.util.Map.Entry;
+import java.util.jar.*;
+import java.util.zip.*;
+
+public
+class JarUtil {
     public static int JAR_COMPRESSION_LEVEL = 9;
 
-    public static byte[] ZIP_HEADER = { 80, 75, 3, 4 };  // PK34
+    public static byte[] ZIP_HEADER = {80, 75, 3, 4};  // PK34
 
     public static final String metaInfName = "META-INF/";
-    public static final String configFile  = "config.ini";
+    public static final String configFile = "config.ini";
 
     /**
      * @return true if the file is a zip/jar file
      */
-    public static boolean isZipFile(File file) {
+    public static
+    boolean isZipFile(File file) {
         boolean isZip = true;
         byte[] buffer = new byte[ZIP_HEADER.length];
 
@@ -112,12 +76,13 @@ public class JarUtil {
     /**
      * @return true if the file is a zip/jar stream
      */
-    public static boolean isZipStream(ByteArrayInputStream input) {
+    public static
+    boolean isZipStream(ByteArrayInputStream input) {
         boolean isZip = true;
         int length = ZIP_HEADER.length;
 
         try {
-            input.mark(length+1);
+            input.mark(length + 1);
 
             for (int i = 0; i < length; i++) {
                 byte read = (byte) input.read();
@@ -137,7 +102,8 @@ public class JarUtil {
      * retrieve the manifest from a jar file -- this will either load a
      * pre-existing META-INF/MANIFEST.MF, or return null if none
      */
-    public static final Manifest getManifestFile(JarFile jarFile) throws IOException {
+    public static final
+    Manifest getManifestFile(JarFile jarFile) throws IOException {
         JarEntry je = jarFile.getJarEntry(JarFile.MANIFEST_NAME);
 
         // verify that it really exists.
@@ -147,7 +113,8 @@ public class JarUtil {
                 je = jarEntries.nextElement();
                 if (JarFile.MANIFEST_NAME.equals(je.getName())) {
                     break;
-                } else {
+                }
+                else {
                     je = null;
                 }
             }
@@ -159,7 +126,8 @@ public class JarUtil {
             Sys.close(inputStream);
 
             return manifest;
-        } else {
+        }
+        else {
             return null;
         }
     }
@@ -167,10 +135,11 @@ public class JarUtil {
     /**
      * a helper function that can take entries from one jar file and write it to
      * another jar stream
-     *
+     * <p/>
      * Will close the output stream automatically.
      */
-    public static final void writeZipEntry(ZipEntry entry, ZipFile zipInputFile, ZipOutputStream zipOutputStream) throws IOException {
+    public static final
+    void writeZipEntry(ZipEntry entry, ZipFile zipInputFile, ZipOutputStream zipOutputStream) throws IOException {
         // create a new entry to avoid ZipException: invalid entry compressed size
         ZipEntry newEntry = new ZipEntry(entry.getName());
         newEntry.setTime(entry.getTime());
@@ -192,10 +161,11 @@ public class JarUtil {
     /**
      * a helper function that can take entries from one jar file and write it to
      * another jar stream
-     *
+     * <p/>
      * Does NOT close any streams!
      */
-    public static void writeZipEntry(ZipEntry entry, ZipInputStream zipInputStream, ZipOutputStream zipOutputStream) throws IOException {
+    public static
+    void writeZipEntry(ZipEntry entry, ZipInputStream zipInputStream, ZipOutputStream zipOutputStream) throws IOException {
         ZipEntry newEntry = new ZipEntry(entry.getName());
         newEntry.setTime(entry.getTime());
         newEntry.setComment(entry.getComment());
@@ -213,7 +183,8 @@ public class JarUtil {
     }
 
 
-    public static final String updateDigest(InputStream inputStream, MessageDigest digest) throws IOException {
+    public static final
+    String updateDigest(InputStream inputStream, MessageDigest digest) throws IOException {
         byte[] buffer = new byte[2048];
         int read = 0;
         digest.reset();
@@ -234,8 +205,9 @@ public class JarUtil {
         return Base64Fast.encodeToString(digestBytes, false);
     }
 
-    public static final ByteArrayOutputStream createNewJar(JarFile jar, String name, byte[] manifestBytes,
-                    byte[] signatureFileManifestBytes, byte[] signatureBlockBytes) throws IOException {
+    public static final
+    ByteArrayOutputStream createNewJar(JarFile jar, String name, byte[] manifestBytes, byte[] signatureFileManifestBytes,
+                                       byte[] signatureBlockBytes) throws IOException {
 
         name = name.toUpperCase();
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
@@ -279,8 +251,9 @@ public class JarUtil {
             JarEntry metaEntry = metaEntries.nextElement();
             String entryName = metaEntry.getName();
 
-            if (entryName.startsWith(metaInfName)
-                && !(JarFile.MANIFEST_NAME.equalsIgnoreCase(entryName) || signatureFileName.equalsIgnoreCase(entryName) || signatureBlockName.equalsIgnoreCase(entryName))) {
+            if (entryName.startsWith(metaInfName) && !(JarFile.MANIFEST_NAME.equalsIgnoreCase(entryName) ||
+                                                       signatureFileName.equalsIgnoreCase(entryName) || signatureBlockName.equalsIgnoreCase(
+                            entryName))) {
 
                 JarUtil.writeZipEntry(metaEntry, jar, jarOutputStream);
             }
@@ -307,9 +280,9 @@ public class JarUtil {
     /**
      * removes all of the (META-INF, OSGI-INF, etc) information (removes the entire directory), AND ALSO removes all comments from the files
      */
-    public static InputStream removeManifestCommentsAndFiles(String fileName, InputStream inputStream,
-                                                             String[] pathToRemove, String[] pathToKeep,
-                                                             Set<String> stripped) throws IOException {
+    public static
+    InputStream removeManifestCommentsAndFiles(String fileName, InputStream inputStream, String[] pathToRemove, String[] pathToKeep,
+                                               Set<String> stripped) throws IOException {
         // shortcut out -- nothing to do
         if (pathToRemove == null || pathToRemove.length == 0) {
             return inputStream;
@@ -369,16 +342,16 @@ public class JarUtil {
     /**
      * Creates a zip file, similar to how jar() works, only minus jar-specific stuff (manifest, etc)
      */
-    public static void zip(JarOptions options) throws IOException {
+    public static
+    void zip(JarOptions options) throws IOException {
         if (options.outputFile == null) {
             throw new IllegalArgumentException("jarFile cannot be null.");
         }
 
         int totalEntries = options.sourcePaths.count();
 
-        Build.log().println();
-        Build.log().title("Creating ZIP").println("(" + totalEntries + " entries)",
-                                                  options.outputFile.getAbsolutePath());
+        Builder.log().println();
+        Builder.log().title("Creating ZIP").println("(" + totalEntries + " entries)", options.outputFile.getAbsolutePath());
 
 
         List<String> fullPaths = options.sourcePaths.getPaths();
@@ -420,7 +393,7 @@ public class JarUtil {
                 Collections.sort(sortList);
                 for (String dirName : sortList) {
                     ZipEntry zipEntry = new ZipEntry(dirName);
-                    zipEntry.setTime(Build.buildDate);  // hidden when view as a jar, but it's always there
+                    zipEntry.setTime(Builder.buildDate);  // hidden when view as a jar, but it's always there
                     output.putNextEntry(zipEntry);
                     output.closeEntry();
                 }
@@ -432,7 +405,7 @@ public class JarUtil {
             if (options.sourcePaths != null && !options.sourcePaths.isEmpty()) {
                 ArrayList<SortedFiles> sortList2 = new ArrayList<SortedFiles>(options.sourcePaths.count());
 
-                Build.log().println("   Adding sources (" + options.sourcePaths.count() + " entries)...");
+                Builder.log().println("   Adding sources (" + options.sourcePaths.count() + " entries)...");
 
                 for (int i = 0, n = fullPaths.size(); i < n; i++) {
                     String fileName = relativePaths.get(i).replace('\\', '/');
@@ -451,7 +424,8 @@ public class JarUtil {
                     ZipEntry zipEntry = new ZipEntry(cf.fileName);
                     if (options.overrideDate > -1) {
                         zipEntry.setTime(options.overrideDate);
-                    } else {
+                    }
+                    else {
                         zipEntry.setTime(cf.file.lastModified());
                     }
                     output.putNextEntry(zipEntry);
@@ -468,7 +442,7 @@ public class JarUtil {
             // now include the license, if possible
             ///////////////////////////////////////////////
             if (options.licenses != null) {
-                Build.log().println("   Adding license");
+                Builder.log().println("   Adding license");
                 License.install(output, options.licenses, options.overrideDate);
             }
         } finally {
@@ -490,16 +464,17 @@ public class JarUtil {
     /**
      * This will ALSO normalize (pack+unpack) the jar AND strip/purge all LICENSE*.* info from sub-dirs/jars (ONLY the
      * specified licenses will be included)
-     *
+     * <p/>
      * Note about JarOutputStream:
-     *  The JAR_MAGIC "0xCAFE" in the extra field data of the first JAR entry from our JarOutputStream implementation is
-     *  not required by JAR specification. It's an "internal implementation detail" to support "executable" jar on Solaris
-     *  platform. see#4138619. It would be incorrect to reject a JAR file that does not have this extra field data, from
-     *  specification point of view.
-     *
-     *  (basically, if you use a JarOutputStream, it adds in extra crap we don't want)
+     * The JAR_MAGIC "0xCAFE" in the extra field data of the first JAR entry from our JarOutputStream implementation is
+     * not required by JAR specification. It's an "internal implementation detail" to support "executable" jar on Solaris
+     * platform. see#4138619. It would be incorrect to reject a JAR file that does not have this extra field data, from
+     * specification point of view.
+     * <p/>
+     * (basically, if you use a JarOutputStream, it adds in extra crap we don't want)
      */
-    public static void jar(JarOptions options) throws IOException {
+    public static
+    void jar(JarOptions options) throws IOException {
 
         if (options.outputFile == null) {
             throw new IllegalArgumentException("jarFile cannot be null.");
@@ -554,10 +529,9 @@ public class JarUtil {
         }
 
 
-        BuildLog log = Build.log();
+        BuildLog log = Builder.log();
         log.println();
-        log.title("Creating JAR").println(totalEntries + " total entries",
-                                          options.outputFile.getAbsolutePath());
+        log.title("Creating JAR").println(totalEntries + " total entries", options.outputFile.getAbsolutePath());
 
 
         // CLEANUP DIRECTORIES
@@ -581,10 +555,10 @@ public class JarUtil {
             ///////////////////////////////////////////////
             if (manifest != null) {
                 Attributes attributes = manifest.getMainAttributes();
-                attributes.putValue("Build-Date", new Date(Build.buildDate).toString() + " (" + Long.toString(Build.buildDate) + ")");
+                attributes.putValue("Build-Date", new Date(Builder.buildDate).toString() + " (" + Long.toString(Builder.buildDate) + ")");
 
                 JarEntry jarEntry = new JarEntry(JarFile.MANIFEST_NAME);
-                jarEntry.setTime(Build.buildDate);
+                jarEntry.setTime(Builder.buildDate);
                 output.putNextEntry(jarEntry);
 
                 manifest.write(output);
@@ -612,7 +586,7 @@ public class JarUtil {
                 Collections.sort(sortedDirectories);
                 for (String dirName : sortedDirectories) {
                     JarEntry jarEntry = new JarEntry(dirName);
-                    jarEntry.setTime(Build.buildDate); // hidden when view a jar, but it's always there
+                    jarEntry.setTime(Builder.buildDate); // hidden when view a jar, but it's always there
                     output.putNextEntry(jarEntry);
                     output.closeEntry();
                 }
@@ -653,7 +627,8 @@ public class JarUtil {
                     JarEntry jarEntry = new JarEntry(cf.fileName);
                     if (options.overrideDate > -1) {
                         jarEntry.setTime(options.overrideDate);
-                    } else {
+                    }
+                    else {
                         jarEntry.setTime(cf.file.lastModified());
                     }
                     output.putNextEntry(jarEntry);
@@ -674,7 +649,8 @@ public class JarUtil {
                     JarEntry jarEntry = new JarEntry(fileName);
                     if (options.overrideDate > -1) {
                         jarEntry.setTime(options.overrideDate);
-                    } else {
+                    }
+                    else {
                         jarEntry.setTime(cf.file.lastModified());
                     }
                     output.putNextEntry(jarEntry);
@@ -696,7 +672,8 @@ public class JarUtil {
                         if (targetManifest == null) {
                             outputStream = JarUtil.removeLicenseInfo(jarInputStream);
                             input = new ByteArrayInputStream(outputStream.toByteArray());
-                        } else {
+                        }
+                        else {
                             input.reset();
                         }
                     }
@@ -706,7 +683,6 @@ public class JarUtil {
                     output.closeEntry();
                 }
             }
-
 
 
 
@@ -742,7 +718,8 @@ public class JarUtil {
                     JarEntry jarEntry = new JarEntry(cf.fileName);
                     if (options.overrideDate > -1) {
                         jarEntry.setTime(options.overrideDate);
-                    } else {
+                    }
+                    else {
                         jarEntry.setTime(cf.file.lastModified());
                     }
                     output.putNextEntry(jarEntry);
@@ -785,7 +762,8 @@ public class JarUtil {
                     JarEntry jarEntry = new JarEntry(cf.fileName);
                     if (options.overrideDate > -1) {
                         jarEntry.setTime(options.overrideDate);
-                    } else {
+                    }
+                    else {
                         jarEntry.setTime(cf.file.lastModified());
                     }
                     output.putNextEntry(jarEntry);
@@ -824,10 +802,11 @@ public class JarUtil {
 
     /**
      * Removes the license information in a jar input stream. (IE: LICENSE, LICENSE.MIT, license.md, etc)
-     * <p>
+     * <p/>
      * Be CAREFUL if there is a manifest present, as THIS DOES NOT COPY IT OVER.
      */
-    public static ByteArrayOutputStream removeLicenseInfo(JarInputStream jarInputStream) throws IOException {
+    public static
+    ByteArrayOutputStream removeLicenseInfo(JarInputStream jarInputStream) throws IOException {
         // by default, this will not have access to the manifest! (CHECK BEFORE CALLING THIS, if you want to remove the manifest!)
         // we will ALSO lose entry comments!
 
@@ -861,7 +840,8 @@ public class JarUtil {
     /**
      * Figures out what are going to be directories that should be created in the war.
      */
-    private static Set<String> figureOutDirectories(List<String> fullPaths, List<String> relativePaths) {
+    private static
+    Set<String> figureOutDirectories(List<String> fullPaths, List<String> relativePaths) {
         Set<String> directories = new HashSet<String>();
 
         for (int i = 0, n = fullPaths.size(); i < n; i++) {
@@ -908,7 +888,8 @@ public class JarUtil {
     /**
      * Similar to 'jar', however this is for war files instead.
      */
-    public static void war(String warFilePath, List<String> fullPaths, List<String> relativePaths) throws FileNotFoundException, IOException {
+    public static
+    void war(String warFilePath, List<String> fullPaths, List<String> relativePaths) throws FileNotFoundException, IOException {
         // CLEANUP DIRECTORIES
         Set<String> directories = figureOutDirectories(fullPaths, relativePaths);
 
@@ -956,7 +937,8 @@ public class JarUtil {
         }
     }
 
-    public static void removeArchiveCommentFromJar(String jarName) throws IOException {
+    public static
+    void removeArchiveCommentFromJar(String jarName) throws IOException {
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         JarOutputStream jarOutputStream = new JarOutputStream(new BufferedOutputStream(byteArrayOutputStream));
         jarOutputStream.setLevel(JAR_COMPRESSION_LEVEL);
@@ -973,7 +955,8 @@ public class JarUtil {
             String name = metaEntry.getName();
             if (name.startsWith(metaInfName) && !metaEntry.isDirectory()) {
                 JarUtil.writeZipEntry(metaEntry, jarFile, jarOutputStream);
-            } else {
+            }
+            else {
                 // since this is already a valid jar, the META-INF data is
                 // already first.
                 break;
@@ -1014,7 +997,8 @@ public class JarUtil {
     /**
      * Also sets the time to the build time for all META-INF files!
      */
-    public static long addTimeStampToJar(String jarName) throws IOException {
+    public static
+    long addTimeStampToJar(String jarName) throws IOException {
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         JarOutputStream jarOutputStream = new JarOutputStream(new BufferedOutputStream(byteArrayOutputStream));
         jarOutputStream.setLevel(JAR_COMPRESSION_LEVEL);
@@ -1026,7 +1010,7 @@ public class JarUtil {
         // MANIFEST MUST BE FIRST
         Manifest manifest = jarFile.getManifest();
         JarEntry jarEntry = new JarEntry(JarFile.MANIFEST_NAME);
-        jarEntry.setTime(Build.buildDate);
+        jarEntry.setTime(Builder.buildDate);
         jarOutputStream.putNextEntry(jarEntry);
         manifest.write(jarOutputStream);
         jarOutputStream.closeEntry();
@@ -1042,9 +1026,10 @@ public class JarUtil {
             }
 
             if (name.startsWith(metaInfName) && !metaEntry.isDirectory()) {
-                metaEntry.setTime(Build.buildDate);
+                metaEntry.setTime(Builder.buildDate);
                 JarUtil.writeZipEntry(metaEntry, jarFile, jarOutputStream);
-            } else {
+            }
+            else {
                 // since this is already a valid jar, the META-INF data is
                 // already first.
                 break;
@@ -1054,7 +1039,7 @@ public class JarUtil {
         // now add our TIMESTAMP.
         // It will ALWAYS calculate the timestamp from the BUILD SYSTEM, not the
         // LOCAL/REMOTE SYSTEM (which can exist with incorrect/different clocks)
-        long timeStamp = Build.buildDate;
+        long timeStamp = Builder.buildDate;
         jarEntry = new JarEntry(metaInfName + "___" + Long.toString(timeStamp));
         jarOutputStream.putNextEntry(jarEntry);
         jarOutputStream.closeEntry();
@@ -1092,13 +1077,15 @@ public class JarUtil {
 
     /**
      * Adds args (launcher or VM args) to the ini file.
+     *
      * @throws IOException
      */
-    public static void addArgsToIniInJar(String jarName, String... args) throws IOException {
-        Build.log().println("Modifying config.ini file in jar...");
+    public static
+    void addArgsToIniInJar(String jarName, String... args) throws IOException {
+        Builder.log().println("Modifying config.ini file in jar...");
 
         for (String arg : args) {
-            Build.log().println("\t" + arg);
+            Builder.log().println("\t" + arg);
         }
 
         // we have to use a JarFile, so we preserve the comments that might already be in the file.
@@ -1121,7 +1108,8 @@ public class JarUtil {
 
             if (!name.equals(configFile)) {
                 JarUtil.writeZipEntry(entry, origJarFile, jarOutputStream);
-            } else {
+            }
+            else {
                 foundConfigFile = true;
                 addArgsToIniContents(entry, origJarFile.getInputStream(entry), jarOutputStream, args);
             }
@@ -1145,7 +1133,8 @@ public class JarUtil {
     }
 
 
-    public static void addArgsToIniFile(String iniFile, String... args) throws IOException {
+    public static
+    void addArgsToIniFile(String iniFile, String... args) throws IOException {
         InputStream inFile = new BufferedInputStream(new FileInputStream(iniFile));
         ByteArrayOutputStream outStream = new ByteArrayOutputStream();
 
@@ -1159,14 +1148,16 @@ public class JarUtil {
     /**
      * Fixes up the ini file inside the jar.
      */
-    private static void addArgsToIniContents(InputStream inputStream, OutputStream outputStream, String... args) throws IOException {
+    private static
+    void addArgsToIniContents(InputStream inputStream, OutputStream outputStream, String... args) throws IOException {
         addArgsToIniContents(null, inputStream, outputStream, args);
     }
+
     /**
      * Fixes up the ini file inside the jar.
      */
-    private static void addArgsToIniContents(JarEntry entry, InputStream inputStream, OutputStream outputStream,
-                                             String... args) throws IOException {
+    private static
+    void addArgsToIniContents(JarEntry entry, InputStream inputStream, OutputStream outputStream, String... args) throws IOException {
 
         ByteArrayOutputStream outputStreamCopy = new ByteArrayOutputStream();
         if (inputStream != null) {
@@ -1187,12 +1178,11 @@ public class JarUtil {
              * returns null only for the END of the stream.
              * returns an empty String if two newlines appear in a row.
              */
-            while (( line = input.readLine()) != null) {
+            while ((line = input.readLine()) != null) {
                 iniFileArgs.add(line);
             }
-        }
-        catch (IOException e) { }
-        finally {
+        } catch (IOException e) {
+        } finally {
             Sys.close(input);
         }
 
@@ -1232,7 +1222,8 @@ public class JarUtil {
             Sys.copyStream(inputStreamCopy, outputStream);
             jarOutputStream.closeEntry();
             Sys.close(inputStreamCopy);
-        } else {
+        }
+        else {
             Sys.copyStream(inputStreamCopy, outputStream);
             outputStream.flush();
             Sys.close(outputStream);
@@ -1243,11 +1234,11 @@ public class JarUtil {
     /**
      * Adds the specified files AS REGULAR FILES to the jar.
      *
-     * @param filesToAdd
-     *            a PAIR of strings. First in pair is SOURCE, second in pair is
-     *            DEST
+     * @param filesToAdd a PAIR of strings. First in pair is SOURCE, second in pair is
+     *                   DEST
      */
-    public static void addFilesToJar(String jarName, BuildOptions options, ExtraDataInterface extraDataWriter, Pack... filesToAdd) throws IOException {
+    public static
+    void addFilesToJar(String jarName, BuildOptions options, ExtraDataInterface extraDataWriter, Pack... filesToAdd) throws IOException {
         addFilesToJar(jarName, options, null, extraDataWriter, filesToAdd);
     }
 
@@ -1255,22 +1246,23 @@ public class JarUtil {
     /**
      * Adds the specified files AS REGULAR FILES to the jar. Will ALSO let us REPLACE files in the jar
      *
-     * @param filesToAdd
-     *            a PAIR of strings. First in pair is SOURCE, second in pair is DEST
+     * @param filesToAdd a PAIR of strings. First in pair is SOURCE, second in pair is DEST
      */
-    public static void addFilesToJar(String jarName, BuildOptions properties, EncryptInterface encryption, ExtraDataInterface extraDataWriter,
-                                     Pack... filesToAdd) throws IOException {
+    public static
+    void addFilesToJar(String jarName, BuildOptions properties, EncryptInterface encryption, ExtraDataInterface extraDataWriter,
+                       Pack... filesToAdd) throws IOException {
         PackAction[] actionsToRemove;
         if (properties.compiler.enableDebugSpeedImprovement) {
             actionsToRemove = new PackAction[] {PackAction.Pack, PackAction.Lzma, PackAction.Encrypt};
-        } else {
+        }
+        else {
             actionsToRemove = new PackAction[] {PackAction.Encrypt};
         }
 
         boolean addDebug = properties.compiler.debugEnabled;
         boolean release = properties.compiler.release;
 
-        Build.log().println("Adding files to jar: '" + jarName + "'");
+        Builder.log().println("Adding files to jar: '" + jarName + "'");
 
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         JarOutputStream jarOutputStream = new JarOutputStream(new BufferedOutputStream(byteArrayOutputStream));
@@ -1291,7 +1283,7 @@ public class JarUtil {
             for (Pack pack : filesToAdd) {
                 String destPath = pack.getDestPath();
                 if (name.equals(destPath)) {
-                    Build.log().println("  Replacing '" + destPath + "'");
+                    Builder.log().println("  Replacing '" + destPath + "'");
                     canAdd = false;
                     break;
                 }
@@ -1310,7 +1302,7 @@ public class JarUtil {
             String sourcePath = FileUtil.normalizeAsFile(pack.getSourcePath());
             String destPath = pack.getDestPath();
 
-            Build.log().println("  '" + sourcePath + "' -> '" + destPath + "'");
+            Builder.log().println("  '" + sourcePath + "' -> '" + destPath + "'");
 
             InputStream inputStream;
             int length = 0;
@@ -1322,7 +1314,8 @@ public class JarUtil {
                 entry.setTime(time);
                 inputStream = new FileInputStream(fileToAdd);
                 length = (int) fileToAdd.length(); // yea, yea, yea, the length truncates...
-            } else {
+            }
+            else {
                 inputStream = new ByteArrayInputStream(new byte[0]);
             }
 
@@ -1344,7 +1337,8 @@ public class JarUtil {
                 }
 
                 unpackEntry(task, extraDataWriter, jarOutputStream);
-            } else {
+            }
+            else {
                 packEntry(task);
 
                 if (extraDataWriter != null) {
@@ -1370,28 +1364,29 @@ public class JarUtil {
 
     /**
      * Repackages the JAR, compressing/etc based on specific rules.
-     *
+     * <p/>
      * Also makes sure to have our custom header (in 'extra data') written for each entry
-     *
+     * <p/>
      * This is how we get the JAR file size down.
+     *
      * @return
      */
-    public static void packageJar(String jarName, BuildOptions properties,
-                                  EncryptInterface encryption, ExtraDataInterface extraDataWriter,
-                                  List<String> fileExtensionToHandle,
-                                  Repack... specialActions)  throws IOException {
+    public static
+    void packageJar(String jarName, BuildOptions properties, EncryptInterface encryption, ExtraDataInterface extraDataWriter,
+                    List<String> fileExtensionToHandle, Repack... specialActions) throws IOException {
 
         PackAction[] actionsToRemove;
         if (properties.compiler.enableDebugSpeedImprovement) {
             actionsToRemove = new PackAction[] {PackAction.Pack, PackAction.Lzma, PackAction.Encrypt};
-        } else {
+        }
+        else {
             actionsToRemove = new PackAction[] {PackAction.Encrypt};
         }
 
-        BuildLog log = Build.log();
+        BuildLog log = Builder.log();
         boolean release = properties.compiler.release;
 
-        String tempJarName = jarName+".tmp";
+        String tempJarName = jarName + ".tmp";
         JarOutputStream jarOutputStream = new JarOutputStream(new FileOutputStream(tempJarName, false));
         jarOutputStream.setLevel(JAR_COMPRESSION_LEVEL);
 
@@ -1409,7 +1404,8 @@ public class JarUtil {
                     extraDataWriter.write(entry, null);
                 }
                 JarUtil.writeZipEntry(entry, jarFile, jarOutputStream);
-            } else {
+            }
+            else {
                 // only handle if we match one of our extensions!
                 boolean handle = false;
                 for (String fileExtension : fileExtensionToHandle) {
@@ -1425,7 +1421,8 @@ public class JarUtil {
                         extraDataWriter.write(entry, null);
                     }
                     JarUtil.writeZipEntry(entry, jarFile, jarOutputStream);
-                } else {
+                }
+                else {
                     Repack repack = null;
 
                     for (Repack specialRepack : specialActions) {
@@ -1465,7 +1462,8 @@ public class JarUtil {
                     if (repack.canDo(PackAction.Extract)) {
                         // this also writes out (and overrides) our custom extra data header
                         unpackEntry(task, extraDataWriter, jarOutputStream);
-                    } else {
+                    }
+                    else {
                         packEntry(task);
 
                         // now write (single entry) to the outputStream
@@ -1493,10 +1491,11 @@ public class JarUtil {
 
         log.println(".");
 
-        Build.moveFile(tempJarName, jarName);
+        Builder.moveFile(tempJarName, jarName);
     }
 
-    private static void unpackEntry(PackTask task, ExtraDataInterface extraDataWriter, JarOutputStream jarOutputStream) {
+    private static
+    void unpackEntry(PackTask task, ExtraDataInterface extraDataWriter, JarOutputStream jarOutputStream) {
         InputStream inputStream = task.inputStream;
         Repack repack = task.pack;
 
@@ -1534,7 +1533,8 @@ public class JarUtil {
             } catch (Exception e) {
                 System.err.println("Unable to extract contents of tar file!");
             }
-        } else {
+        }
+        else {
             if (extension.equals("gz") || extension.equals("gzip")) {
                 TarInputStream newInputStream = null;
                 GZIPInputStream gzipInputStream = null;
@@ -1565,7 +1565,8 @@ public class JarUtil {
                             jarOutputStream.flush();
                             jarOutputStream.closeEntry();
                         }
-                    } else {
+                    }
+                    else {
                         // ONLY ungzip (gzip only works on ONE file)
 
                         // this is a regular file (such as a txt file, etc)
@@ -1592,14 +1593,16 @@ public class JarUtil {
                 }
                 Sys.close(newInputStream);
                 Sys.close(gzipInputStream);
-            } else {
+            }
+            else {
                 // input stream can be fileInputStream (if it was a file)
                 // or a bytearrayinput stream if it was a stream from another file
                 boolean isZip = false;
                 if (inputStream instanceof FileInputStream) {
                     File file = new File(name);
                     isZip = isZipFile(file);
-                } else {
+                }
+                else {
                     ByteArrayInputStream s = (ByteArrayInputStream) inputStream;
                     isZip = isZipStream(s);
                 }
@@ -1623,14 +1626,16 @@ public class JarUtil {
                         System.err.println("Unable to extract contents of compressed file!");
                     }
                     Sys.close(zipInputStream);
-                } else {
+                }
+                else {
                     System.err.println("Unable to extract contents of compressed file!");
                 }
             }
         }
     }
 
-    private static void packEntry(PackTask task) throws IOException {
+    private static
+    void packEntry(PackTask task) throws IOException {
         InputStream inputStream = task.inputStream;
         int length = task.length;
         Repack repack = task.pack;
@@ -1687,7 +1692,8 @@ public class JarUtil {
                 // convert the output stream to an input stream
                 inputStream = new ByteArrayInputStream(encryptedOutputStream.toByteArray());
                 length = inputStream.available();
-            } else {
+            }
+            else {
                 throw new RuntimeException("** Unable to encrypt data when AES information is null!!");
             }
         }
@@ -1699,14 +1705,15 @@ public class JarUtil {
      * Merge the specified files into the primaryFile
      *
      * @param primaryFile This is the file that will contain all of the other files.
-     * @param files Array of files (zips/jars) to be added into the primary file
+     * @param files       Array of files (zips/jars) to be added into the primary file
      * @throws IOException
      * @throws FileNotFoundException
      */
-    public static void merge(File primaryFile, File... files) throws FileNotFoundException, IOException {
+    public static
+    void merge(File primaryFile, File... files) throws FileNotFoundException, IOException {
         String[] fileNames = new String[files.length];
 
-        for (int i=0; i<files.length; i++) {
+        for (int i = 0; i < files.length; i++) {
             fileNames[i] = files[i].getAbsolutePath();
         }
 
@@ -1717,12 +1724,13 @@ public class JarUtil {
      * Merge the specified files into the primaryFile
      *
      * @param primaryFile This is the file that will contain all of the other files.
-     * @param files Array of files (zips/jars) to be added into the primary file
+     * @param files       Array of files (zips/jars) to be added into the primary file
      * @throws IOException
      * @throws FileNotFoundException
      */
-    public static void merge(File primaryFile, String... files) throws FileNotFoundException, IOException {
-        Build.log().println("Merging files into single jar/zip: '" + primaryFile + "'");
+    public static
+    void merge(File primaryFile, String... files) throws FileNotFoundException, IOException {
+        Builder.log().println("Merging files into single jar/zip: '" + primaryFile + "'");
 
         // write everything to staging dir, then jar it up.
         String tempDirectory = FileUtil.tempDirectory("mergeTemp");
@@ -1735,7 +1743,8 @@ public class JarUtil {
             // is this a zip?
             if (FileUtil.isZipFile(file)) {
                 FileUtil.unzipJar(file, mergeLocation, false);
-            } else {
+            }
+            else {
                 // just copy it over
                 String relativeToDir = FileUtil.getChildRelativeToDir(file, "src");
                 FileUtil.copyFile(file, new File(mergeLocation, relativeToDir));
