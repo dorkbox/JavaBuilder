@@ -21,9 +21,11 @@ public enum LicenseType {
     CC0("CC0", "CC0 License"),
     EPL("EPLv1", "Eclipse Public License"),
     GPLv2_CP("GPLv2_CP", "GPL v2 License, with Classpath exception"),
+    LGPLv2("LGPLv2.1", "LGPL v2.1 License"),
     LGPLv3("LGPLv3", "LGPL v3 License"),
     MIT("MIT", "MIT License"), // same as MIT X11
-    MPL("MPLv1.1", "Mozilla Public License"),
+    MPL("MPLv1.1", "Mozilla Public License 1.1"),
+    MPL2("MPLv2.0", "Mozilla Public License 2.0"),
     OFL("OFLv1.1", "SIL Open Font License"),
     PUBLIC("Public", "Public Domain"),  // not quite the same as CC0 (CC0 is better)
     ;

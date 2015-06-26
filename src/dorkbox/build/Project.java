@@ -17,7 +17,7 @@ package dorkbox.build;
 
 import com.esotericsoftware.wildcard.Paths;
 import com.twmacinta.util.MD5;
-import dorkbox.Build;
+import dorkbox.Builder;
 import dorkbox.BuildOptions;
 import dorkbox.build.util.BuildLog;
 import dorkbox.license.License;
@@ -52,7 +52,7 @@ class Project<T extends Project<T>> {
     public static List<File> builderFiles = new ArrayList<File>();
 
     static {
-        if (!Build.isJar) {
+        if (!Builder.isJar) {
             // check to see if our deploy code has changed. if yes, then we have to rebuild everything since
             // we don't know what might have changed.
             Paths paths = new Paths();
@@ -64,7 +64,7 @@ class Project<T extends Project<T>> {
             }
 
             try {
-                String oldHash = Build.settings.get("BUILD", String.class);
+                String oldHash = Builder.settings.get("BUILD", String.class);
                 String hashedContents = generateChecksums(paths);
 
                 if (oldHash != null) {
@@ -79,9 +79,9 @@ class Project<T extends Project<T>> {
                 if (forceRebuild) {
                     if (!alreadyChecked) {
                         alreadyChecked = true;
-                        Build.log().println("Build system changed. Rebuilding.");
+                        Builder.log().println("Build system changed. Rebuilding.");
                     }
-                    Build.settings.save("BUILD", hashedContents);
+                    Builder.settings.save("BUILD", hashedContents);
                 }
             } catch (IOException e) {
             }
@@ -295,7 +295,7 @@ class Project<T extends Project<T>> {
         // exit early if we already built this project
         if (buildList.contains(this.name)) {
             if (!this.isBuildingDependencies) {
-                Build.log().title("Building").println(this.name + " already built this run");
+                Builder.log().title("Building").println(this.name + " already built this run");
             }
             return true;
         }
@@ -311,7 +311,7 @@ class Project<T extends Project<T>> {
             for (Project<?> s : deps) {
                 array[i++] = s.name;
             }
-            Build.log().title(this.name).println((Object[]) array);
+            Builder.log().title(this.name).println((Object[]) array);
         }
 
         for (Project<?> project : deps) {
@@ -491,7 +491,7 @@ class Project<T extends Project<T>> {
         // copy dist dir over
         boolean canCopySingles = false;
         if (this.distLocation != null) {
-            Build.copyDirectory(this.distLocation, targetLocation.getAbsolutePath());
+            Builder.copyDirectory(this.distLocation, targetLocation.getAbsolutePath());
 
             if (this.outputFile == null || !this.outputFile.getAbsolutePath().startsWith(this.distLocation)) {
                 canCopySingles = true;
@@ -503,16 +503,16 @@ class Project<T extends Project<T>> {
 
         if (canCopySingles) {
             if (this.outputFile != null && this.outputFile.canRead()) {
-                Build.copyFile(this.outputFile, new File(targetLocation, this.outputFile.getName()));
+                Builder.copyFile(this.outputFile, new File(targetLocation, this.outputFile.getName()));
             }
 
             // do we have a "source" file as well?
             if (this.outputFileSource != null && this.outputFileSource.canRead()) {
-                Build.copyFile(this.outputFileSource, new File(targetLocation, this.outputFileSource.getName()));
+                Builder.copyFile(this.outputFileSource, new File(targetLocation, this.outputFileSource.getName()));
             }
 
             for (File f : this.sources) {
-                Build.copyFile(f, new File(targetLocation, f.getName()));
+                Builder.copyFile(f, new File(targetLocation, f.getName()));
             }
         }
 
@@ -525,7 +525,7 @@ class Project<T extends Project<T>> {
             File source = new File(fullPaths.get(i));
 
             if (source.isFile()) {
-                Build.copyFile(source, new File(targetLocation, relativePaths.get(i)));
+                Builder.copyFile(source, new File(targetLocation, relativePaths.get(i)));
             }
         }
 
@@ -560,7 +560,7 @@ class Project<T extends Project<T>> {
 
         // check to see if our SOURCES *and check-summed files* have changed.
         String hashedContents = generateChecksums(this.checksumPaths);
-        String checkContents = Build.settings.get(this.name, String.class);
+        String checkContents = Builder.settings.get(this.name, String.class);
 
         return hashedContents != null && hashedContents.equals(checkContents);
     }
@@ -571,7 +571,7 @@ class Project<T extends Project<T>> {
     void saveChecksums() throws IOException {
         // hash/save the sources *and check-summed files* files
         String hashedContents = generateChecksums(this.checksumPaths);
-        Build.settings.save(this.name, hashedContents);
+        Builder.settings.save(this.name, hashedContents);
     }
 
     /**

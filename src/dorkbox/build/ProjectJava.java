@@ -39,7 +39,7 @@ import com.esotericsoftware.yamlbeans.YamlException;
 import com.esotericsoftware.yamlbeans.YamlWriter;
 import com.esotericsoftware.yamlbeans.scalar.ScalarSerializer;
 
-import dorkbox.Build;
+import dorkbox.Builder;
 import dorkbox.build.util.BuildLog;
 import dorkbox.build.util.classloader.ByteClassloader;
 import dorkbox.build.util.classloader.JavaMemFileManager;
@@ -155,12 +155,12 @@ class ProjectJava extends Project<ProjectJava> {
             return;
         }
 
-        Build.log().println();
+        Builder.log().println();
         if (this.bytesClassloader == null && this.jarable == null) {
-            Build.log().title("Building").println(this.name, "Output - " + this.stagingDir);
+            Builder.log().title("Building").println(this.name, "Output - " + this.stagingDir);
         }
         else {
-            Build.log().title("Building").println(this.name);
+            Builder.log().title("Building").println(this.name);
         }
 
         boolean shouldBuild = !verifyChecksums();
@@ -187,7 +187,7 @@ class ProjectJava extends Project<ProjectJava> {
             }
 
             runCompile();
-            Build.log().println("Compile success");
+            Builder.log().println("Compile success");
 
             if (this.jarable != null) {
                 this.jarable.buildJar();
@@ -199,7 +199,7 @@ class ProjectJava extends Project<ProjectJava> {
             FileUtil.delete(this.stagingDir);
         }
         else {
-            Build.log().println("Skipped (nothing changed)");
+            Builder.log().println("Skipped (nothing changed)");
         }
 
         buildList.add(this.name);
@@ -226,7 +226,7 @@ class ProjectJava extends Project<ProjectJava> {
         // if the sources are the same, check the jar file
         if (this.jarable != null && this.outputFile.canRead()) {
             String jarChecksum = generateChecksum(this.outputFile);
-            String checkContents = Build.settings.get(this.outputFile.getAbsolutePath(), String.class);
+            String checkContents = Builder.settings.get(this.outputFile.getAbsolutePath(), String.class);
 
             boolean outputFileGood = jarChecksum != null && jarChecksum.equals(checkContents);
 
@@ -237,7 +237,7 @@ class ProjectJava extends Project<ProjectJava> {
                 else {
                     // now check the src.zip file (if there was one).
                     jarChecksum = generateChecksum(this.outputFileSource);
-                    checkContents = Build.settings.get(this.outputFileSource.getAbsolutePath(), String.class);
+                    checkContents = Builder.settings.get(this.outputFileSource.getAbsolutePath(), String.class);
 
                     return jarChecksum != null && jarChecksum.equals(checkContents);
                 }
@@ -257,13 +257,13 @@ class ProjectJava extends Project<ProjectJava> {
         // hash/save the jar file (if there was one)
         if (this.outputFile.exists()) {
             String fileChecksum = generateChecksum(this.outputFile);
-            Build.settings.save(this.outputFile.getAbsolutePath(), fileChecksum);
+            Builder.settings.save(this.outputFile.getAbsolutePath(), fileChecksum);
 
             if (this.jarable != null && this.jarable.includeSourceAsSeparate) {
                 // now check the src.zip file (if there was one).
                 fileChecksum = generateChecksum(this.outputFileSource);
 
-                Build.settings.save(this.outputFileSource.getAbsolutePath(), fileChecksum);
+                Builder.settings.save(this.outputFileSource.getAbsolutePath(), fileChecksum);
             }
         }
     }
@@ -291,7 +291,7 @@ class ProjectJava extends Project<ProjectJava> {
         }
 
         if (this.buildOptions.compiler.debugEnabled) {
-            Build.log().println("Adding debug info");
+            Builder.log().println("Adding debug info");
 
             args.add("-g"); // Generate all debugging information, including local variables. By default, only line number and source file information is generated.
         }
@@ -312,7 +312,7 @@ class ProjectJava extends Project<ProjectJava> {
         args.add("UTF-8");
 
         if (OS.getJavaVersion() > this.buildOptions.compiler.targetJavaVersion) {
-            Build.log().println("Building cross-platform target for version: " + this.buildOptions.compiler.targetJavaVersion);
+            Builder.log().println("Building cross-platform target for version: " + this.buildOptions.compiler.targetJavaVersion);
             // if our runtime env. is NOT equal to our target env.
             args.add("-source");
             args.add("1." + this.buildOptions.compiler.targetJavaVersion);

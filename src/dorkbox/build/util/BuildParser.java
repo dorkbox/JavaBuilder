@@ -33,7 +33,7 @@ import com.esotericsoftware.yamlbeans.YamlReader;
 import com.esotericsoftware.yamlbeans.parser.Parser.ParserException;
 import com.esotericsoftware.yamlbeans.tokenizer.Tokenizer.TokenizerException;
 
-import dorkbox.Build;
+import dorkbox.Builder;
 import dorkbox.build.SimpleArgs;
 import dorkbox.util.FileUtil;
 import dorkbox.util.Sys;
@@ -54,11 +54,11 @@ public class BuildParser {
 
         final File file = new File(normalizeAsFile);
         if (!file.canRead()) {
-            Build.log().title("Build location").println("Build instructions not found", normalizeAsFile);
+            Builder.log().title("Build location").println("Build instructions not found", normalizeAsFile);
             return data;
         }
 
-        Build.log().title("Build location").println("Compiling build instructions", normalizeAsFile);
+        Builder.log().title("Build location").println("Compiling build instructions", normalizeAsFile);
 
 
         // replace $dir$ with the parent dir, for use in parameters

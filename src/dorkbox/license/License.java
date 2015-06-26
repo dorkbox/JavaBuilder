@@ -15,8 +15,8 @@
  */
 package dorkbox.license;
 
+import dorkbox.Builder;
 import dorkbox.Build;
-import dorkbox.Oak;
 import dorkbox.build.Project;
 
 import java.io.*;
@@ -161,7 +161,7 @@ class License implements Comparable<License> {
 
             File targetLicenseFile = new File(targetLocation, "LICENSE." + entry.license.getExtension());
             FileOutputStream fileOutputStream = new FileOutputStream(targetLicenseFile);
-            Build.copyStream(new ByteArrayInputStream(bytes), fileOutputStream);
+            Builder.copyStream(new ByteArrayInputStream(bytes), fileOutputStream);
             fileOutputStream.close();
         }
     }
@@ -211,7 +211,7 @@ class License implements Comparable<License> {
         InputStream input = new ByteArrayInputStream(licenseFile.getBytes(UTF_8));
         OutputStream output = new FileOutputStream(new File(targetLocation, "LICENSE"));
 
-        Build.copyStream(input, output);
+        Builder.copyStream(input, output);
         output.close();
 
         // copy over full text licenses
@@ -221,7 +221,7 @@ class License implements Comparable<License> {
 
             File targetLicenseFile = new File(targetLocation, "LICENSE." + entry.license.getExtension());
             FileOutputStream fileOutputStream = new FileOutputStream(targetLicenseFile);
-            Build.copyStream(new ByteArrayInputStream(bytes), fileOutputStream);
+            Builder.copyStream(new ByteArrayInputStream(bytes), fileOutputStream);
             fileOutputStream.close();
         }
     }
@@ -252,7 +252,7 @@ class License implements Comparable<License> {
         zipOutputStream.putNextEntry(zipEntry);
 
         ByteArrayInputStream input = new ByteArrayInputStream(licenseFile.getBytes(UTF_8));
-        Build.copyStream(input, zipOutputStream);
+        Builder.copyStream(input, zipOutputStream);
         zipOutputStream.closeEntry();
 
         // iterator is different every time...
@@ -291,7 +291,7 @@ class License implements Comparable<License> {
 
         // look on disk, or look in a jar for the licenses.
         // Either way, we want the BYTES of those files!
-        String rootPath = Oak.get(License.class).getPath();
+        String rootPath = Build.get(License.class).getPath();
         File rootFile = new File(rootPath);
         String fileName = License.class.getCanonicalName();
 
@@ -333,13 +333,13 @@ class License implements Comparable<License> {
 
                 FileInputStream input = new FileInputStream(f);
                 ByteArrayOutputStream output = new ByteArrayOutputStream((int) f.length());
-                Build.copyStream(input, output);
+                Builder.copyStream(input, output);
                 input.close();
 
                 licenseList.add(new LicenseWrapper(lt, output.toByteArray()));
             }
         }
-        else if (rootPath.endsWith(Project.JAR_EXTENSION) && Build.isZipFile(rootFile)) {
+        else if (rootPath.endsWith(Project.JAR_EXTENSION) && Builder.isZipFile(rootFile)) {
             // have to go digging for it!
             String nameAsFile = fileName.replace('.', '/').substring(0, fileName.lastIndexOf('.') + 1);
 
@@ -357,7 +357,7 @@ class License implements Comparable<License> {
                 if (licenseType != null) {
                     // read out bytes!
                     ByteArrayOutputStream output = new ByteArrayOutputStream(4096);
-                    Build.copyStream(zipInputStream, output);
+                    Builder.copyStream(zipInputStream, output);
 
                     licenseList.add(new LicenseWrapper(licenseType, output.toByteArray()));
                     zipInputStream.closeEntry();

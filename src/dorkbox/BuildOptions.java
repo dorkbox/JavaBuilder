@@ -87,7 +87,7 @@ public class BuildOptions {
 
             /** Please note that the binary release is GLPv2 + Classpath Exception, giving us permission to use it to compile binaries */
             public String getCrossCompileLibraryLocation(int targetVersion) {
-                return Build.path("libs", "jdkRuntimes", "openJdk" + targetVersion + "_rt.jar");
+                return Builder.path("libs", "jdkRuntimes", "openJdk" + targetVersion + "_rt.jar");
             }
         }
     }

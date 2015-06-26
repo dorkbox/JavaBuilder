@@ -53,7 +53,7 @@ import org.bouncycastle.crypto.util.PrivateKeyFactory;
 import org.bouncycastle.crypto.util.PublicKeyFactory;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
-import dorkbox.Build;
+import dorkbox.Builder;
 import dorkbox.util.Base64Fast;
 import dorkbox.util.Sys;
 import dorkbox.util.crypto.Crypto;
@@ -68,8 +68,8 @@ public class JarSigner {
 
     public static File sign(String jarName, String name) {
 
-        Build.log().println();
-        Build.log().title("Signing JAR").println(jarName, name.toUpperCase());
+        Builder.log().println();
+        Builder.log().title("Signing JAR").println(jarName, name.toUpperCase());
 
         if (jarName == null) {
             throw new IllegalArgumentException("jarName cannot be null.");

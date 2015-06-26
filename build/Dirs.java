@@ -13,21 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import dorkbox.Build;
+import dorkbox.Builder;
 
 // setup source directories
 public class Dirs {
-    public static final String Dependencies = Build.path(BuildStrings.ProjectPath.Resources, "Dependencies");
+    public static final String Dependencies = Builder.path(BuildStrings.ProjectPath.Resources, "Dependencies");
 
     public static final String JavaTar = mkDir("javatar");
     public static final String YAML = mkDir("yaml");
     public static final String WildCard = mkDir("wildcard");
     public static final String LzmaJava = mkDir("lzma-java");
 
-    public static final String Java_Redist = Build.path(BuildStrings.ProjectPath.Resources, "Java_Redist");
-    public static final String OpenJDK_Runtime = Build.path(Java_Redist, "openJDK_runtime");
+    public static final String Java_Redist = Builder.path(BuildStrings.ProjectPath.Resources, "Java_Redist");
+    public static final String OpenJDK_Runtime = Builder.path(Java_Redist, "openJDK_runtime");
 
     public static String mkDir(String dir) {
-        return Build.path(Dependencies, dir);
+        return Builder.path(Dependencies, dir);
     }
 }
