@@ -17,8 +17,8 @@ package dorkbox.build;
 
 import com.esotericsoftware.wildcard.Paths;
 import com.twmacinta.util.MD5;
-import dorkbox.Builder;
 import dorkbox.BuildOptions;
+import dorkbox.Builder;
 import dorkbox.build.util.BuildLog;
 import dorkbox.license.License;
 import dorkbox.util.Base64Fast;

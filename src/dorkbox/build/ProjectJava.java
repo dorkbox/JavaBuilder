@@ -15,30 +15,11 @@
  */
 package dorkbox.build;
 
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
-import javax.tools.Diagnostic;
-import javax.tools.DiagnosticCollector;
-import javax.tools.JavaCompiler;
-import javax.tools.JavaFileManager;
-import javax.tools.JavaFileObject;
-import javax.tools.StandardJavaFileManager;
-import javax.tools.ToolProvider;
-
 import com.esotericsoftware.wildcard.Paths;
 import com.esotericsoftware.yamlbeans.YamlConfig;
 import com.esotericsoftware.yamlbeans.YamlException;
 import com.esotericsoftware.yamlbeans.YamlWriter;
 import com.esotericsoftware.yamlbeans.scalar.ScalarSerializer;
-
 import dorkbox.Builder;
 import dorkbox.build.util.BuildLog;
 import dorkbox.build.util.classloader.ByteClassloader;
@@ -47,6 +28,13 @@ import dorkbox.license.License;
 import dorkbox.license.LicenseType;
 import dorkbox.util.FileUtil;
 import dorkbox.util.OS;
+
+import javax.tools.*;
+import java.io.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 public
 class ProjectJava extends Project<ProjectJava> {
@@ -387,18 +375,48 @@ class ProjectJava extends Project<ProjectJava> {
             }
         }
         if (hasError) {
+            final String temp = FileUtil.tempDirectory("temp");
+            final File tempFile = new File(temp);
+            String tempDir = tempFile.getParent();
+            tempFile.delete();
+
             BuildLog.enable();
             for (Diagnostic<? extends JavaFileObject> diagnostic : diagnostics.getDiagnostics()) {
                 BuildLog log = BuildLog.start();
                 log.title(diagnostic.getKind().toString()).println(diagnostic.getMessage(null));
 
-                String info = "Line: " + Long.toString(diagnostic.getLineNumber()) + ":" + Long.toString(diagnostic.getColumnNumber());
-                log.title("Location").println(info);
-
                 final JavaFileObject source = diagnostic.getSource();
+                String className = null;
+
                 if (source != null) {
-                    log.println(source.getName());
-                } else {
+                    final String name = source.getName();
+
+                    // source.getName() : /tmp/Builder2506000973028434501.tmp/dorkbox/util/FileUtil.java
+                    // we want:  dorkbox.util.FileUtil
+
+                    if (name.startsWith(tempDir)) {
+                        final int lastIndexOf = name.lastIndexOf(".tmp");
+
+                        if (lastIndexOf > 0) {
+                            String croppedName = name.substring(lastIndexOf + 5);
+
+                            className = croppedName.replace(File.separatorChar, '.').substring(0, croppedName.lastIndexOf('.'));
+                            className += ":" + diagnostic.getLineNumber();
+                        }
+                    }
+
+                    if (className == null) {
+                        log.title("Location").println(getLineInfo(diagnostic));
+                        className = name;
+                    }
+                }
+
+
+                if (className != null) {
+                    log.println(className);
+                }
+                else {
+                    log.title("Location").println(getLineInfo(diagnostic));
                     log.println("Unknown location");
                 }
                 BuildLog.finish();
@@ -414,6 +432,15 @@ class ProjectJava extends Project<ProjectJava> {
         try {
             Thread.sleep(100);
         } catch (InterruptedException ex) {
+        }
+    }
+
+    private static
+    String getLineInfo(final Diagnostic<? extends JavaFileObject> diagnostic) {
+        if (diagnostic.getLineNumber() > 0) {
+            return  "Line: " + Long.toString(diagnostic.getLineNumber()) + ":" + Long.toString(diagnostic.getColumnNumber());
+        } else {
+            return "Unknown line";
         }
     }
 

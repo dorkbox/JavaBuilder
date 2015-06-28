@@ -23,13 +23,12 @@
     <orderEntry type="module-library">
       <library>
         <CLASSES>
-          <root url="file://$MODULE_DIR$/libs/fast-md5" />
+          <root url="jar://$MODULE_DIR$/libs/fast-md5/fast-md5.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES>
           <root url="file://$MODULE_DIR$/libs/fast-md5" />
         </SOURCES>
-        <jarDirectory url="file://$MODULE_DIR$/libs/fast-md5" recursive="false" />
         <jarDirectory url="file://$MODULE_DIR$/libs/fast-md5" recursive="false" type="SOURCES" />
       </library>
     </orderEntry>
