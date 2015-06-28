@@ -532,10 +532,26 @@ class Builder {
      * Gets the java file (from class file) when running from an IDE.
      */
     public static
-    File getJavaFileIDE(File rootFile) throws IOException {
+    File getJavaFileSourceDir(final Class<?> clazz, File rootFile) throws IOException {
         String rootPath = rootFile.getAbsolutePath();
 
-        if (rootFile.isDirectory()) {
+        // our dorkbox util library is reused everywhere, and it is important to ALWAYS pull fresh. So we grab from the source
+        final boolean isDir = rootFile.isDirectory();
+
+        if (!isDir && rootPath.endsWith(".jar")) {
+            String fileName = clazz.getCanonicalName();
+            String convertJava = fileName.replace('.', File.separatorChar) + ".java";
+
+            for (Entry<String, File> module : moduleCache.entrySet()) {
+                // have to check to make sure that the class is actually in the specified module.
+                final File sourceDir = module.getValue();
+                if (new File(sourceDir, convertJava).exists()) {
+                    return sourceDir.getAbsoluteFile();
+                }
+            }
+        }
+
+        if (isDir) {
             final File eclipseSrc = new File(rootFile.getParentFile(), "src");
 
             if (eclipseSrc.exists()) {
@@ -549,7 +565,7 @@ class Builder {
                 // our src directory is always under the module dir
                 final File dir = getModuleDir(parent, moduleName);
 
-                return new File(dir, "src").getAbsoluteFile();
+                return dir.getAbsoluteFile();
             }
         }
 
@@ -567,11 +583,11 @@ class Builder {
         String rootPath = rootFile.getAbsolutePath();
         String fileName = clazz.getCanonicalName();
 
-        final File javaFile = getJavaFileIDE(rootFile);
+        final File sourceDir = getJavaFileSourceDir(clazz, rootFile);
 
-        if (javaFile != null) {
+        if (sourceDir != null) {
             String convertJava = fileName.replace('.', File.separatorChar) + ".java";
-            return new Paths(javaFile.getAbsolutePath(), convertJava);
+            return new Paths(sourceDir.getAbsolutePath(), convertJava);
         }
         else if (rootPath.endsWith(Project.JAR_EXTENSION) && isZipFile(rootFile)) {
             // check to see if it's a zip file
@@ -613,7 +629,7 @@ class Builder {
         String fileName = clazz.getCanonicalName();
         String directoryName = fileName.replace('.', File.separatorChar).substring(0, fileName.lastIndexOf('.'));
 
-        final File javaFile = getJavaFileIDE(rootFile);
+        final File javaFile = getJavaFileSourceDir(clazz, rootFile);
 
         if (javaFile != null) {
             return new Paths(javaFile.getAbsolutePath(), directoryName + "/*.java");
@@ -724,6 +740,10 @@ class Builder {
         return null;
     }
 
+    public static
+    void registerModule(final String name, final String src) {
+        moduleCache.put(name, new File(src));
+    }
 
     private static
     File getModuleDir(final File parent, final String moduleName) {
@@ -738,10 +758,11 @@ class Builder {
 
         for (File candidate : candidates) {
             // our src directory is always under the module dir
-            if (new File(candidate, "src").isDirectory()) {
+            final File src = new File(candidate, "src");
+            if (src.isDirectory()) {
                 // we also want to CACHE the module dir, as the search can take a while.
-                moduleCache.put(moduleName, candidate);
-                return candidate;
+                moduleCache.put(moduleName, src);
+                return src;
             }
         }
 
@@ -803,6 +824,9 @@ class Builder {
             }
         } catch (Exception e) {
             isZip = false;
+            if (e instanceof FileNotFoundException) {
+                e.printStackTrace();
+            }
         } finally {
             if (raf != null) {
                 try {

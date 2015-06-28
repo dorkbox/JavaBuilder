@@ -15,27 +15,11 @@
  */
 package dorkbox.build.util.jar;
 
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.lang.reflect.InvocationTargetException;
-import java.math.BigInteger;
-import java.security.GeneralSecurityException;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
-import java.security.Security;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.Map;
-import java.util.jar.Attributes;
-import java.util.jar.JarFile;
-import java.util.jar.Manifest;
-
+import dorkbox.Builder;
+import dorkbox.util.Base64Fast;
+import dorkbox.util.Sys;
+import dorkbox.util.crypto.Crypto.DSA;
+import dorkbox.util.crypto.CryptoX509;
 import org.bouncycastle.asn1.ASN1Integer;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.asn1.x500.X500Name;
@@ -53,20 +37,27 @@ import org.bouncycastle.crypto.util.PrivateKeyFactory;
 import org.bouncycastle.crypto.util.PublicKeyFactory;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
-import dorkbox.Builder;
-import dorkbox.util.Base64Fast;
-import dorkbox.util.Sys;
-import dorkbox.util.crypto.Crypto;
-import dorkbox.util.crypto.CryptoX509;
+import java.io.*;
+import java.lang.reflect.InvocationTargetException;
+import java.math.BigInteger;
+import java.security.*;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.Map;
+import java.util.jar.Attributes;
+import java.util.jar.JarFile;
+import java.util.jar.Manifest;
 
-public class JarSigner {
+public
+class JarSigner {
 
     static {
         BouncyCastleProvider provider = new BouncyCastleProvider();
         Security.addProvider(provider);
     }
 
-    public static File sign(String jarName, String name) {
+    public static
+    File sign(String jarName, String name) {
 
         Builder.log().println();
         Builder.log().title("Signing JAR").println(jarName, name.toUpperCase());
@@ -81,7 +72,8 @@ public class JarSigner {
 
             if (jarFile.isFile() && jarFile.canRead()) {
                 signJarFile = signJar(jarFile, name);
-            } else {
+            }
+            else {
                 throw new RuntimeException("Unable to read file: " + jarFile.getCanonicalPath());
             }
 
@@ -91,18 +83,17 @@ public class JarSigner {
             Sys.close(outputStream);
 
             return new File(jarName);
-        }
-        catch (Throwable ex) {
+        } catch (Throwable ex) {
             throw new RuntimeException("Unable to sign jar file! " + ex.getMessage());
         }
     }
 
     /**
      * the actual JAR signing method
-     * @param createDebugVersion
      */
-    private static ByteArrayOutputStream signJar(File jarFile, String name)
-            throws IOException, IllegalAccessException, InvocationTargetException, NoSuchMethodException, GeneralSecurityException {
+    private static
+    ByteArrayOutputStream signJar(File jarFile, String name)
+                    throws IOException, IllegalAccessException, InvocationTargetException, NoSuchMethodException, GeneralSecurityException {
 
         // proper "jar signing" does not allow for ECC signatures to be used. RSA/DSA and that's it.
         // so this "self signed" cert is just that. wimpy.
@@ -122,11 +113,10 @@ public class JarSigner {
 
 
 
-        X509CertificateHolder wimpyX509CertificateHolder = CryptoX509.DSA.createCertHolder(
-                                                                    startDate, expiryDate,
-                                                                    new X500Name("ST=Lunar Base Alpha, O=Dorkbox, CN=Dorkbox Server, emailaddress=admin@dorkbox.com"),
-                                                                    new X500Name("ST=Earth, O=Dorkbox, CN=Dorkbox Client, emailaddress=admin@dorkbox.com"),
-                                                                    serialNumber, wimpyPrivateKey, wimpyPublicKey);
+        X509CertificateHolder wimpyX509CertificateHolder = CryptoX509.DSA.createCertHolder(startDate, expiryDate, new X500Name(
+                        "ST=Lunar Base Alpha, O=Dorkbox, CN=Dorkbox Server, emailaddress=admin@dorkbox.com"), new X500Name(
+                        "ST=Earth, O=Dorkbox, CN=Dorkbox Client, emailaddress=admin@dorkbox.com"), serialNumber, wimpyPrivateKey,
+                                                                                           wimpyPublicKey);
 
         JarFile jar = new JarFile(jarFile.getCanonicalPath());
 
@@ -146,7 +136,8 @@ public class JarSigner {
             // have to add basic entries.
             Attributes mainAttributes = manifest.getMainAttributes();
             mainAttributes.putValue(Attributes.Name.MANIFEST_VERSION.toString(), "1.0");
-        } else {
+        }
+        else {
             // clear out all entries in the manifest
             Map<String, Attributes> entries = manifest.getEntries();
             if (entries.size() > 0) {
@@ -167,13 +158,9 @@ public class JarSigner {
         byte signatureFileManifestBytes[] = JarSignatureUtil.serialiseManifest(signatureFileManifest);
 
 
-        byte signatureBlockBytes[] = CryptoX509.createSignature(signatureFileManifestBytes,
-                                                                 wimpyX509CertificateHolder, wimpyPrivateKey);
+        byte signatureBlockBytes[] = CryptoX509.createSignature(signatureFileManifestBytes, wimpyX509CertificateHolder, wimpyPrivateKey);
 
-        ByteArrayOutputStream byteArrayOutputStream = JarUtil.createNewJar(jar,
-                                                                           name,
-                                                                           manifestBytes,
-                                                                           signatureFileManifestBytes,
+        ByteArrayOutputStream byteArrayOutputStream = JarUtil.createNewJar(jar, name, manifestBytes, signatureFileManifestBytes,
                                                                            signatureBlockBytes);
 
         // close the JAR file that we have been using
@@ -182,7 +169,8 @@ public class JarSigner {
     }
 
 
-    public static DSAKeyParameters[] getWimpyKeys() throws IOException, FileNotFoundException {
+    public static
+    DSAKeyParameters[] getWimpyKeys() throws IOException, FileNotFoundException {
         String wimpyKeyName = "wimpyCert.key";
 
         DSAPrivateKeyParameters wimpyPrivateKey = null;
@@ -194,27 +182,29 @@ public class JarSigner {
         if (!wimpyKeyRawFile.canRead()) {
             // using DSA, since that is compatible with ALL java versions
             @SuppressWarnings("deprecation")
-            AsymmetricCipherKeyPair generateKeyPair = Crypto.DSA.generateKeyPair(new SecureRandom(), 8192);
+            AsymmetricCipherKeyPair generateKeyPair = DSA.generateKeyPair(new SecureRandom(), 8192);
             wimpyPrivateKey = (DSAPrivateKeyParameters) generateKeyPair.getPrivate();
             wimpyPublicKey = (DSAPublicKeyParameters) generateKeyPair.getPublic();
 
             writeDsaKeysToFile(wimpyPrivateKey, wimpyPublicKey, wimpyKeyRawFile);
-        } else {
+        }
+        else {
             FileInputStream inputStream = new FileInputStream(wimpyKeyRawFile);
             long fileSize = inputStream.getChannel().size();
 
             // check file size.
-            if (fileSize > Integer.MAX_VALUE-1) {
+            if (fileSize > Integer.MAX_VALUE - 1) {
                 System.err.println("Corrupt wimpyKeyFile! " + wimpyKeyRawFile.getAbsolutePath() + " Creating a new one.");
 
                 // using DSA, since that is compatible with ALL java versions
                 @SuppressWarnings("deprecation")
-                AsymmetricCipherKeyPair generateKeyPair = Crypto.DSA.generateKeyPair(new SecureRandom(), 8192);
+                AsymmetricCipherKeyPair generateKeyPair = DSA.generateKeyPair(new SecureRandom(), 8192);
                 wimpyPrivateKey = (DSAPrivateKeyParameters) generateKeyPair.getPrivate();
                 wimpyPublicKey = (DSAPublicKeyParameters) generateKeyPair.getPublic();
 
                 writeDsaKeysToFile(wimpyPrivateKey, wimpyPublicKey, wimpyKeyRawFile);
-            } else {
+            }
+            else {
                 // read in the entire file as bytes.
                 int fileSizeAsInt = (int) fileSize;
 
@@ -225,8 +215,8 @@ public class JarSigner {
                 // read public key length
                 int wimpyPublicKeyLength = (inputBytes[fileSizeAsInt - 4] & 0xff) << 24 |
                                            (inputBytes[fileSizeAsInt - 3] & 0xff) << 16 |
-                                           (inputBytes[fileSizeAsInt - 2] & 0xff) <<  8 |
-                                           (inputBytes[fileSizeAsInt - 1] & 0xff) <<  0;
+                                           (inputBytes[fileSizeAsInt - 2] & 0xff) << 8 |
+                                           (inputBytes[fileSizeAsInt - 1] & 0xff) << 0;
 
 
                 byte[] publicKeyBytes = new byte[wimpyPublicKeyLength];
@@ -245,14 +235,14 @@ public class JarSigner {
         return new DSAKeyParameters[] {wimpyPublicKey, wimpyPrivateKey};
     }
 
-    private static void writeDsaKeysToFile(DSAPrivateKeyParameters wimpyPrivateKey, DSAPublicKeyParameters wimpyPublicKey, File wimpyKeyRawFile)
-            throws IOException, FileNotFoundException {
+    private static
+    void writeDsaKeysToFile(DSAPrivateKeyParameters wimpyPrivateKey, DSAPublicKeyParameters wimpyPublicKey, File wimpyKeyRawFile)
+                    throws IOException, FileNotFoundException {
 
         DSAParameters parameters = wimpyPublicKey.getParameters(); // has to convert to DSAParameter so encoding works.
-        byte[] publicKeyBytes = new SubjectPublicKeyInfo(
-                                 new AlgorithmIdentifier(X9ObjectIdentifiers.id_dsa,
-                                                         new DSAParameter(parameters.getP(), parameters.getQ(), parameters.getG()).toASN1Primitive()),
-                                 new ASN1Integer(wimpyPublicKey.getY())).getEncoded();
+        byte[] publicKeyBytes = new SubjectPublicKeyInfo(new AlgorithmIdentifier(X9ObjectIdentifiers.id_dsa, new DSAParameter(
+                        parameters.getP(), parameters.getQ(), parameters.getG()).toASN1Primitive()), new ASN1Integer(
+                        wimpyPublicKey.getY())).getEncoded();
         // SAME AS:
         //        Certificate[] certificates = Launcher.class.getProtectionDomain().getCodeSource().getCertificates();
         //        if (certificates.length != 1) {
@@ -270,16 +260,14 @@ public class JarSigner {
 
 
         parameters = wimpyPrivateKey.getParameters();
-        byte[] privateKeyBytes = new PrivateKeyInfo(
-                                new AlgorithmIdentifier(X9ObjectIdentifiers.id_dsa,
-                                                        new DSAParameter(parameters.getP(), parameters.getQ(), parameters.getG()).toASN1Primitive()),
-                                new ASN1Integer(wimpyPrivateKey.getX())).getEncoded();
+        byte[] privateKeyBytes = new PrivateKeyInfo(new AlgorithmIdentifier(X9ObjectIdentifiers.id_dsa, new DSAParameter(parameters.getP(),
+                                                                                                                         parameters.getQ(),
+                                                                                                                         parameters.getG()).toASN1Primitive()),
+                                                    new ASN1Integer(wimpyPrivateKey.getX())).getEncoded();
 
         // write public length to bytes.
-        byte[] publicKeySize = new byte[] {(byte) (publicKeyBytes.length >>> 24),
-                                           (byte) (publicKeyBytes.length >>> 16),
-                                           (byte) (publicKeyBytes.length >>> 8),
-                                           (byte) (publicKeyBytes.length >>> 0)};
+        byte[] publicKeySize = new byte[] {(byte) (publicKeyBytes.length >>> 24), (byte) (publicKeyBytes.length >>> 16),
+                                           (byte) (publicKeyBytes.length >>> 8), (byte) (publicKeyBytes.length >>> 0)};
 
         ByteArrayOutputStream keyOutputStream = new ByteArrayOutputStream(4 + publicKeyBytes.length + privateKeyBytes.length);
 
@@ -295,7 +283,8 @@ public class JarSigner {
         Sys.close(outputStream);
     }
 
-    private static void displayByteHash(byte[] publicKeyBytes) {
+    private static
+    void displayByteHash(byte[] publicKeyBytes) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-512");
             digest.reset();
