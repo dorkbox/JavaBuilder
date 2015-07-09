@@ -17,7 +17,8 @@ package dorkbox.license;
 
 public enum LicenseType {
     APACHE("Apachev2", "Apache 2.0 License"),
-    BSD("BSD", "BSD License"), // same as New BSD
+    BSD2("BSD2", "BSD 2-clause License"), // same as New BSD
+    BSD3("BSD3", "BSD 3-clause License"),
     CC0("CC0", "CC0 License"),
     EPL("EPLv1", "Eclipse Public License"),
     GPLv2_CP("GPLv2_CP", "GPL v2 License, with Classpath exception"),
@@ -33,7 +34,7 @@ public enum LicenseType {
     private final String name;
     private final String description;
 
-    private LicenseType(String name, String description) {
+    LicenseType(String name, String description) {
         this.name = name;
         this.description = description;
     }
