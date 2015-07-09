@@ -58,12 +58,12 @@ public class LicenseLibs {
                       .c("Copyright 2004-2008, QOS.ch");
 
     public static final License
-    WildCard = new License("Wildcard", LicenseType.BSD)
+    WildCard = new License("Wildcard", LicenseType.BSD3)
                          .u("https://github.com/EsotericSoftware/wildcard")
                          .c("Copyright 2008, Nathan Sweet");
 
     public static final License
-    YamlBeans = new License("YamlBeans", LicenseType.BSD)
+    YamlBeans = new License("YamlBeans", LicenseType.BSD3)
                          .u("https://github.com/EsotericSoftware/yamlbeans")
                          .c("Copyright 2006, Ola Bini")
                          .c("Copyright 2008, Nathan Sweet");
