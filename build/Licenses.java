@@ -27,7 +27,7 @@ public class Licenses {
                                .n("Java project management and build tool, using the Java language");
 
         public static final License
-        Scar = new License("Scar", LicenseType.BSD)
+        Scar = new License("Scar", LicenseType.BSD3)
                         .u("https://github.com/EsotericSoftware/scar")
                         .c("Copyright 2011, Nathan Sweet");
     }
@@ -57,7 +57,7 @@ public class Licenses {
                                  .a("Jeremias Maerki").a("Stephen Colebourne");
 
         public static final License
-        MigBase64 = new License("MiG Base64", LicenseType.BSD)
+        MigBase64 = new License("MiG Base64", LicenseType.BSD3)
                              .u("http://migbase64.sourceforge.net/")
                              .c("Copyright 2004, Mikael Grev, MiG InfoCom AB. (base64@miginfocom.com)")
                              .n("High performance base64 encoder & decoder");
