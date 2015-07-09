@@ -48,7 +48,7 @@
        Julien Ponge (julien.ponge@gmail.com)
 
 
-    - MiG Base64 - BSD License
+    - MiG Base64 - BSD 3-clause License
       http://migbase64.sourceforge.net/
       Copyright 2004, Mikael Grev, MiG InfoCom AB. (base64@miginfocom.com)
         High performance base64 encoder & decoder
@@ -64,7 +64,7 @@
           it does not affect the licensing for distributing those programs directly.
 
 
-    - Scar - BSD License
+    - Scar - BSD 3-clause License
       https://github.com/EsotericSoftware/scar
       Copyright 2011, Nathan Sweet
 
@@ -74,12 +74,12 @@
       Copyright 2004-2008, QOS.ch
 
 
-    - Wildcard - BSD License
+    - Wildcard - BSD 3-clause License
       https://github.com/EsotericSoftware/wildcard
       Copyright 2008, Nathan Sweet
 
 
-    - YamlBeans - BSD License
+    - YamlBeans - BSD 3-clause License
       https://github.com/EsotericSoftware/yamlbeans
       Copyright 2006, Ola Bini
       Copyright 2008, Nathan Sweet
