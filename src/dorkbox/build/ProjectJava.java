@@ -382,8 +382,18 @@ class ProjectJava extends Project<ProjectJava> {
 
             BuildLog.enable();
             for (Diagnostic<? extends JavaFileObject> diagnostic : diagnostics.getDiagnostics()) {
+                final String message = diagnostic.getMessage(null);
+                final Diagnostic.Kind kind = diagnostic.getKind();
+
+                if (this.buildOptions.compiler.suppressSunWarnings &&
+                    (kind == Diagnostic.Kind.WARNING || kind == Diagnostic.Kind.MANDATORY_WARNING) &&
+                    message.startsWith("sun.")) {
+                    // skip all sun.XYZ warnings
+                    continue;
+                }
+
                 BuildLog log = BuildLog.start();
-                log.title(diagnostic.getKind().toString()).println(diagnostic.getMessage(null));
+                log.title(kind.toString()).println(message);
 
                 final JavaFileObject source = diagnostic.getSource();
                 String className = null;
@@ -393,6 +403,8 @@ class ProjectJava extends Project<ProjectJava> {
 
                     // source.getName() : /tmp/Builder2506000973028434501.tmp/dorkbox/util/FileUtil.java
                     // we want:  dorkbox.util.FileUtil
+
+                    // source.getName() can ALSO be the full path to the class file.
 
                     if (name.startsWith(tempDir)) {
                         final int lastIndexOf = name.lastIndexOf(".tmp");
@@ -422,7 +434,7 @@ class ProjectJava extends Project<ProjectJava> {
                 BuildLog.finish();
             }
             BuildLog.disable();
-//            throw new RuntimeException("Compilation errors:\n" + buffer);
+
             RuntimeException runtimeException = new RuntimeException("Compilation errors");
             runtimeException.setStackTrace(new StackTraceElement[0]);
             throw runtimeException;
