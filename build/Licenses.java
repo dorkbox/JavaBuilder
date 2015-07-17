@@ -19,7 +19,7 @@ import dorkbox.license.LicenseType;
 // these are licenese's that are have code embedded into the various projects
 // @formatter:off
 public class Licenses {
-    public static class OAK {
+    public static class JavaBuilder {
         public static final License
         JavaBuilder = new License("Dorkbox JavaBuilder", LicenseType.APACHE)
                                .u("https://github.com/dorkbox")

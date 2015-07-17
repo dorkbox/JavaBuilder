@@ -11,6 +11,7 @@ import java.security.CodeSource;
 import java.security.ProtectionDomain;
 
 
+@SuppressWarnings("resource")
 public
 class Build {
 
