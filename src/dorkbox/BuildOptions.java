@@ -15,26 +15,32 @@
  */
 package dorkbox;
 
-public class BuildOptions {
+import dorkbox.util.OS;
+
+public
+class BuildOptions {
+
+    public Compiler compiler = new Compiler();
 
     /**
-     *  Options that affect the compilation of the project
+     * Options that affect the compilation of the project
      */
-    public static class Compiler {
+    public static
+    class Compiler {
         /**
-        * Do we want to force a rebuild of the project?
-        */
+         * Do we want to force a rebuild of the project?
+         */
         public boolean forceRebuild = false;
 
         /**
-        * enables PACK200+LZMA+ENCRYPTION on jar contents. Since this is
-        * REALLY SLOW (creating and running), we don't always want to do this.
-        */
+         * enables PACK200+LZMA+ENCRYPTION on jar contents. Since this is
+         * REALLY SLOW (creating and running), we don't always want to do this.
+         */
         public boolean release = false;
 
         /**
-        * we want debugging enabled (until release!)
-        */
+         * we want debugging enabled (until release!)
+         */
         public boolean debugEnabled = true;
 
         /**
@@ -44,53 +50,58 @@ public class BuildOptions {
 
 
         /**
-        * Suppress sun warnings during the compile stage. ONLY enable this is you know what you are doing in your project!
-        */
+         * Suppress sun warnings during the compile stage. ONLY enable this is you know what you are doing in your project!
+         */
         public boolean suppressSunWarnings = false;
 
         /**
-        * what version do we want to compile java for?
-        *
-        * when compiling for java 1.6, you MUST specify the 1.6 rt.jar location
-        * Also, when compiling GWT, this has no effect
-        */
-        public int targetJavaVersion = 7;
+         * what version do we want to compile java for?
+         * <p/>
+         * when compiling for java 1.6, you MUST specify the 1.6 rt.jar location
+         * Also, when compiling GWT, this has no effect
+         */
+        public int targetJavaVersion = OS.getJavaVersion();
 
         /**
-        * this is only necessary when building for lesser versions of java than you are currently running
-        * (for example, compiling for 1.6, when compiling on 1.7).
-        * <p>
-        * This is meant to be overridden for custom build locations
-        */
+         * this is only necessary when building for lesser versions of java than you are currently running
+         * (for example, compiling for 1.6, when compiling on 1.7).
+         * <p/>
+         * This is meant to be overridden for custom build locations
+         */
         public CrossCompilerLibrary crossCompileLibrary = new CrossCompilerLibrary();
 
 
         /**
-        * US export controls require that the JVM cannot perform AES-256 crypto. Here we are able to control the JCE policy files to
-        * to permit unlimited crypto if we want to (and are following US export controls)
-        */
+         * US export controls require that the JVM cannot perform AES-256 crypto. Here we are able to control the JCE policy files to
+         * to permit unlimited crypto if we want to (and are following US export controls)
+         */
         public boolean unlimitedJceCryptoRuntime = true;
 
         /**
-        * Adds the "verbose" compile option. This is useful if you want to get a list (from the compiler) of EVERY CLASS compiled/used
-        */
+         * Adds the "verbose" compile option. This is useful if you want to get a list (from the compiler) of EVERY CLASS compiled/used
+         */
         public boolean enableCompilerTrace = false;
+
 
         /**
          * Provide the location of the rt.jar libraries for 'cross compiling' to a different java target.
-         * <p>
+         * <p/>
          * This is meant to be overridden for custom locations.
          */
-        public static class CrossCompilerLibrary {
-            public CrossCompilerLibrary() {
+        public static
+        class CrossCompilerLibrary {
+            public
+            CrossCompilerLibrary() {
             }
 
-            /** Please note that the binary release is GLPv2 + Classpath Exception, giving us permission to use it to compile binaries */
-            public String getCrossCompileLibraryLocation(int targetVersion) {
+            /**
+             * Please note that the binary release is GLPv2 + Classpath Exception, giving us permission to use it to compile binaries
+             */
+            @SuppressWarnings("MethodMayBeStatic")
+            public
+            String getCrossCompileLibraryLocation(int targetVersion) {
                 return Builder.path("libs", "jdkRuntimes", "openJdk" + targetVersion + "_rt.jar");
             }
         }
     }
-
-    public Compiler compiler = new Compiler();
 }

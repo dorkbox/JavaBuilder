@@ -40,25 +40,23 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
+@SuppressWarnings("ALL")
 public
 class Builder {
     public static final String BUILD_MODE = "build";
-
-    private static final ConcurrentHashMap<String, File> moduleCache = new ConcurrentHashMap<String, File>();
-
-    private static final long startDate = System.currentTimeMillis();
-    public static long buildDate = startDate;
-
-    private static final File tempDir;
 
     /**
      * Location where settings are stored
      */
     public static final PropertiesProvider settings = new PropertiesProvider(new File("settings.ini"));
-
     public static final boolean isJar;
 
     public static final TimeZone defaultTimeZone;
+    private static final ConcurrentHashMap<String, File> moduleCache = new ConcurrentHashMap<String, File>();
+    private static final long startDate = System.currentTimeMillis();
+    private static final File tempDir;
+
+    public static long buildDate = startDate;
     public static int offset;
 
     static {
@@ -81,7 +79,8 @@ class Builder {
 
         Paths.setDefaultGlobExcludes("**/.svn/**, **/.git/**");
         // are we building from a jar, or a project (from an IDE?)
-        String sourceName = Build.get().getName();
+        String sourceName = Build.get()
+                                 .getName();
         isJar = sourceName.endsWith(Project.JAR_EXTENSION);
     }
 
@@ -112,9 +111,7 @@ class Builder {
         String[] _args = new String[2 + arguments.length];
         _args[0] = "build";
         _args[1] = projectName;
-        for (int i = 0; i < arguments.length; i++) {
-            _args[i + 2] = arguments[i];
-        }
+        System.arraycopy(arguments, 0, _args, 2, arguments.length);
 
         SimpleArgs args = new SimpleArgs(_args);
         Project.reset();
@@ -125,7 +122,15 @@ class Builder {
     void make(BuildOptions buildOptions, SimpleArgs args) throws Exception {
         String title = "JavaBuilder";
         BuildLog log = BuildLog.start();
-        log.title(title).println(args);
+        log.title(title)
+           .println(args);
+
+        String jvmName = System.getProperty("java.vm.name");
+        String jvmVersion = System.getProperty("java.version");
+        String jvmVendor = System.getProperty("java.vm.specification.vendor");
+        log.title("Execution JVM")
+           .println(jvmVendor + ": " + jvmName + " " + jvmVersion);
+
 
         Date buildDate = args.getBuildDate();
         if (buildDate != null) {
@@ -136,7 +141,11 @@ class Builder {
             c.add(Calendar.HOUR_OF_DAY, offset / 1000 / 60 / 60);
             c.add(Calendar.MINUTE, offset / 1000 / 60 % 60);
 
-            log.title("Forced Date").println(buildDate, c.getTime().toString().replace("UTC", defaultTimeZone.getID()));
+            log.title("Forced Date")
+               .println(buildDate,
+                        c.getTime()
+                         .toString()
+                         .replace("UTC", defaultTimeZone.getID()));
         }
 
         Builder builder = new Builder();
@@ -159,19 +168,26 @@ class Builder {
             c.setTime(new Date());
             c.add(Calendar.HOUR_OF_DAY, offset / 1000 / 60 / 60);
             c.add(Calendar.MINUTE, offset / 1000 / 60 % 60);
-            String localDateString = c.getTime().toString().replace("UTC", defaultTimeZone.getID());
+            String localDateString = c.getTime()
+                                      .toString()
+                                      .replace("UTC", defaultTimeZone.getID());
 
             if (!BuildLog.wasNested || BuildLog.TITLE_WIDTH != BuildLog.STOCK_TITLE_WIDTH) {
-                log.title(title).println(args, localDateString, "Completed in: " + getRuntime(builder.startTime) + " seconds.");
+                log.title(title)
+                   .println(args, localDateString, "Completed in: " + getRuntime(builder.startTime) + " seconds.");
             }
             else {
-                log.title(title).println(args, localDateString, "Completed in: " + getRuntime(Builder.startDate) + " seconds.",
-                                         "Date code: " + Builder.buildDate);
+                log.title(title)
+                   .println(args,
+                            localDateString,
+                            "Completed in: " + getRuntime(Builder.startDate) + " seconds.",
+                            "Date code: " + Builder.buildDate);
             }
         } catch (Exception e1) {
             e = e1;
 
-            log.title("ERROR").println(e.getMessage());
+            log.title("ERROR")
+               .println(e.getMessage());
             StackTraceElement[] stackTrace = e.getStackTrace();
             if (stackTrace.length > 0) {
                 e.printStackTrace();
@@ -205,16 +221,6 @@ class Builder {
         return new BuildLog(printer);
     }
 
-
-
-    private final long startTime = System.currentTimeMillis();
-    private ByteClassloader classloader = null;
-
-    private
-    Builder() {
-        Project.reset();
-    }
-
     /**
      * check to see if our jdk files have been decompressed (necessary for cross target builds)
      */
@@ -231,8 +237,10 @@ class Builder {
             String suffix = ".pack.lzma";
 
             if (name.endsWith(suffix)) {
-                int nameLength = f.getAbsolutePath().length();
-                String fixedName = f.getAbsolutePath().substring(0, nameLength - suffix.length());
+                int nameLength = f.getAbsolutePath()
+                                  .length();
+                String fixedName = f.getAbsolutePath()
+                                    .substring(0, nameLength - suffix.length());
                 File file = new File(fixedName);
 
                 if (!file.canRead() || file.length() == 0) {
@@ -270,164 +278,6 @@ class Builder {
         }
     }
 
-    // loads the build.oak file information
-    private
-    void compileBuildInstructions(SimpleArgs args) throws Exception {
-        ByteClassloader bytesClassloader = new ByteClassloader(Thread.currentThread().getContextClassLoader());
-        HashMap<String, HashMap<String, Object>> data = BuildParser.parse(args);
-
-        // each entry is a build, that can have dependencies.
-        for (Entry<String, HashMap<String, Object>> entry : data.entrySet()) {
-            String projectName = entry.getKey();
-            HashMap<String, Object> projectData = entry.getValue();
-
-            // will always have libs jars (minus runtime jars)
-            Paths classPaths = BuildParser.getPathsFromMap(projectData, "classpath");
-
-            // BY DEFAULT, will use build/**/*.java path
-            Paths sourcePaths = BuildParser.getPathsFromMap(projectData, "source");
-
-            ProjectJava project = ProjectJava.create(projectName).classPath(classPaths).compilerClassloader(bytesClassloader).sourcePath(
-                            sourcePaths);
-
-
-            List<String> dependencies = BuildParser.getStringsFromMap(projectData, "depends");
-            for (String dep : dependencies) {
-                project.depends(dep);
-            }
-        }
-
-        // only if we have data, should we build
-        if (!data.isEmpty()) {
-            try {
-                BuildLog.disable();
-                BuildOptions buildOptions = new BuildOptions();
-                buildOptions.compiler.forceRebuild = true;
-
-                // this automatically takes care of build dependency ordering
-                Project.buildAll();
-                Project.reset();
-                BuildLog.enable();
-            } catch (Exception e) {
-                BuildLog.enable();
-                throw e;
-            }
-
-            this.classloader = bytesClassloader;
-        }
-    }
-
-
-    private
-    void start(BuildOptions buildOptions, SimpleArgs args) throws Exception {
-
-        dorkbox.util.annotation.Builder detector;
-
-        if (this.classloader != null) {
-            detector = AnnotationDetector.scan(this.classloader, new ClassByteIterator(this.classloader, null));
-        }
-        else {
-            detector = AnnotationDetector.scanClassPath();
-        }
-
-        List<Class<?>> controllers = detector.forAnnotations(Config.class).collect(AnnotationDefaults.getType);
-
-        if (controllers != null) {
-            // do we have something to control the build process??
-            // now we want to update/search for all project builders if we didn't already run our specific builder
-            for (Class<?> c : controllers) {
-                Class<?>[] params = new Class<?>[] {SimpleArgs.class};
-                Method buildTargeted = null;
-
-                // setup(Args)
-                try {
-                    buildTargeted = c.getMethod("setup", params);
-                } catch (Exception ignored) {
-                }
-
-                if (buildTargeted != null) {
-                    Object newInstance = c.newInstance();
-                    // see if we can build a targeted build
-                    buildOptions = (BuildOptions) buildTargeted.invoke(newInstance, args);
-                    break;
-                }
-                else {
-                    params = new Class<?>[] {BuildOptions.class, SimpleArgs.class};
-
-                    // setup(BuildOptions, Args)
-                    try {
-                        buildTargeted = c.getMethod("setup", params);
-                    } catch (Exception ignored) {
-                    }
-
-                    if (buildTargeted != null) {
-                        Object newInstance = c.newInstance();
-                        // see if we can build a targeted build
-                        buildTargeted.invoke(newInstance, buildOptions, args);
-                        break;
-                    }
-                }
-            }
-        }
-
-        BuildLog log = log();
-        log.title("Debug info").println(buildOptions.compiler.debugEnabled ? "Enabled" : "Disabled");
-        log.title("Release status").println(buildOptions.compiler.release ? "Enabled" : "Disabled");
-        log.println();
-
-        // now we want to update/search for all project builders.
-        boolean found;
-        if (this.classloader != null) {
-            detector = AnnotationDetector.scan(this.classloader, new ClassByteIterator(this.classloader, null));
-        }
-        else {
-            detector = AnnotationDetector.scanClassPath();
-        }
-        List<Class<?>> builders = detector.forAnnotations(Instructions.class).collect(AnnotationDefaults.getType);
-
-        if (args.getMode().equals(Builder.BUILD_MODE)) {
-            String projectToBuild = args.get(1);
-            String methodNameToCall = args.get(2);
-            if (methodNameToCall == null) {
-                log.title("Warning").println("No build method specified. Using default: '" + Builder.BUILD_MODE + "'");
-                methodNameToCall = Builder.BUILD_MODE;
-            }
-
-            log.title("Method").println(methodNameToCall);
-
-            found = runBuild(buildOptions, args, builders, methodNameToCall, projectToBuild);
-
-            if (controllers != null && !found) {
-                final IOException ioException = new IOException("Unable to find a builder for: " + args.getParameters());
-                ioException.setStackTrace(new StackTraceElement[0]);
-                throw ioException;
-            }
-        }
-
-
-        if (controllers != null) {
-            // do we have something to control the build process??
-            // now we want to update/search for all project builders if we didn't already run our specific builder
-            for (Class<?> c : controllers) {
-                Class<?>[] params = new Class<?>[] {BuildOptions.class, SimpleArgs.class};
-                Method buildTargeted = null;
-
-                // finish(BuildOptions, Args)
-                try {
-                    buildTargeted = c.getMethod("takedown", params);
-                } catch (Exception ignored) {
-                }
-
-                if (buildTargeted != null) {
-                    Object newInstance = c.newInstance();
-                    // see if we can build a targeted build
-                    buildTargeted.invoke(newInstance, buildOptions, args);
-                    break;
-                }
-            }
-        }
-    }
-
     private static
     boolean runBuild(BuildOptions buildOptions, SimpleArgs args, List<Class<?>> builders, String methodNameToCall, String projectToBuild)
                     throws Exception {
@@ -437,13 +287,15 @@ class Builder {
 
         boolean found = false;
         for (Class<?> c : builders) {
-            String simpleName = c.getSimpleName().toLowerCase();
+            String simpleName = c.getSimpleName()
+                                 .toLowerCase();
 
             if (projectToBuild.equals(simpleName)) {
                 Method[] methods = c.getMethods();
 
                 for (Method m : methods) {
-                    if (m.getName().equals(methodNameToCall)) {
+                    if (m.getName()
+                         .equals(methodNameToCall)) {
                         Class<?>[] p = m.getParameterTypes();
 
                         switch (p.length) {
@@ -519,7 +371,8 @@ class Builder {
         StringBuilder buffer = new StringBuilder(128);
 
         for (String p : paths) {
-            buffer.append(p).append(File.separator);
+            buffer.append(p)
+                  .append(File.separator);
         }
 
         int length = buffer.length();
@@ -561,11 +414,16 @@ class Builder {
             else {
                 // intellij (default)
                 String moduleName = rootPath.substring(rootPath.lastIndexOf(File.separatorChar) + 1);
-                File parent = rootFile.getParentFile().getParentFile().getParentFile().getParentFile().getParentFile();
+                File parent = rootFile.getParentFile()
+                                      .getParentFile()
+                                      .getParentFile()
+                                      .getParentFile()
+                                      .getParentFile();
                 // our src directory is always under the module dir
                 final File dir = getModuleDir(parent, moduleName);
-
-                return dir.getAbsoluteFile();
+                if (dir != null) {
+                    return dir.getAbsoluteFile();
+                }
             }
         }
 
@@ -627,7 +485,8 @@ class Builder {
 
         String rootPath = rootFile.getAbsolutePath();
         String fileName = clazz.getCanonicalName();
-        String directoryName = fileName.replace('.', File.separatorChar).substring(0, fileName.lastIndexOf('.'));
+        String directoryName = fileName.replace('.', File.separatorChar)
+                                       .substring(0, fileName.lastIndexOf('.'));
 
         final File javaFile = getJavaFileSourceDir(clazz, rootFile);
 
@@ -673,7 +532,9 @@ class Builder {
                 if (name.equals(nameAsFile)) {
                     // read out bytes!
                     final File file = new File(tempDir, nameAsFile);
-                    if (!file.getParentFile().exists() && !file.getParentFile().mkdirs()) {
+                    if (!file.getParentFile()
+                             .exists() && !file.getParentFile()
+                                               .mkdirs()) {
                         throw new IOException("Unable to create temp dir: " + file.getParentFile());
                     }
 
@@ -771,17 +632,21 @@ class Builder {
 
     private static
     void getDirs(final int i, ArrayList<File> candidates, final File parent, final String moduleName) {
-        if (i > 4) {
+        if (parent == null || i > 4) {
             return;
         }
 
-        for (File file : parent.listFiles()) {
-            if (file.isDirectory()) {
-                if (file.getName().equals(moduleName)) {
-                    candidates.add(file);
-                }
-                else {
-                    getDirs(i + 1, candidates, file, moduleName);
+        final File[] files = parent.listFiles();
+        if (files != null) {
+            for (File file : files) {
+                if (file.isDirectory()) {
+                    if (file.getName()
+                            .equals(moduleName)) {
+                        candidates.add(file);
+                    }
+                    else {
+                        getDirs(i + 1, candidates, file, moduleName);
+                    }
                 }
             }
         }
@@ -839,7 +704,6 @@ class Builder {
         return isZip;
     }
 
-
     public static
     boolean deleteFile(String target) {
         return deleteFile(new File(FileUtil.normalizeAsFile(target)));
@@ -849,7 +713,8 @@ class Builder {
     boolean deleteFile(File target) {
         target = FileUtil.normalize(target);
 
-        log().title("Deleting file").println(target.getAbsolutePath());
+        log().title("Deleting file")
+             .println(target.getAbsolutePath());
 
         return target.delete();
     }
@@ -860,7 +725,8 @@ class Builder {
         target = FileUtil.normalizeAsFile(target);
 
 
-        log().title("Moving file").println("  ╭─ " + source, "╰─> " + target);
+        log().title("Moving file")
+             .println("  ╭─ " + source, "╰─> " + target);
 
         return FileUtil.moveFile(source, target);
     }
@@ -871,7 +737,8 @@ class Builder {
         target = FileUtil.normalize(target);
 
 
-        log().title("Copying file").println("  ╭─ " + source.getAbsolutePath(), "╰─> " + target.getAbsolutePath());
+        log().title("Copying file")
+             .println("  ╭─ " + source.getAbsolutePath(), "╰─> " + target.getAbsolutePath());
 
         return FileUtil.copyFile(source, target);
     }
@@ -881,7 +748,8 @@ class Builder {
         source = FileUtil.normalizeAsFile(source);
         target = FileUtil.normalizeAsFile(target);
 
-        log().title("Copying file").println("  ╭─ " + source, "╰─> " + target);
+        log().title("Copying file")
+             .println("  ╭─ " + source, "╰─> " + target);
 
         FileUtil.copyFile(source, target);
     }
@@ -891,7 +759,186 @@ class Builder {
         source = FileUtil.normalizeAsFile(source);
         target = FileUtil.normalizeAsFile(target);
 
-        log().title("Copying dir").println("  ╭─ " + source, "╰─> " + target);
+        log().title("Copying dir")
+             .println("  ╭─ " + source, "╰─> " + target);
         FileUtil.copyDirectory(source, target, dirNamesToIgnore);
+    }
+
+    private final long startTime = System.currentTimeMillis();
+    private ByteClassloader classloader = null;
+
+    private
+    Builder() {
+        Project.reset();
+    }
+
+    // loads the build.oak file information
+    private
+    void compileBuildInstructions(SimpleArgs args) throws Exception {
+        ByteClassloader bytesClassloader = new ByteClassloader(Thread.currentThread()
+                                                                     .getContextClassLoader());
+        HashMap<String, HashMap<String, Object>> data = BuildParser.parse(args);
+
+        // each entry is a build, that can have dependencies.
+        for (Entry<String, HashMap<String, Object>> entry : data.entrySet()) {
+            String projectName = entry.getKey();
+            HashMap<String, Object> projectData = entry.getValue();
+
+            // will always have libs jars (minus runtime jars)
+            Paths classPaths = BuildParser.getPathsFromMap(projectData, "classpath");
+
+            // BY DEFAULT, will use build/**/*.java path
+            Paths sourcePaths = BuildParser.getPathsFromMap(projectData, "source");
+
+            ProjectJava project = ProjectJava.create(projectName)
+                                             .classPath(classPaths)
+                                             .compilerClassloader(bytesClassloader)
+                                             .sourcePath(sourcePaths);
+
+
+            List<String> dependencies = BuildParser.getStringsFromMap(projectData, "depends");
+            for (String dep : dependencies) {
+                project.depends(dep);
+            }
+        }
+
+        // only if we have data, should we build
+        if (!data.isEmpty()) {
+            try {
+                BuildLog.disable();
+                BuildOptions buildOptions = new BuildOptions();
+                buildOptions.compiler.forceRebuild = true;
+
+                // this automatically takes care of build dependency ordering
+                Project.buildAll();
+                Project.reset();
+                BuildLog.enable();
+            } catch (Exception e) {
+                BuildLog.enable();
+                throw e;
+            }
+
+            this.classloader = bytesClassloader;
+        }
+    }
+
+    private
+    void start(BuildOptions buildOptions, SimpleArgs args) throws Exception {
+
+        dorkbox.util.annotation.Builder detector;
+
+        if (this.classloader != null) {
+            detector = AnnotationDetector.scan(this.classloader, new ClassByteIterator(this.classloader, null));
+        }
+        else {
+            detector = AnnotationDetector.scanClassPath();
+        }
+
+        List<Class<?>> controllers = detector.forAnnotations(Config.class)
+                                             .collect(AnnotationDefaults.getType);
+
+        if (controllers != null) {
+            // do we have something to control the build process??
+            // now we want to update/search for all project builders if we didn't already run our specific builder
+            for (Class<?> c : controllers) {
+                Class<?>[] params = new Class<?>[] {SimpleArgs.class};
+                Method buildTargeted = null;
+
+                // setup(Args)
+                try {
+                    buildTargeted = c.getMethod("setup", params);
+                } catch (Exception ignored) {
+                }
+
+                if (buildTargeted != null) {
+                    Object newInstance = c.newInstance();
+                    // see if we can build a targeted build
+                    buildOptions = (BuildOptions) buildTargeted.invoke(newInstance, args);
+                    break;
+                }
+                else {
+                    params = new Class<?>[] {BuildOptions.class, SimpleArgs.class};
+
+                    // setup(BuildOptions, Args)
+                    try {
+                        buildTargeted = c.getMethod("setup", params);
+                    } catch (Exception ignored) {
+                    }
+
+                    if (buildTargeted != null) {
+                        Object newInstance = c.newInstance();
+                        // see if we can build a targeted build
+                        buildTargeted.invoke(newInstance, buildOptions, args);
+                        break;
+                    }
+                }
+            }
+        }
+
+        BuildLog log = log();
+        log.title("Debug info")
+           .println(buildOptions.compiler.debugEnabled ? "Enabled" : "Disabled");
+        log.title("Release status")
+           .println(buildOptions.compiler.release ? "Enabled" : "Disabled");
+        log.println();
+
+        // now we want to update/search for all project builders.
+        boolean found;
+        if (this.classloader != null) {
+            detector = AnnotationDetector.scan(this.classloader, new ClassByteIterator(this.classloader, null));
+        }
+        else {
+            detector = AnnotationDetector.scanClassPath();
+        }
+        List<Class<?>> builders = detector.forAnnotations(Instructions.class)
+                                          .collect(AnnotationDefaults.getType);
+
+        if (args.getMode()
+                .equals(Builder.BUILD_MODE)) {
+            String projectToBuild = args.get(1);
+            String methodNameToCall = args.get(2);
+            if (methodNameToCall == null) {
+                log.title("Method")
+                   .println("None specified, using default: '" + Builder.BUILD_MODE + "'");
+
+                methodNameToCall = Builder.BUILD_MODE;
+            }
+            else {
+                log.title("Method")
+                   .println(methodNameToCall);
+            }
+
+
+            found = runBuild(buildOptions, args, builders, methodNameToCall, projectToBuild);
+
+            if (controllers != null && !found) {
+                final IOException ioException = new IOException("Unable to find a builder for: " + args.getParameters());
+                ioException.setStackTrace(new StackTraceElement[0]);
+                throw ioException;
+            }
+        }
+
+
+        if (controllers != null) {
+            // do we have something to control the build process??
+            // now we want to update/search for all project builders if we didn't already run our specific builder
+            for (Class<?> c : controllers) {
+                Class<?>[] params = new Class<?>[] {BuildOptions.class, SimpleArgs.class};
+                Method buildTargeted = null;
+
+                // finish(BuildOptions, Args)
+                try {
+                    buildTargeted = c.getMethod("takedown", params);
+                } catch (Exception ignored) {
+                }
+
+                if (buildTargeted != null) {
+                    Object newInstance = c.newInstance();
+                    // see if we can build a targeted build
+                    buildTargeted.invoke(newInstance, buildOptions, args);
+                    break;
+                }
+            }
+        }
     }
 }
