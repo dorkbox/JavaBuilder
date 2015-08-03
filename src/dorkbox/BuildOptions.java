@@ -60,7 +60,7 @@ class BuildOptions {
          * when compiling for java 1.6, you MUST specify the 1.6 rt.jar location
          * Also, when compiling GWT, this has no effect
          */
-        public int targetJavaVersion = OS.getJavaVersion();
+        public int targetJavaVersion = OS.javaVersion;
 
         /**
          * this is only necessary when building for lesser versions of java than you are currently running

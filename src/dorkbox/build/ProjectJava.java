@@ -299,7 +299,7 @@ class ProjectJava extends Project<ProjectJava> {
         args.add("-encoding");
         args.add("UTF-8");
 
-        if (OS.getJavaVersion() > this.buildOptions.compiler.targetJavaVersion) {
+        if (OS.javaVersion > this.buildOptions.compiler.targetJavaVersion) {
             Builder.log().println("Building cross-platform target for version: " + this.buildOptions.compiler.targetJavaVersion);
             // if our runtime env. is NOT equal to our target env.
             args.add("-source");
