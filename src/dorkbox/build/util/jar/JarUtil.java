@@ -32,6 +32,7 @@ import java.util.Map.Entry;
 import java.util.jar.*;
 import java.util.zip.*;
 
+@SuppressWarnings("unused")
 public
 class JarUtil {
     public static int JAR_COMPRESSION_LEVEL = 9;
@@ -76,6 +77,7 @@ class JarUtil {
     /**
      * @return true if the file is a zip/jar stream
      */
+    @SuppressWarnings("ForLoopReplaceableByForEach")
     public static
     boolean isZipStream(ByteArrayInputStream input) {
         boolean isZip = true;
@@ -102,7 +104,7 @@ class JarUtil {
      * retrieve the manifest from a jar file -- this will either load a
      * pre-existing META-INF/MANIFEST.MF, or return null if none
      */
-    public static final
+    public static
     Manifest getManifestFile(JarFile jarFile) throws IOException {
         JarEntry je = jarFile.getJarEntry(JarFile.MANIFEST_NAME);
 
@@ -119,13 +121,18 @@ class JarUtil {
                 }
             }
 
-            // create the manifest object
-            Manifest manifest = new Manifest();
-            InputStream inputStream = jarFile.getInputStream(je);
-            manifest.read(inputStream);
-            Sys.close(inputStream);
+            if (je != null) {
+                // create the manifest object
+                Manifest manifest = new Manifest();
+                InputStream inputStream = jarFile.getInputStream(je);
+                manifest.read(inputStream);
+                Sys.close(inputStream);
 
-            return manifest;
+                return manifest;
+
+            } else {
+                return null;
+            }
         }
         else {
             return null;
@@ -138,7 +145,7 @@ class JarUtil {
      * <p/>
      * Will close the output stream automatically.
      */
-    public static final
+    public static
     void writeZipEntry(ZipEntry entry, ZipFile zipInputFile, ZipOutputStream zipOutputStream) throws IOException {
         // create a new entry to avoid ZipException: invalid entry compressed size
         ZipEntry newEntry = new ZipEntry(entry.getName());
@@ -183,10 +190,10 @@ class JarUtil {
     }
 
 
-    public static final
+    public static
     String updateDigest(InputStream inputStream, MessageDigest digest) throws IOException {
         byte[] buffer = new byte[2048];
-        int read = 0;
+        int read;
         digest.reset();
 
         while ((read = inputStream.read(buffer)) > 0) {
@@ -205,7 +212,7 @@ class JarUtil {
         return Base64Fast.encodeToString(digestBytes, false);
     }
 
-    public static final
+    public static
     ByteArrayOutputStream createNewJar(JarFile jar, String name, byte[] manifestBytes, byte[] signatureFileManifestBytes,
                                        byte[] signatureBlockBytes) throws IOException {
 
@@ -371,7 +378,7 @@ class JarUtil {
             // - Directory names must end with a slash '/'
             // - All paths must use '/' style slashes, not '\'
             // - JarEntry names should NOT begin with '/'
-            InputStream input = null;
+            InputStream input;
 
             // there won't be any OTHER manifest files, since we haven't signed
             // the jar yet...
@@ -619,7 +626,7 @@ class JarUtil {
                     }
                 }
 
-                InputStream input = null;
+                InputStream input;
 
                 //sort them
                 Collections.sort(sortedClassFiles);
@@ -710,7 +717,7 @@ class JarUtil {
                     sortList.add(file);
                 }
 
-                InputStream input = null;
+                InputStream input;
 
                 // sort them
                 Collections.sort(sortList);
@@ -753,7 +760,7 @@ class JarUtil {
                     sortList.add(file);
                 }
 
-                InputStream input = null;
+                InputStream input;
 
                 // sort them
                 Collections.sort(sortList);
@@ -849,7 +856,7 @@ class JarUtil {
             String pathName = fullPaths.get(i);
 
             // determine if we have a directory or not.
-            if (fileName.indexOf("/") > -1 || fileName.indexOf("\\") > -1) {
+            if (fileName.contains("/") || fileName.contains("\\")) {
                 int indexOf = pathName.indexOf(fileName);
 
                 // if our filename is a part of the path (this is when loading classes)
@@ -889,7 +896,7 @@ class JarUtil {
      * Similar to 'jar', however this is for war files instead.
      */
     public static
-    void war(String warFilePath, List<String> fullPaths, List<String> relativePaths) throws FileNotFoundException, IOException {
+    void war(String warFilePath, List<String> fullPaths, List<String> relativePaths) throws IOException {
         // CLEANUP DIRECTORIES
         Set<String> directories = figureOutDirectories(fullPaths, relativePaths);
 
@@ -903,7 +910,7 @@ class JarUtil {
             // - Directory names must end with a slash '/'
             // - All paths must use '/' style slashes, not '\'
             // - JarEntry names should NOT begin with '/'
-            BufferedInputStream input = null;
+            BufferedInputStream input;
 
             // FIRST all directories
             for (String dirName : directories) {
@@ -1172,7 +1179,7 @@ class JarUtil {
         try {
             input = new BufferedReader(new InputStreamReader(inputStreamCopy));
             //FileReader always assumes default encoding is OK!
-            String line = null;
+            String line;
             /*
              * returns the content of a line MINUS the newline.
              * returns null only for the END of the stream.
@@ -1182,6 +1189,7 @@ class JarUtil {
                 iniFileArgs.add(line);
             }
         } catch (IOException e) {
+            e.printStackTrace();
         } finally {
             Sys.close(input);
         }
@@ -1205,6 +1213,7 @@ class JarUtil {
                 output.write(OS.LINE_SEPARATOR);
             }
         } catch (IOException e) {
+            e.printStackTrace();
         } finally {
             Sys.close(output);
         }
@@ -1368,8 +1377,6 @@ class JarUtil {
      * Also makes sure to have our custom header (in 'extra data') written for each entry
      * <p/>
      * This is how we get the JAR file size down.
-     *
-     * @return
      */
     public static
     void packageJar(String jarName, BuildOptions properties, EncryptInterface encryption, ExtraDataInterface extraDataWriter,
@@ -1505,7 +1512,7 @@ class JarUtil {
 
         String extension = repack.getExtension();
         if (extension.endsWith("tar")) {
-            TarInputStream newInputStream = null;
+            TarInputStream newInputStream;
             newInputStream = new TarInputStream(inputStream);
 
             try {
@@ -1581,7 +1588,7 @@ class JarUtil {
 
                         gzipInputStream = new GZIPInputStream(inputStream);
                         byte[] buffer = new byte[8192];
-                        int read = 0;
+                        int read;
                         while ((read = gzipInputStream.read(buffer)) > 0) {
                             jarOutputStream.write(buffer, 0, read);
                         }
@@ -1597,7 +1604,7 @@ class JarUtil {
             else {
                 // input stream can be fileInputStream (if it was a file)
                 // or a bytearrayinput stream if it was a stream from another file
-                boolean isZip = false;
+                boolean isZip;
                 if (inputStream instanceof FileInputStream) {
                     File file = new File(name);
                     isZip = isZipFile(file);
@@ -1691,6 +1698,8 @@ class JarUtil {
 
                 // convert the output stream to an input stream
                 inputStream = new ByteArrayInputStream(encryptedOutputStream.toByteArray());
+                // not used because it's the last statement. Keeping just for sanity in case more statements are added
+                //noinspection UnusedAssignment
                 length = inputStream.available();
             }
             else {
@@ -1706,11 +1715,9 @@ class JarUtil {
      *
      * @param primaryFile This is the file that will contain all of the other files.
      * @param files       Array of files (zips/jars) to be added into the primary file
-     * @throws IOException
-     * @throws FileNotFoundException
      */
     public static
-    void merge(File primaryFile, File... files) throws FileNotFoundException, IOException {
+    void merge(File primaryFile, File... files) throws IOException {
         String[] fileNames = new String[files.length];
 
         for (int i = 0; i < files.length; i++) {
@@ -1725,11 +1732,9 @@ class JarUtil {
      *
      * @param primaryFile This is the file that will contain all of the other files.
      * @param files       Array of files (zips/jars) to be added into the primary file
-     * @throws IOException
-     * @throws FileNotFoundException
      */
     public static
-    void merge(File primaryFile, String... files) throws FileNotFoundException, IOException {
+    void merge(File primaryFile, String... files) throws IOException {
         Builder.log().println("Merging files into single jar/zip: '" + primaryFile + "'");
 
         // write everything to staging dir, then jar it up.
