@@ -40,7 +40,7 @@ public class JavaBuilder {
     // ~/dorkbox/eclipse/jre/bin/java -Xrunjdwp:transport=dt_socket,server=y,address=1044 -jar dist/JavaBuilder_v1.6.jar build javabuilder
 
     public static final String name = "JavaBuilder";
-    public static final String version = "v1.6";
+    public static final String version = "v1.9";
 
     public static final String root = BuildStrings.path(BuildStrings.ProjectPath.GitHub, name);
     public static final String src = BuildStrings.path(root, "src");
