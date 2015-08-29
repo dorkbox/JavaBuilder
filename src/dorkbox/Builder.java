@@ -43,6 +43,8 @@ import java.util.zip.ZipInputStream;
 @SuppressWarnings("ALL")
 public
 class Builder {
+    // UNICODE is from: https://en.wikipedia.org/wiki/List_of_Unicode_characters#Box_Drawing
+
     public static final String BUILD_MODE = "build";
 
     /**
