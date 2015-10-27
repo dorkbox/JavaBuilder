@@ -78,6 +78,7 @@ class Build {
     /**
      * Retrieve the location that this classfile was loaded from, or possibly null if the class was compiled on the fly
      */
+    @SuppressWarnings("Duplicates")
     public static
     File get(Class<?> clazz) {
         // Get the location of this class
@@ -96,8 +97,7 @@ class Build {
         // Can have %20 as spaces (in winxp at least). need to convert to proper path from URL
         try {
             String fileName = URLDecoder.decode(loc.getFile(), "UTF-8");
-            File file = new File(fileName).getAbsoluteFile().getCanonicalFile();
-            return file;
+            return new File(fileName).getAbsoluteFile().getCanonicalFile();
 
         } catch (UnsupportedEncodingException e) {
             throw new RuntimeException("Unable to decode file path!", e);
