@@ -603,6 +603,13 @@ class Builder {
         return null;
     }
 
+    /**
+     * Register the following source module locations for the compile stage.
+     * </p>
+     * This is to ensure that when we are looking for the java source file, we look in the project, not the jar. This is because
+     * the source can exist in multiple locations (potentially), or in a non-specific location. This makes it available, and overrides
+     * the default location (for the src file).
+     */
     public static
     void registerModule(final String name, final String src) {
         moduleCache.put(name, new File(src));
