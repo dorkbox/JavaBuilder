@@ -383,18 +383,28 @@ class Builder {
         return buffer.toString();
     }
 
+
+
     /**
      * Gets the java file (from class file) when running from an IDE.
      */
     public static
     File getJavaFileSourceDir(final Class<?> clazz, File rootFile) throws IOException {
+        return getJavaFileSourceDir(clazz.getCanonicalName(), rootFile);
+    }
+
+    /**
+     * Gets the java file (from class file cannonical name) when running from an IDE.
+     */
+    public static
+    File getJavaFileSourceDir(final String classCannonicalName, File rootFile) throws IOException {
         String rootPath = rootFile.getAbsolutePath();
 
         // our dorkbox util library is reused everywhere, and it is important to ALWAYS pull fresh. So we grab from the source
         final boolean isDir = rootFile.isDirectory();
 
         if (!isDir && rootPath.endsWith(".jar")) {
-            String fileName = clazz.getCanonicalName();
+            String fileName = classCannonicalName;
             String convertJava = fileName.replace('.', File.separatorChar) + ".java";
 
             for (Entry<String, File> module : moduleCache.entrySet()) {
@@ -443,7 +453,7 @@ class Builder {
         String rootPath = rootFile.getAbsolutePath();
         String fileName = clazz.getCanonicalName();
 
-        final File sourceDir = getJavaFileSourceDir(clazz, rootFile);
+        final File sourceDir = getJavaFileSourceDir(fileName, rootFile);
 
         if (sourceDir != null) {
             String convertJava = fileName.replace('.', File.separatorChar) + ".java";
@@ -714,18 +724,18 @@ class Builder {
     }
 
     public static
-    boolean deleteFile(String target) {
-        return deleteFile(new File(FileUtil.normalizeAsFile(target)));
+    boolean delete(String target) {
+        return delete(new File(FileUtil.normalizeAsFile(target)));
     }
 
     public static
-    boolean deleteFile(File target) {
+    boolean delete(File target) {
         target = FileUtil.normalize(target);
 
-        log().title("Deleting file")
+        log().title("Deleting")
              .println(target.getAbsolutePath());
 
-        return target.delete();
+        return FileUtil.delete(target);
     }
 
     public static

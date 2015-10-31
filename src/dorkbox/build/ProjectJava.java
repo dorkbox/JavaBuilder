@@ -22,6 +22,8 @@ import com.esotericsoftware.yamlbeans.YamlWriter;
 import com.esotericsoftware.yamlbeans.scalar.ScalarSerializer;
 import dorkbox.Builder;
 import dorkbox.build.util.BuildLog;
+import dorkbox.build.util.CrossCompileClass;
+import dorkbox.build.util.DependencyWalker;
 import dorkbox.build.util.classloader.ByteClassloader;
 import dorkbox.build.util.classloader.JavaMemFileManager;
 import dorkbox.license.License;
@@ -29,11 +31,23 @@ import dorkbox.license.LicenseType;
 import dorkbox.util.FileUtil;
 import dorkbox.util.OS;
 
-import javax.tools.*;
-import java.io.*;
+import javax.tools.Diagnostic;
+import javax.tools.DiagnosticCollector;
+import javax.tools.JavaCompiler;
+import javax.tools.JavaFileManager;
+import javax.tools.JavaFileObject;
+import javax.tools.StandardJavaFileManager;
+import javax.tools.ToolProvider;
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public
@@ -47,6 +61,10 @@ class ProjectJava extends Project<ProjectJava> {
     private ByteClassloader bytesClassloader = null;
 
     private Jarable jarable = null;
+
+    private boolean suppressSunWarnings = false;
+    private final List<CrossCompileClass> crossCompileClasses = new ArrayList<CrossCompileClass>(4);
+
 
     public static
     ProjectJava create(String projectName) {
@@ -134,21 +152,145 @@ class ProjectJava extends Project<ProjectJava> {
         return this;
     }
 
+    public
+    Jarable jar() {
+        if (this.jarable == null) {
+            this.jarable = new Jarable(this);
+        }
+        return this.jarable;
+    }
 
+    /**
+     * Suppress sun warnings during the compile stage. ONLY enable this is you know what you are doing in your project!
+     */
+    public
+    ProjectJava suppressSunWarnings() {
+        this.suppressSunWarnings = true;
+        return this;
+    }
+
+    /**
+     * Builds using the current, detected JDK.
+     */
     @Override
     public
     void build() throws IOException {
+        build(OS.javaVersion);
+    }
+
+    /**
+     * Specifies the version to compile to?
+     * <p/>
+     * IE: compile for 1.6 on JDK 1.8. When compiling for a different version, you jave that version's 1.6 rt.jar
+     */
+    public
+    void build(final int targetJavaVersion) throws IOException {
         // exit early if we already built this project
         if (checkAndBuildDependencies()) {
             return;
         }
 
+        // have to build cross-compiled files first.
+        File crossCompatBuiltFile = null;
+        if (!crossCompileClasses.isEmpty()) {
+
+
+            crossCompatBuiltFile = new File(this.stagingDir.getParent(), "crossCompileBuilt");
+            FileUtil.delete(crossCompatBuiltFile);
+            FileUtil.mkdir(crossCompatBuiltFile);
+
+            Map<File, String> relativeLocations = new HashMap<File, String>();
+            for (CrossCompileClass crossCompileClass : crossCompileClasses) {
+                Paths sourceFiles = crossCompileClass.sourceFiles;
+
+                BuildLog.start();
+                if (OS.javaVersion > crossCompileClass.targetJavaVersion) {
+                    Set<String> dependencies = new HashSet<String>();
+
+
+                    for (File sourceFile : sourceFiles.getFiles()) {
+                        Builder.log().title("Cross-Compile").println(sourceFile.getName() + " [Java v1." + crossCompileClass
+                                        .targetJavaVersion + "]");
+                        String relativeNameNoExtension = DependencyWalker.collect(sourceFile, dependencies);
+                        relativeLocations.put(sourceFile, relativeNameNoExtension);
+                    }
+
+                    BuildLog.disable();
+
+                    Paths tempSource = new Paths();
+                    for (String dependency : dependencies) {
+                        tempSource.addFile(dependency);
+                    }
+
+                    ProjectJava tempProject = ProjectJava.create("CrossCompileClasses")
+                                                      .options(buildOptions)
+                                                      .keepStaging()
+                                                      .sourcePath(tempSource)
+                                                      .sourcePath(sourceFiles);
+                    tempProject.build(crossCompileClass.targetJavaVersion);
+
+                    // now have to save out the source files (that are now converted to .class files)
+                    for (File sourceFile : sourceFiles.getFiles()) {
+                        String s = relativeLocations.get(sourceFile) + ".class";
+                        File file = new File(tempProject.stagingDir, s);
+                        FileUtil.copyFile(file, new File(crossCompatBuiltFile, s));
+                    }
+
+
+                    FileUtil.delete(tempProject.stagingDir);
+
+                    BuildLog.enable();
+                }
+
+                BuildLog.finish();
+            }
+
+            // now have to add this dir to our project
+            Paths crossFiles = new Paths();
+            crossFiles.addFile(crossCompatBuiltFile.getAbsolutePath());
+            classPath(crossFiles);
+
+            Paths crossIncludeFiles = new Paths();
+            for (String relativeName : relativeLocations.values()) {
+                crossIncludeFiles.add(crossCompatBuiltFile.getAbsolutePath(), relativeName + ".class");
+
+            }
+            extraFiles(crossIncludeFiles);
+
+
+            // have to remove all the relative java files (since we don't want to normally build them)
+            // the EASIEST way is to make a copy
+            List<File> files = sourcePaths.getFiles();
+            Paths copy = new Paths();
+            for (File file : files) {
+                boolean canAdd = true;
+
+                for (File crossFile : relativeLocations.keySet()) {
+                    if (crossFile.equals(file)) {
+                        canAdd = false;
+                        break;
+                    }
+                }
+
+                if (canAdd) {
+                    copy.add(file.getParent(), file.getName());
+                }
+            }
+            sourcePaths = copy;
+        }
+
+
         Builder.log().println();
         if (this.bytesClassloader == null && this.jarable == null) {
-            Builder.log().title("Building").println(this.name, "Output - " + this.stagingDir);
+            Builder.log().title("Building").println(this.name);
+            FileUtil.delete(this.stagingDir);
         }
         else {
             Builder.log().title("Building").println(this.name);
+        }
+
+        if (OS.javaVersion > targetJavaVersion) {
+            Builder.log().title("Cross-Compile").println("Java v1." + targetJavaVersion);
         }
 
         boolean shouldBuild = !verifyChecksums();
@@ -174,7 +316,7 @@ class ProjectJava extends Project<ProjectJava> {
                 this.classPaths.addFile(project.outputFile.getAbsolutePath());
             }
 
-            runCompile();
+            runCompile(targetJavaVersion);
             Builder.log().println("Compile success");
 
             if (this.jarable != null) {
@@ -184,21 +326,24 @@ class ProjectJava extends Project<ProjectJava> {
             // calculate the hash of all the files in the source path
             saveChecksums();
 
-            FileUtil.delete(this.stagingDir);
+
+            if (crossCompatBuiltFile != null) {
+                Builder.delete(crossCompatBuiltFile);
+            }
+
+            if (!keepStaging) {
+                Builder.delete(this.stagingDir);
+            }
+            else {
+                Builder.log().println("Output - " + this.stagingDir);
+            }
         }
         else {
             Builder.log().println("Skipped (nothing changed)");
         }
 
         buildList.add(this.name);
-    }
-
-    public
-    Jarable jar() {
-        if (this.jarable == null) {
-            this.jarable = new Jarable(this);
-        }
-        return this.jarable;
+        Builder.log().println();
     }
 
     /**
@@ -260,7 +405,7 @@ class ProjectJava extends Project<ProjectJava> {
      * Compiles into class files.
      */
     private synchronized
-    void runCompile() throws IOException {
+    void runCompile(final int targetJavaVersion) throws IOException {
         // if you get messages, such as
         // warning: [path] bad path element "/x/y/z/lib/fubar-all.jar": no such file or directory
         //   That is because that file exists in a MANIFEST.MF somewhere on the classpath! Find the jar that has that, and rip out
@@ -299,22 +444,20 @@ class ProjectJava extends Project<ProjectJava> {
         args.add("-encoding");
         args.add("UTF-8");
 
-        if (OS.javaVersion > this.buildOptions.compiler.targetJavaVersion) {
-            Builder.log().println("Building cross-platform target for version: " + this.buildOptions.compiler.targetJavaVersion);
+        if (OS.javaVersion > targetJavaVersion) {
             // if our runtime env. is NOT equal to our target env.
             args.add("-source");
-            args.add("1." + this.buildOptions.compiler.targetJavaVersion);
+            args.add("1." + targetJavaVersion);
 
             args.add("-target");
-            args.add("1." + this.buildOptions.compiler.targetJavaVersion);
+            args.add("1." + targetJavaVersion);
 
             args.add("-bootclasspath");
-            args.add(this.buildOptions.compiler.crossCompileLibrary.getCrossCompileLibraryLocation(
-                            this.buildOptions.compiler.targetJavaVersion));
+            args.add(this.buildOptions.compiler.crossCompileLibrary.getCrossCompileLibraryLocation(targetJavaVersion));
         }
 
         // suppress sun proprietary warnings
-        if (this.buildOptions.compiler.suppressSunWarnings) {
+        if (this.suppressSunWarnings) {
             args.add("-XDignore.symbol.file");
         }
 
@@ -343,6 +486,7 @@ class ProjectJava extends Project<ProjectJava> {
 
         if (this.classPaths != null && !this.classPaths.isEmpty()) {
             args.add("-classpath");
+            // System.err.println("CP " + this.classPaths.toString(File.pathSeparator));
             args.add(this.classPaths.toString(File.pathSeparator));
         }
 
@@ -385,7 +529,7 @@ class ProjectJava extends Project<ProjectJava> {
                 final String message = diagnostic.getMessage(null);
                 final Diagnostic.Kind kind = diagnostic.getKind();
 
-                if (this.buildOptions.compiler.suppressSunWarnings &&
+                if (this.suppressSunWarnings &&
                     (kind == Diagnostic.Kind.WARNING || kind == Diagnostic.Kind.MANDATORY_WARNING) &&
                     message.startsWith("sun.")) {
                     // skip all sun.XYZ warnings
@@ -461,6 +605,27 @@ class ProjectJava extends Project<ProjectJava> {
     String getExtension() {
         return Project.JAR_EXTENSION;
     }
+
+
+    /**
+     * Specifies different source files to be cross compiled to a different version of java. This is useful when building
+     * libraries that use runtime/etc features that have changed over time
+     * </p>
+     * The way this operates, is that is builds this file + any dependency (recursively auto-detected) to the target java version.
+     * </p>
+     * Next, it then removes ALL other files except this ones specified, and then it includes these files as a classpath to the compiler
+     * for the primary build.
+     * </p>
+     * IMPORTANT!! - this can only auto-detect dependencies that are under the same root path - meaning NO jars, external classes, etc.
+     *
+     * @param sourceFiles The source files MUST be the FULL NAME (but not the path!) of the java file
+     */
+    public
+    ProjectJava crossBuild(final int targetJavaVersion, final Paths sourceFiles) {
+        crossCompileClasses.add(new CrossCompileClass(targetJavaVersion, sourceFiles));
+        return this;
+    }
+
 
     public static
     interface OnJarEntryAction {

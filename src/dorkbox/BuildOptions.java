@@ -15,8 +15,6 @@
  */
 package dorkbox;
 
-import dorkbox.util.OS;
-
 public
 class BuildOptions {
 
@@ -48,19 +46,6 @@ class BuildOptions {
          */
         public boolean enableDebugSpeedImprovement = false;
 
-
-        /**
-         * Suppress sun warnings during the compile stage. ONLY enable this is you know what you are doing in your project!
-         */
-        public boolean suppressSunWarnings = false;
-
-        /**
-         * what version do we want to compile java for?
-         * <p/>
-         * when compiling for java 1.6, you MUST specify the 1.6 rt.jar location
-         * Also, when compiling GWT, this has no effect
-         */
-        public int targetJavaVersion = OS.javaVersion;
 
         /**
          * this is only necessary when building for lesser versions of java than you are currently running
@@ -95,7 +80,8 @@ class BuildOptions {
             }
 
             /**
-             * Please note that the binary release is GLPv2 + Classpath Exception, giving us permission to use it to compile binaries
+             * Please note that the binary release is GLPv2 + Classpath Exception, giving us permission to use it to compile binaries.
+             * If the file ends in .lzma.pack, the system will automatically unpack/un-lzma the file.
              */
             @SuppressWarnings("MethodMayBeStatic")
             public
