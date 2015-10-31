@@ -128,6 +128,10 @@ class Project<T extends Project<T>> {
     private ArrayList<String> unresolvedDependencies = new ArrayList<String>();
 
 
+    protected boolean keepStaging = false;
+
+
+
     public static
     Project<?> get(String projectName) {
         if (deps.containsKey(projectName)) {
@@ -259,6 +263,19 @@ class Project<T extends Project<T>> {
 
     public abstract
     String getExtension();
+
+
+
+    /**
+     * Keeps the staging directory (normally this is deleted when the compile is finished).
+     * </p>
+     * Make sure to delete this directory manually.
+     */
+    public
+    T keepStaging() {
+        this.keepStaging = true;
+        return (T) this;
+    }
 
 
     public

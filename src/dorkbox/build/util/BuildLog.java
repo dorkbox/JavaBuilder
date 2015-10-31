@@ -18,6 +18,7 @@ package dorkbox.build.util;
 import dorkbox.util.OS;
 
 import java.io.PrintStream;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public
 class BuildLog {
@@ -28,7 +29,7 @@ class BuildLog {
 
     public static volatile int TITLE_WIDTH = 14; // so the first one goes to 16
     public static boolean wasNested = false;
-    private static volatile boolean suppressOutput = false;
+    private static AtomicInteger suppressCount = new AtomicInteger(0);
 
     public static
     BuildLog start() {
@@ -47,12 +48,12 @@ class BuildLog {
 
     public static
     void enable() {
-        suppressOutput = false;
+        suppressCount.getAndDecrement();
     }
 
     public static
     void disable() {
-        suppressOutput = true;
+        suppressCount.getAndIncrement();
     }
 
     private final PrintStream printer;
@@ -136,8 +137,6 @@ class BuildLog {
 
     /**
      * Creates everything in front of the message section, so that our "message" can be appended to each log entry if desired
-     *
-     * @return
      */
     private
     StringBuilder prepTitle(String title, boolean newLine) {
@@ -209,9 +208,9 @@ class BuildLog {
         print(true, message);
     }
 
-    private final
+    private
     void print(boolean newLine, Object... message) {
-        if (suppressOutput) {
+        if (suppressCount.get() != 0) {
             return;
         }
 
