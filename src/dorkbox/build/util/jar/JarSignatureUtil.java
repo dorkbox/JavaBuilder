@@ -15,6 +15,17 @@
  */
 package dorkbox.build.util.jar;
 
+import dorkbox.util.Base64Fast;
+import dorkbox.util.OS;
+import dorkbox.util.Sys;
+import org.bouncycastle.asn1.ASN1InputStream;
+import org.bouncycastle.asn1.ASN1Primitive;
+import org.bouncycastle.asn1.ASN1Sequence;
+import org.bouncycastle.asn1.ASN1TaggedObject;
+import org.bouncycastle.asn1.DERSequence;
+import org.bouncycastle.asn1.cms.ContentInfo;
+import org.bouncycastle.asn1.cms.SignedData;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
@@ -35,24 +46,12 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 
-import org.bouncycastle.asn1.ASN1InputStream;
-import org.bouncycastle.asn1.ASN1Primitive;
-import org.bouncycastle.asn1.ASN1Sequence;
-import org.bouncycastle.asn1.ASN1TaggedObject;
-import org.bouncycastle.asn1.DERSequence;
-import org.bouncycastle.asn1.cms.ContentInfo;
-import org.bouncycastle.asn1.cms.SignedData;
-
-import dorkbox.util.Base64Fast;
-import dorkbox.util.OS;
-import dorkbox.util.Sys;
-
 public class JarSignatureUtil {
     /**
      * a small helper function that will convert a manifest into an array of
      * bytes
      */
-    public static final byte[] serialiseManifest(Manifest manifest) throws IOException {
+    public static byte[] serialiseManifest(Manifest manifest) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         manifest.write(baos);
         baos.flush();
@@ -66,7 +65,7 @@ public class JarSignatureUtil {
      * digests. we store the new entries into the entries Map and return it (we
      * do not compute the digests for those entries in the META-INF directory)
      */
-    public static final Map<String, Attributes> updateManifestHashes(Manifest manifest, JarFile jarFile, MessageDigest messageDigest) throws IOException {
+    public static Map<String, Attributes> updateManifestHashes(Manifest manifest, JarFile jarFile, MessageDigest messageDigest) throws IOException {
         Map<String, Attributes> entries = manifest.getEntries();
         Enumeration<JarEntry> jarElements = jarFile.entries();
         String digestName = messageDigest.getAlgorithm() + "-Digest";
@@ -98,7 +97,7 @@ public class JarSignatureUtil {
     /**
      * @return null if there is a problem with the certificate loading process.
      */
-    public static final String extractSignatureHashFromSignatureBlock(byte[] signatureBlock) {
+    public static String extractSignatureHashFromSignatureBlock(byte[] signatureBlock) {
         ASN1InputStream sigStream = null;
         try {
             CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
@@ -126,7 +125,8 @@ public class JarSignatureUtil {
                 String encodeToString = Base64Fast.encodeToString(newSigCertificateBytes, false);
                 return encodeToString;
             }
-        } catch (IOException e) {} catch (CertificateException e) {}
+        } catch (IOException ignored) {
+        } catch (CertificateException ignored) {}
         finally {
             Sys.close(sigStream);
         }
@@ -139,7 +139,7 @@ public class JarSignatureUtil {
      *
      * @return true if the two certificates are the same. false otherwise.
      */
-    public static final boolean compareCertificates(byte[] newSignatureContainerBytes, byte[] oldSignatureContainerBytes) {
+    public static boolean compareCertificates(byte[] newSignatureContainerBytes, byte[] oldSignatureContainerBytes) {
         ASN1InputStream newSigStream = null;
         ASN1InputStream oldSigStream = null;
         try {
@@ -196,7 +196,7 @@ public class JarSignatureUtil {
      * digest and manifest.
      */
     @SuppressWarnings("deprecation")
-    public static final Manifest createSignatureFileManifest(MessageDigest messageDigest, Manifest manifest, byte[] manifestBytes) throws IOException, SecurityException, NoSuchMethodException, IllegalArgumentException, IllegalAccessException, InvocationTargetException {
+    public static Manifest createSignatureFileManifest(MessageDigest messageDigest, Manifest manifest, byte[] manifestBytes) throws IOException, SecurityException, NoSuchMethodException, IllegalArgumentException, IllegalAccessException, InvocationTargetException {
 
         String messageDigestTitle = messageDigest.getAlgorithm() + "-Digest";
 
@@ -284,7 +284,7 @@ public class JarSignatureUtil {
                 entryName = new String(vb, 0, 0, vb.length);
             }
             buffer.append(entryName);
-            buffer.append("\r\n"); // must be this because of stupid windows...
+            buffer.append(OS.LINE_SEPARATOR_WINDOWS); // must be this because of stupid windows...
             make72Method.invoke(null, buffer);
             dataOutputStream.writeBytes(buffer.toString());
 
