@@ -18,7 +18,6 @@ package dorkbox.build.util;
 import dorkbox.util.OS;
 
 import java.io.PrintStream;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public
 class BuildLog {
@@ -29,7 +28,7 @@ class BuildLog {
 
     public static volatile int TITLE_WIDTH = 14; // so the first one goes to 16
     public static boolean wasNested = false;
-    private static AtomicInteger suppressCount = new AtomicInteger(0);
+    private static volatile int suppressCount = 0;
 
     public static
     BuildLog start() {
@@ -46,14 +45,17 @@ class BuildLog {
         return buildLog;
     }
 
-    public static
+    public static synchronized
     void enable() {
-        suppressCount.getAndDecrement();
+        if (suppressCount > 0) {
+            // don't let us go <0. Enable has to match disable counts to build, but if there are too many "enable", who cares
+            suppressCount--;
+        }
     }
 
-    public static
+    public static synchronized
     void disable() {
-        suppressCount.getAndIncrement();
+        suppressCount++;
     }
 
     private final PrintStream printer;
@@ -210,7 +212,7 @@ class BuildLog {
 
     private
     void print(boolean newLine, Object... message) {
-        if (suppressCount.get() != 0) {
+        if (suppressCount != 0) {
             return;
         }
 
