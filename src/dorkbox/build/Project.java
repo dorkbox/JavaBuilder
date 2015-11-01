@@ -53,7 +53,7 @@ class Project<T extends Project<T>> {
             int size = o1.dependencies.size();
             int size1 = o2.dependencies.size();
 
-            int compare = Integer.compare(size, size1);
+            int compare =(size < size1) ? -1 : ((size == size1) ? 0 : 1);
             if (compare == 0) {
                 return o1.name.compareTo(o2.name);
             }
