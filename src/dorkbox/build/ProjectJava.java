@@ -193,8 +193,6 @@ class ProjectJava extends Project<ProjectJava> {
         // have to build cross-compiled files first.
         File crossCompatBuiltFile = null;
         if (!crossCompileClasses.isEmpty()) {
-
-
             crossCompatBuiltFile = new File(this.stagingDir.getParent(), "crossCompileBuilt");
             FileUtil.delete(crossCompatBuiltFile);
             FileUtil.mkdir(crossCompatBuiltFile);
@@ -282,11 +280,11 @@ class ProjectJava extends Project<ProjectJava> {
 
         Builder.log().println();
         if (this.bytesClassloader == null && this.jarable == null) {
-            Builder.log().title("Building").println(this.name);
+            Builder.log().title("Compiling").println(this.name);
             FileUtil.delete(this.stagingDir);
         }
         else {
-            Builder.log().title("Building").println(this.name);
+            Builder.log().title("Compiling").println(this.name);
         }
 
         if (OS.javaVersion > targetJavaVersion) {
@@ -301,16 +299,13 @@ class ProjectJava extends Project<ProjectJava> {
             }
 
             // make sure ALL dependencies are on the classpath.
-            Set<Project<?>> depends = new HashSet<Project<?>>(this.dependencies);
-            getRecursiveDependencies(depends);
-
-            for (Project<?> project : depends) {
+            for (Project<?> project : fullDependencyList) {
                 // dep can be a jar as well
                 if (!project.outputFile.canRead()) {
-                    throw new IOException(
-                                    "Dependency for project :" + this.name + " does not exist. '" + project.outputFile.getAbsolutePath() +
-                                    "'");
+                    throw new IOException("Dependency for project :" + this.name + " does not exist. '" +
+                                          project.outputFile.getAbsolutePath() + "'");
                 }
+
                 // if we are compiling our build instructions (and projects), this won't exist. This is OK,
                 // because we run from memory instead (in the classloader)
                 this.classPaths.addFile(project.outputFile.getAbsolutePath());
