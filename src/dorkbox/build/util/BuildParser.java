@@ -15,6 +15,17 @@
  */
 package dorkbox.build.util;
 
+import com.esotericsoftware.wildcard.Paths;
+import com.esotericsoftware.yamlbeans.YamlException;
+import com.esotericsoftware.yamlbeans.YamlReader;
+import com.esotericsoftware.yamlbeans.parser.Parser.ParserException;
+import com.esotericsoftware.yamlbeans.tokenizer.Tokenizer.TokenizerException;
+import dorkbox.Builder;
+import dorkbox.build.SimpleArgs;
+import dorkbox.util.FileUtil;
+import dorkbox.util.OS;
+import dorkbox.util.Sys;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -26,17 +37,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-
-import com.esotericsoftware.wildcard.Paths;
-import com.esotericsoftware.yamlbeans.YamlException;
-import com.esotericsoftware.yamlbeans.YamlReader;
-import com.esotericsoftware.yamlbeans.parser.Parser.ParserException;
-import com.esotericsoftware.yamlbeans.tokenizer.Tokenizer.TokenizerException;
-
-import dorkbox.Builder;
-import dorkbox.build.SimpleArgs;
-import dorkbox.util.FileUtil;
-import dorkbox.util.Sys;
 
 public class BuildParser {
     @SuppressWarnings("unchecked")
@@ -68,7 +68,7 @@ public class BuildParser {
         BufferedReader fileReader = null;
         try {
             fileReader = new BufferedReader(new FileReader(file));
-            StringBuffer buffer = new StringBuffer(2048);
+            StringBuilder buffer = new StringBuilder(2048);
             // we SPLIT each map by the "name" field (which MUST be the first entry for a build file)
             String currentEntry = null;
             String name = "name";
@@ -87,7 +87,7 @@ public class BuildParser {
                     currentEntry = line.substring(line.indexOf(':')+1).trim();
                 } else if (!line.isEmpty()) {
                     buffer.append(line);
-                    buffer.append('\n');
+                    buffer.append(OS.LINE_SEPARATOR);
                 }
             }
 
