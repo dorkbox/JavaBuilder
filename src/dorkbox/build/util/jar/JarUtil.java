@@ -580,7 +580,7 @@ class JarUtil {
             // NEXT all directories
             ///////////////////////////////////////////////
             {
-                List<String> sortedDirectories = new ArrayList<String>(directories.size());
+                List<String> sortedDirectories = new ArrayList<String>(directories.size() * 3);
                 for (String dirName : directories) {
                     if (!dirName.endsWith("/")) {
                         dirName += "/";
@@ -589,8 +589,46 @@ class JarUtil {
                     sortedDirectories.add(dirName);
                 }
 
+                // ALSO handle "extra" directories
+                if (options.extraPaths != null) {
+                    List<SortedFiles> sortList = new ArrayList<SortedFiles>(options.extraPaths.count());
+
+                    List<String> extraFullPaths = options.extraPaths.getPaths();
+                    List<String> extraRelativePaths = options.extraPaths.getRelativePaths();
+
+                    Set<String> extraDirectories = figureOutDirectories(extraFullPaths, extraRelativePaths);
+
+                    for (String dirName : extraDirectories) {
+                        if (!dirName.endsWith("/")) {
+                            dirName += "/";
+                        }
+
+                        sortedDirectories.add(dirName);
+                    }
+                }
+
+                // ALSO handle "source" directories
+                if (options.sourcePaths != null && !options.sourcePaths.isEmpty()) {
+                    List<SortedFiles> sortList = new ArrayList<SortedFiles>(options.sourcePaths.count());
+
+                    List<String> sourceFullPaths = options.sourcePaths.getPaths();
+                    List<String> sourceRelativePaths = options.sourcePaths.getRelativePaths();
+
+                    Set<String> sourceDirectories = figureOutDirectories(sourceFullPaths, sourceRelativePaths);
+
+                    for (String dirName : sourceDirectories) {
+                        if (!dirName.endsWith("/")) {
+                            dirName += "/";
+                        }
+
+                        sortedDirectories.add(dirName);
+                    }
+                }
+
+
                 // sort them
                 Collections.sort(sortedDirectories);
+
                 for (String dirName : sortedDirectories) {
                     JarEntry jarEntry = new JarEntry(dirName);
                     jarEntry.setTime(Builder.buildDate); // hidden when view a jar, but it's always there
@@ -721,21 +759,26 @@ class JarUtil {
 
                 // sort them
                 Collections.sort(sortList);
-                for (SortedFiles cf : sortList) {
-                    JarEntry jarEntry = new JarEntry(cf.fileName);
-                    if (options.overrideDate > -1) {
-                        jarEntry.setTime(options.overrideDate);
-                    }
-                    else {
-                        jarEntry.setTime(cf.file.lastModified());
-                    }
-                    output.putNextEntry(jarEntry);
 
-                    // else just copy the file over
-                    input = new BufferedInputStream(new FileInputStream(cf.file));
-                    Sys.copyStream(input, output);
-                    Sys.close(input);
-                    output.closeEntry();
+                for (SortedFiles cf : sortList) {
+                    File file = cf.file;
+
+                    if (!file.isDirectory()) {
+                        JarEntry jarEntry = new JarEntry(cf.fileName);
+                        if (options.overrideDate > -1) {
+                            jarEntry.setTime(options.overrideDate);
+                        }
+                        else {
+                            jarEntry.setTime(file.lastModified());
+                        }
+                        output.putNextEntry(jarEntry);
+
+                        // else just copy the file over
+                        input = new BufferedInputStream(new FileInputStream(file));
+                        Sys.copyStream(input, output);
+                        Sys.close(input);
+                        output.closeEntry();
+                    }
                 }
             }
 
@@ -767,19 +810,24 @@ class JarUtil {
                 for (SortedFiles cf : sortList) {
 
                     JarEntry jarEntry = new JarEntry(cf.fileName);
-                    if (options.overrideDate > -1) {
-                        jarEntry.setTime(options.overrideDate);
-                    }
-                    else {
-                        jarEntry.setTime(cf.file.lastModified());
-                    }
-                    output.putNextEntry(jarEntry);
+                    File file = cf.file;
 
-                    // else just copy the file over
-                    input = new BufferedInputStream(new FileInputStream(cf.file));
-                    Sys.copyStream(input, output);
-                    Sys.close(input);
-                    output.closeEntry();
+                    if (!file.isDirectory()) {
+                        if (options.overrideDate > -1) {
+                            jarEntry.setTime(options.overrideDate);
+                        }
+                        else {
+                            jarEntry.setTime(file.lastModified());
+                        }
+                        output.putNextEntry(jarEntry);
+
+                        // else just copy the file over
+                        input = new BufferedInputStream(new FileInputStream(file));
+                        Sys.copyStream(input, output);
+                        Sys.close(input);
+
+                        output.closeEntry();
+                    }
                 }
             }
 
@@ -1311,7 +1359,8 @@ class JarUtil {
             String sourcePath = FileUtil.normalizeAsFile(pack.getSourcePath());
             String destPath = pack.getDestPath();
 
-            Builder.log().println("  '" + sourcePath + "' -> '" + destPath + "'");
+
+            Builder.log().println("  ╭─ " + sourcePath, "╰───> " + destPath);
 
             InputStream inputStream;
             int length = 0;
