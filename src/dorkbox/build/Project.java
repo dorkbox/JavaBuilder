@@ -45,6 +45,23 @@ class Project<T extends Project<T>> {
 
     private static boolean forceRebuild = false;
     private static boolean alreadyChecked = false;
+    private static Comparator<Project> dependencyComparator = new Comparator<Project>() {
+        @Override
+        public
+        int compare(Project o1, Project o2) {
+            // empty projects are first
+            int size = o1.dependencies.size();
+            int size1 = o2.dependencies.size();
+
+            int compare = Integer.compare(size, size1);
+            if (compare == 0) {
+                return o1.name.compareTo(o2.name);
+            }
+            else {
+                return compare;
+            }
+        }
+    };
 
     // used to suppress certain messages when building deps
     protected boolean isBuildingDependencies = false;
@@ -84,6 +101,7 @@ class Project<T extends Project<T>> {
                     Builder.settings.save("BUILD", hashedContents);
                 }
             } catch (IOException e) {
+                e.printStackTrace();
             }
         }
     }
@@ -119,7 +137,11 @@ class Project<T extends Project<T>> {
 
     protected Paths extraFiles = new Paths();
 
+    /** DIRECT dependencies for this project */
     protected List<Project<?>> dependencies = new ArrayList<Project<?>>();
+
+    /** ALL related dependencies for this project (ie: recursively searched) */
+    protected List<Project<?>> fullDependencyList = null;
 
     private transient Paths checksumPaths = new Paths();
     protected List<License> licenses = new ArrayList<License>();
@@ -151,20 +173,7 @@ class Project<T extends Project<T>> {
         // were the dependencies build first. This is just an optimization step
         List<Project> copy = new ArrayList<Project>(deps.values());
 
-        Collections.sort(copy, new Comparator<Project>() {
-            @Override
-            public
-            int compare(Project o1, Project o2) {
-                if (o1 == null || o1.dependencies.isEmpty()) {
-                    return -1;
-                }
-                else if (o2 == null || o2.dependencies.isEmpty()) {
-                    return 1;
-                }
-
-                return o1.name.compareTo(o2.name);
-            }
-        });
+        Collections.sort(copy, dependencyComparator);
 
         List<Project> sorted = new ArrayList<Project>(copy.size());
         Set<String> sortedCheck = new HashSet<String>(0);
@@ -317,21 +326,31 @@ class Project<T extends Project<T>> {
             return true;
         }
 
+        if (fullDependencyList != null) {
+            return true;
+        }
+
         // ONLY build the dependencies as well
         HashSet<Project<?>> deps = new HashSet<Project<?>>();
         getRecursiveDependencies(deps);
 
-        if (!deps.isEmpty()) {
-            String[] array = new String[deps.size() + 1];
-            array[0] = "Depends";
+
+        Project<?>[] array = new Project<?>[deps.size()];
+        deps.toArray(array);
+        fullDependencyList = Arrays.asList(array);
+        Collections.sort(fullDependencyList, dependencyComparator);
+
+        if (!fullDependencyList.isEmpty()) {
+            String[] array2 = new String[fullDependencyList.size() + 1];
+            array2[0] = "Depends";
             int i = 1;
-            for (Project<?> s : deps) {
-                array[i++] = s.name;
+            for (Project<?> s : fullDependencyList) {
+                array2[i++] = s.name;
             }
-            Builder.log().title(this.name).println((Object[]) array);
+            Builder.log().title(this.name).println((Object[]) array2);
         }
 
-        for (Project<?> project : deps) {
+        for (Project<?> project : fullDependencyList) {
             // dep can be a jar as well (don't have to build a jar)
             if (!(project instanceof ProjectJar)) {
                 if (!buildList.contains(project.name)) {
