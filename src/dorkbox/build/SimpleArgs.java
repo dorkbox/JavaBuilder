@@ -57,7 +57,7 @@ public class SimpleArgs {
     }
 
     /**
-     * slower than has, since this returns the arg name, AND prepares {@link getNext()} for the arg value
+     * slower than 'has', since this returns the arg name, AND prepares {@link SimpleArgs#getNext()} for the arg value
      */
     public String get(String argToCheck) {
         String argToCheck2 = argToCheck.toLowerCase(Locale.US);
@@ -110,5 +110,10 @@ public class SimpleArgs {
         } else {
             return "No args specified.";
         }
+    }
+
+    public
+    String[] getArgs() {
+        return args;
     }
 }
