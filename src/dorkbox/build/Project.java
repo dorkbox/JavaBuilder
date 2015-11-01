@@ -171,48 +171,9 @@ class Project<T extends Project<T>> {
     void buildAll() throws Exception {
         // organize the list of items to build, so that our build order is at least SOMEWHAT in order,
         // were the dependencies build first. This is just an optimization step
-        List<Project> copy = new ArrayList<Project>(deps.values());
+        List<Project> sorted = new ArrayList<Project>(deps.values());
 
-        Collections.sort(copy, dependencyComparator);
-
-        List<Project> sorted = new ArrayList<Project>(copy.size());
-        Set<String> sortedCheck = new HashSet<String>(0);
-
-        while (true) {
-            Iterator<Project> iterator = copy.iterator();
-            while (iterator.hasNext()) {
-                Project<?> next = iterator.next();
-                // first, we have to make sure that ALL of the dependencies are RESOLVED
-                next.resolveDeps();
-
-                if (next.dependencies.isEmpty()) {
-                    sorted.add(next);
-                    sortedCheck.add(next.name);
-                    iterator.remove();
-                }
-                else {
-                    List<Project<?>> list = next.dependencies;
-                    int size = list.size();
-
-                    for (Project<?> d : list) {
-                        if (sortedCheck.contains(d.name)) {
-                            size--;
-                        }
-                    }
-
-                    if (size == 0) {
-                        sorted.add(next);
-                        sortedCheck.add(next.name);
-                        iterator.remove();
-                    }
-                }
-            }
-
-            if (copy.isEmpty()) {
-                break;
-            }
-        }
-
+        Collections.sort(sorted, dependencyComparator);
         for (Project project : sorted) {
             if (!(project instanceof ProjectJar)) {
                 BuildLog.start();
