@@ -13,6 +13,8 @@ Why use XML, Groovy, Scala, JavaScript, or some other language to build your pro
 
 - This is for cross-platform use, specifically - linux 32/64, mac 32/64, and windows 32/64. Java 6+
 
+- This also permits the use of cross-compiling projects or even specific *classes* in a project (for example, when a project is compiled 
+to java6, but has code specific to java7+)
 
 For example:
 
@@ -26,7 +28,11 @@ For a real world example:
   
    
 An example of program log output is available here: https://github.com/dorkbox/JavaBuilder/wiki  
+ 
    
+```
+Please see the commit log for a comprehensive changelog
+```
 ```
 Note: This project was inspired (and some parts heavily modified) by the excellent 
       Scar project, and includes utility classes/methods from a variety of sources.
