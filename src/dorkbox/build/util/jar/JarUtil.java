@@ -1263,6 +1263,9 @@ class JarUtil {
                 output.write(arg);
                 output.write(OS.LINE_SEPARATOR);
             }
+
+            // make sure there is a new line at the end of the argument (so it's easier to read)
+            output.write(OS.LINE_SEPARATOR);
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
