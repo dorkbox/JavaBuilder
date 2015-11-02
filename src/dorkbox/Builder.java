@@ -174,7 +174,7 @@ class Builder {
                                       .toString()
                                       .replace("UTC", defaultTimeZone.getID());
 
-            if (!BuildLog.wasNested || BuildLog.TITLE_WIDTH != BuildLog.STOCK_TITLE_WIDTH) {
+            if (BuildLog.getNestedCount() == 0 || BuildLog.TITLE_WIDTH != BuildLog.STOCK_TITLE_WIDTH) {
                 log.title(title)
                    .println(args, localDateString, "Completed in: " + getRuntime(builder.startTime) + " seconds.");
             }
@@ -213,16 +213,6 @@ class Builder {
         return time;
     }
 
-    public static
-    BuildLog log() {
-        return new BuildLog();
-    }
-
-    public static
-    BuildLog log(PrintStream printer) {
-        return new BuildLog(printer);
-    }
-
     /**
      * check to see if our jdk files have been decompressed (necessary for cross target builds)
      */
@@ -231,7 +221,6 @@ class Builder {
         String jdkDist = FileUtil.normalizeAsFile(Builder.path("libs", "jdkRuntimes"));
         List<File> jdkFiles = FileUtil.parseDir(jdkDist);
         boolean first = true;
-        BuildLog log = log();
 
         for (File f : jdkFiles) {
             // unLZMA + unpack200
@@ -248,12 +237,12 @@ class Builder {
                 if (!file.canRead() || file.length() == 0) {
                     if (first) {
                         first = false;
-                        log.println("******************************");
-                        log.println("Preparing environment");
-                        log.println("******************************");
+                        BuildLog.println("******************************");
+                        BuildLog.println("Preparing environment");
+                        BuildLog.println("******************************");
                     }
 
-                    log.println("  Decompressing: " + f.getAbsolutePath());
+                    BuildLog.println("  Decompressing: " + f.getAbsolutePath());
                     InputStream inputStream = new FileInputStream(f);
                     // now uncompress
                     ByteArrayOutputStream outputStream = LZMA.decode(inputStream);
@@ -273,10 +262,10 @@ class Builder {
         }
 
         if (!first) {
-            log.println("Finished Preparing environment");
-            log.println("******************************");
-            log.println();
-            log.println();
+            BuildLog.println("Finished Preparing environment");
+            BuildLog.println("******************************");
+            BuildLog.println();
+            BuildLog.println();
         }
     }
 
@@ -732,7 +721,7 @@ class Builder {
     boolean delete(File target) {
         target = FileUtil.normalize(target);
 
-        log().title("Deleting")
+        BuildLog.title("Deleting")
              .println(target.getAbsolutePath());
 
         return FileUtil.delete(target);
@@ -744,8 +733,8 @@ class Builder {
         target = FileUtil.normalizeAsFile(target);
 
 
-        log().title("Moving file")
-             .println("  ╭─ " + source, "╰─> " + target);
+        BuildLog.title("Moving file")
+                .println("  ╭─ " + source, "╰─> " + target);
 
         return FileUtil.moveFile(source, target);
     }
@@ -756,8 +745,8 @@ class Builder {
         target = FileUtil.normalize(target);
 
 
-        log().title("Copying file")
-             .println("  ╭─ " + source.getAbsolutePath(), "╰─> " + target.getAbsolutePath());
+        BuildLog.title("Copying file")
+                .println("  ╭─ " + source.getAbsolutePath(), "╰─> " + target.getAbsolutePath());
 
         return FileUtil.copyFile(source, target);
     }
@@ -767,8 +756,8 @@ class Builder {
         source = FileUtil.normalizeAsFile(source);
         target = FileUtil.normalizeAsFile(target);
 
-        log().title("Copying file")
-             .println("  ╭─ " + source, "╰─> " + target);
+        BuildLog.title("Copying file")
+                .println("  ╭─ " + source, "╰─> " + target);
 
         FileUtil.copyFile(source, target);
     }
@@ -778,8 +767,8 @@ class Builder {
         source = FileUtil.normalizeAsFile(source);
         target = FileUtil.normalizeAsFile(target);
 
-        log().title("Copying dir")
-             .println("  ╭─ " + source, "╰─> " + target);
+        BuildLog.title("Copying dir")
+                .println("  ╭─ " + source, "╰─> " + target);
         FileUtil.copyDirectory(source, target, dirNamesToIgnore);
     }
 
@@ -894,12 +883,11 @@ class Builder {
             }
         }
 
-        BuildLog log = log();
-        log.title("Debug info")
-           .println(buildOptions.compiler.debugEnabled ? "Enabled" : "Disabled");
-        log.title("Release status")
-           .println(buildOptions.compiler.release ? "Enabled" : "Disabled");
-        log.println();
+        BuildLog.title("Debug info")
+                .println(buildOptions.compiler.debugEnabled ? "Enabled" : "Disabled");
+        BuildLog.title("Release status")
+                .println(buildOptions.compiler.release ? "Enabled" : "Disabled");
+        BuildLog.println();
 
         // now we want to update/search for all project builders.
         boolean found;
@@ -917,14 +905,14 @@ class Builder {
             String projectToBuild = args.get(1);
             String methodNameToCall = args.get(2);
             if (methodNameToCall == null) {
-                log.title("Method")
-                   .println("None specified, using default: '" + Builder.BUILD_MODE + "'");
+                BuildLog.title("Method")
+                        .println("None specified, using default: '" + Builder.BUILD_MODE + "'");
 
                 methodNameToCall = Builder.BUILD_MODE;
             }
             else {
-                log.title("Method")
-                   .println(methodNameToCall);
+                BuildLog.title("Method")
+                        .println(methodNameToCall);
             }
 
 

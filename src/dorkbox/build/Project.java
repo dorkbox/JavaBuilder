@@ -96,7 +96,7 @@ class Project<T extends Project<T>> {
                 if (forceRebuild) {
                     if (!alreadyChecked) {
                         alreadyChecked = true;
-                        Builder.log().println("Build system changed. Rebuilding.");
+                        BuildLog.println("Build system changed. Rebuilding.");
                     }
                     Builder.settings.save("BUILD", hashedContents);
                 }
@@ -176,9 +176,7 @@ class Project<T extends Project<T>> {
         Collections.sort(sorted, dependencyComparator);
         for (Project project : sorted) {
             if (!(project instanceof ProjectJar)) {
-                BuildLog.start();
                 project.build();
-                BuildLog.finish();
             }
         }
     }
@@ -282,7 +280,7 @@ class Project<T extends Project<T>> {
         // exit early if we already built this project
         if (buildList.contains(this.name)) {
             if (!this.isBuildingDependencies) {
-                Builder.log().title("Building").println(this.name + " already built this run");
+                BuildLog.title("Building").println(this.name + " already built this run");
             }
             return true;
         }
@@ -301,16 +299,6 @@ class Project<T extends Project<T>> {
         fullDependencyList = Arrays.asList(array);
         Collections.sort(fullDependencyList, dependencyComparator);
 
-        if (!fullDependencyList.isEmpty()) {
-            String[] array2 = new String[fullDependencyList.size() + 1];
-            array2[0] = "Depends";
-            int i = 1;
-            for (Project<?> s : fullDependencyList) {
-                array2[i++] = s.name;
-            }
-            Builder.log().title(this.name).println((Object[]) array2);
-        }
-
         for (Project<?> project : fullDependencyList) {
             // dep can be a jar as well (don't have to build a jar)
             if (!(project instanceof ProjectJar)) {
@@ -322,11 +310,9 @@ class Project<T extends Project<T>> {
                     if (!nothingChangd) {
                         boolean prev = project.isBuildingDependencies;
                         project.isBuildingDependencies = true;
-                        BuildLog.start();
 
                         project.build();
 
-                        BuildLog.finish();
                         project.isBuildingDependencies = prev;
                     }
                 }

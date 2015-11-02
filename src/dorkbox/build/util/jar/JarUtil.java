@@ -45,6 +45,7 @@ class JarUtil {
     /**
      * @return true if the file is a zip/jar file
      */
+    @SuppressWarnings("Duplicates")
     public static
     boolean isZipFile(File file) {
         boolean isZip = true;
@@ -77,7 +78,7 @@ class JarUtil {
     /**
      * @return true if the file is a zip/jar stream
      */
-    @SuppressWarnings("ForLoopReplaceableByForEach")
+    @SuppressWarnings({"ForLoopReplaceableByForEach", "Duplicates"})
     public static
     boolean isZipStream(ByteArrayInputStream input) {
         boolean isZip = true;
@@ -357,8 +358,8 @@ class JarUtil {
 
         int totalEntries = options.sourcePaths.count();
 
-        Builder.log().println();
-        Builder.log().title("Creating ZIP").println("(" + totalEntries + " entries)", options.outputFile.getAbsolutePath());
+        BuildLog.println();
+        BuildLog.title("Creating ZIP").println("(" + totalEntries + " entries)", options.outputFile.getAbsolutePath());
 
 
         List<String> fullPaths = options.sourcePaths.getPaths();
@@ -412,7 +413,7 @@ class JarUtil {
             if (options.sourcePaths != null && !options.sourcePaths.isEmpty()) {
                 ArrayList<SortedFiles> sortList2 = new ArrayList<SortedFiles>(options.sourcePaths.count());
 
-                Builder.log().println("   Adding sources (" + options.sourcePaths.count() + " entries)...");
+                BuildLog.println("   Adding sources (" + options.sourcePaths.count() + " entries)...");
 
                 for (int i = 0, n = fullPaths.size(); i < n; i++) {
                     String fileName = relativePaths.get(i).replace('\\', '/');
@@ -449,7 +450,7 @@ class JarUtil {
             // now include the license, if possible
             ///////////////////////////////////////////////
             if (options.licenses != null) {
-                Builder.log().println("   Adding license");
+                BuildLog.println("   Adding license");
                 License.install(output, options.licenses, options.overrideDate);
             }
         } finally {
@@ -480,6 +481,7 @@ class JarUtil {
      * <p/>
      * (basically, if you use a JarOutputStream, it adds in extra crap we don't want)
      */
+    @SuppressWarnings("Duplicates")
     public static
     void jar(JarOptions options) throws IOException {
 
@@ -536,9 +538,8 @@ class JarUtil {
         }
 
 
-        BuildLog log = Builder.log();
-        log.println();
-        log.title("Creating JAR").println(totalEntries + " total entries", options.outputFile.getAbsolutePath());
+        BuildLog.println();
+        BuildLog.title("Creating JAR").println(totalEntries + " total entries", options.outputFile.getAbsolutePath());
 
 
         // CLEANUP DIRECTORIES
@@ -580,7 +581,7 @@ class JarUtil {
             // NEXT all directories
             ///////////////////////////////////////////////
             {
-                List<String> sortedDirectories = new ArrayList<String>(directories.size() * 3);
+                Set<String> sortedDirectories = new HashSet<String>(directories.size() * 3);
                 for (String dirName : directories) {
                     if (!dirName.endsWith("/")) {
                         dirName += "/";
@@ -625,11 +626,12 @@ class JarUtil {
                     }
                 }
 
+                ArrayList<String> strings = new ArrayList<String>(sortedDirectories);
 
                 // sort them
-                Collections.sort(sortedDirectories);
+                Collections.sort(strings);
 
-                for (String dirName : sortedDirectories) {
+                for (String dirName : strings) {
                     JarEntry jarEntry = new JarEntry(dirName);
                     jarEntry.setTime(Builder.buildDate); // hidden when view a jar, but it's always there
                     output.putNextEntry(jarEntry);
@@ -704,6 +706,7 @@ class JarUtil {
                     input = new BufferedInputStream(new FileInputStream(cf.file));
 
                     if (JarUtil.isZipFile(cf.file)) {
+                        //noinspection NumericCastThatLosesPrecision
                         ByteArrayOutputStream outputStream = new ByteArrayOutputStream((int) cf.file.length());
                         Sys.copyStream(input, outputStream);
                         Sys.close(input);
@@ -738,7 +741,7 @@ class JarUtil {
             if (options.extraPaths != null) {
                 List<SortedFiles> sortList = new ArrayList<SortedFiles>(options.extraPaths.count());
 
-                log.println("   Adding extras");
+                BuildLog.println("   Adding extras");
 
                 fullPaths = options.extraPaths.getPaths();
                 relativePaths = options.extraPaths.getRelativePaths();
@@ -747,7 +750,7 @@ class JarUtil {
                     String fileName;
                     fileName = relativePaths.get(i).replace('\\', '/');
 
-                    log.println("\t" + fileName);
+                    BuildLog.println("\t" + fileName);
 
                     SortedFiles file = new SortedFiles();
                     file.file = new File(fullPaths.get(i));
@@ -788,7 +791,7 @@ class JarUtil {
             if (options.sourcePaths != null && !options.sourcePaths.isEmpty()) {
                 List<SortedFiles> sortList = new ArrayList<SortedFiles>(options.sourcePaths.count());
 
-                log.println("   Adding sources (" + options.sourcePaths.count() + " entries)...");
+                BuildLog.println("   Adding sources (" + options.sourcePaths.count() + " entries)...");
 
                 fullPaths = options.sourcePaths.getPaths();
                 relativePaths = options.sourcePaths.getRelativePaths();
@@ -836,7 +839,7 @@ class JarUtil {
             // now include the license, if possible
             ///////////////////////////////////////////////
             if (options.licenses != null) {
-                log.println("   Adding license");
+                BuildLog.println("   Adding license");
                 License.install(output, options.licenses, options.overrideDate);
             }
         } finally {
@@ -1137,10 +1140,10 @@ class JarUtil {
      */
     public static
     void addArgsToIniInJar(String jarName, String... args) throws IOException {
-        Builder.log().println("Modifying config.ini file in jar...");
+        BuildLog.println("Modifying config.ini file in jar...");
 
         for (String arg : args) {
-            Builder.log().println("\t" + arg);
+            BuildLog.println("\t" + arg);
         }
 
         // we have to use a JarFile, so we preserve the comments that might already be in the file.
@@ -1319,7 +1322,7 @@ class JarUtil {
         boolean addDebug = properties.compiler.debugEnabled;
         boolean release = properties.compiler.release;
 
-        Builder.log().println("Adding files to jar: '" + jarName + "'");
+        BuildLog.println("Adding files to jar: '" + jarName + "'");
 
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         JarOutputStream jarOutputStream = new JarOutputStream(new BufferedOutputStream(byteArrayOutputStream));
@@ -1340,7 +1343,7 @@ class JarUtil {
             for (Pack pack : filesToAdd) {
                 String destPath = pack.getDestPath();
                 if (name.equals(destPath)) {
-                    Builder.log().println("  Replacing '" + destPath + "'");
+                    BuildLog.println("  Replacing '" + destPath + "'");
                     canAdd = false;
                     break;
                 }
@@ -1360,7 +1363,7 @@ class JarUtil {
             String destPath = pack.getDestPath();
 
 
-            Builder.log().println("  ╭─ " + sourcePath, "╰───> " + destPath);
+            BuildLog.println("  ╭─ " + sourcePath, "╰───> " + destPath);
 
             InputStream inputStream;
             int length = 0;
@@ -1371,6 +1374,7 @@ class JarUtil {
                 time = fileToAdd.lastModified();
                 entry.setTime(time);
                 inputStream = new FileInputStream(fileToAdd);
+                //noinspection NumericCastThatLosesPrecision
                 length = (int) fileToAdd.length(); // yea, yea, yea, the length truncates...
             }
             else {
@@ -1439,7 +1443,6 @@ class JarUtil {
             actionsToRemove = new PackAction[] {PackAction.Encrypt};
         }
 
-        BuildLog log = Builder.log();
         boolean release = properties.compiler.release;
 
         String tempJarName = jarName + ".tmp";
@@ -1498,7 +1501,7 @@ class JarUtil {
                         repack.remove(actionsToRemove);
                     }
 
-                    log.print(".");
+                    BuildLog.print(".");
 
                     // load the entry into memory
                     ByteArrayOutputStream baos = new ByteArrayOutputStream(8192);
@@ -1545,11 +1548,12 @@ class JarUtil {
 
         jarFile.close();
 
-        log.println(".");
+        BuildLog.println(".");
 
         Builder.moveFile(tempJarName, jarName);
     }
 
+    @SuppressWarnings("Duplicates")
     private static
     void unpackEntry(PackTask task, ExtraDataInterface extraDataWriter, JarOutputStream jarOutputStream) {
         InputStream inputStream = task.inputStream;
@@ -1784,7 +1788,7 @@ class JarUtil {
      */
     public static
     void merge(File primaryFile, String... files) throws IOException {
-        Builder.log().println("Merging files into single jar/zip: '" + primaryFile + "'");
+        BuildLog.println("Merging files into single jar/zip: '" + primaryFile + "'");
 
         // write everything to staging dir, then jar it up.
         String tempDirectory = FileUtil.tempDirectory("mergeTemp");
