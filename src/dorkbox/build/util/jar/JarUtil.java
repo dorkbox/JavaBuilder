@@ -413,7 +413,7 @@ class JarUtil {
             if (options.sourcePaths != null && !options.sourcePaths.isEmpty()) {
                 ArrayList<SortedFiles> sortList2 = new ArrayList<SortedFiles>(options.sourcePaths.count());
 
-                BuildLog.println("   Adding sources (" + options.sourcePaths.count() + " entries)...");
+                BuildLog.println("\tAdding sources (" + options.sourcePaths.count() + " entries)...");
 
                 for (int i = 0, n = fullPaths.size(); i < n; i++) {
                     String fileName = relativePaths.get(i).replace('\\', '/');
@@ -450,7 +450,7 @@ class JarUtil {
             // now include the license, if possible
             ///////////////////////////////////////////////
             if (options.licenses != null) {
-                BuildLog.println("   Adding license");
+                BuildLog.println("\tAdding license");
                 License.install(output, options.licenses, options.overrideDate);
             }
         } finally {
@@ -741,7 +741,7 @@ class JarUtil {
             if (options.extraPaths != null) {
                 List<SortedFiles> sortList = new ArrayList<SortedFiles>(options.extraPaths.count());
 
-                BuildLog.println("   Adding extras");
+                BuildLog.println("\tAdding extras");
 
                 fullPaths = options.extraPaths.getPaths();
                 relativePaths = options.extraPaths.getRelativePaths();
@@ -750,7 +750,7 @@ class JarUtil {
                     String fileName;
                     fileName = relativePaths.get(i).replace('\\', '/');
 
-                    BuildLog.println("\t" + fileName);
+                    BuildLog.println("\t  " + fileName);
 
                     SortedFiles file = new SortedFiles();
                     file.file = new File(fullPaths.get(i));
@@ -791,7 +791,7 @@ class JarUtil {
             if (options.sourcePaths != null && !options.sourcePaths.isEmpty()) {
                 List<SortedFiles> sortList = new ArrayList<SortedFiles>(options.sourcePaths.count());
 
-                BuildLog.println("   Adding sources (" + options.sourcePaths.count() + " entries)...");
+                BuildLog.println("\tAdding sources (" + options.sourcePaths.count() + " entries)...");
 
                 fullPaths = options.sourcePaths.getPaths();
                 relativePaths = options.sourcePaths.getRelativePaths();
@@ -839,7 +839,7 @@ class JarUtil {
             // now include the license, if possible
             ///////////////////////////////////////////////
             if (options.licenses != null) {
-                BuildLog.println("   Adding license");
+                BuildLog.println("\tAdding license");
                 License.install(output, options.licenses, options.overrideDate);
             }
         } finally {
