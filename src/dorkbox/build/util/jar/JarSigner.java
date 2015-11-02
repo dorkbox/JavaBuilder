@@ -15,7 +15,7 @@
  */
 package dorkbox.build.util.jar;
 
-import dorkbox.Builder;
+import dorkbox.build.util.BuildLog;
 import dorkbox.util.Base64Fast;
 import dorkbox.util.Sys;
 import dorkbox.util.crypto.Crypto.DSA;
@@ -37,10 +37,19 @@ import org.bouncycastle.crypto.util.PrivateKeyFactory;
 import org.bouncycastle.crypto.util.PublicKeyFactory;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
-import java.io.*;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.math.BigInteger;
-import java.security.*;
+import java.security.GeneralSecurityException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.security.Security;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Map;
@@ -63,11 +72,9 @@ class JarSigner {
     public static
     File sign(String jarName, String name) {
 
-        Builder.log()
-               .println();
-        Builder.log()
-               .title("Signing JAR")
-               .println(jarName, name.toUpperCase());
+        BuildLog.println();
+        BuildLog.title("Signing JAR")
+                .println(jarName, name.toUpperCase());
 
         if (jarName == null) {
             throw new IllegalArgumentException("jarName cannot be null.");

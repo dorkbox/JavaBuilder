@@ -1,7 +1,7 @@
 package dorkbox.build;
 
 import com.esotericsoftware.wildcard.Paths;
-import dorkbox.Builder;
+import dorkbox.build.util.BuildLog;
 import dorkbox.build.util.PreJarAction;
 import dorkbox.build.util.jar.JarOptions;
 import dorkbox.build.util.jar.JarSigner;
@@ -112,9 +112,14 @@ class Jarable {
      * Builds a jar from the specified source files, class file, and extras
      */
     void buildJar() throws IOException {
+
         if (this.preJarAction != null) {
-            Builder.log().println("Running action before Jar is created...");
+            BuildLog.start();
+
+            BuildLog.title("Pre-Jar action").println();
             this.preJarAction.executeBeforeJarHappens(this.projectJava.stagingDir);
+
+            BuildLog.finish();
         }
 
         JarOptions jarOptions = new JarOptions();

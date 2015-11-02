@@ -190,9 +190,36 @@ class ProjectJava extends Project<ProjectJava> {
             return;
         }
 
+        BuildLog.start();
+
+
+        if (OS.javaVersion > targetJavaVersion) {
+            BuildLog.title("Cross-Compile")
+                    .println(this.name + "  [Java v1." + targetJavaVersion + "]");
+        }
+        else {
+            BuildLog.title("Compiling").println(this.name);
+        }
+        if (this.versionString != null) {
+            BuildLog.println(this.versionString);
+        }
+
+        if (!fullDependencyList.isEmpty()) {
+            String[] array2 = new String[fullDependencyList.size() + 1];
+            array2[0] = "Depends";
+            int i = 1;
+            for (Project<?> s : fullDependencyList) {
+                array2[i++] = s.name;
+            }
+            BuildLog.println((Object[]) array2);
+        }
+
+
         // have to build cross-compiled files first.
         File crossCompatBuiltFile = null;
         if (!crossCompileClasses.isEmpty()) {
+            BuildLog.println();
+
             crossCompatBuiltFile = new File(this.stagingDir.getParent(), "crossCompileBuilt");
             FileUtil.delete(crossCompatBuiltFile);
             FileUtil.mkdir(crossCompatBuiltFile);
@@ -201,14 +228,13 @@ class ProjectJava extends Project<ProjectJava> {
             for (CrossCompileClass crossCompileClass : crossCompileClasses) {
                 Paths sourceFiles = crossCompileClass.sourceFiles;
 
-                BuildLog.start();
                 if (OS.javaVersion > crossCompileClass.targetJavaVersion) {
                     Set<String> dependencies = new HashSet<String>();
 
-
                     for (File sourceFile : sourceFiles.getFiles()) {
-                        Builder.log().title("Cross-Compile").println(sourceFile.getName() + " [Java v1." + crossCompileClass
-                                        .targetJavaVersion + "]");
+                        BuildLog.title("Cross-Compile").println(sourceFile.getName() + "  [Java v1." +
+                                                                crossCompileClass.targetJavaVersion + "]");
+
                         String relativeNameNoExtension = DependencyWalker.collect(sourceFile, dependencies);
                         relativeLocations.put(sourceFile, relativeNameNoExtension);
                     }
@@ -234,13 +260,9 @@ class ProjectJava extends Project<ProjectJava> {
                         FileUtil.copyFile(file, new File(crossCompatBuiltFile, s));
                     }
 
-
                     FileUtil.delete(tempProject.stagingDir);
-
                     BuildLog.enable();
                 }
-
-                BuildLog.finish();
             }
 
             // now have to add this dir to our project
@@ -276,19 +298,13 @@ class ProjectJava extends Project<ProjectJava> {
             }
             sourcePaths = copy;
         }
+        // done with extra-file cross-compile
+        BuildLog.println();
 
 
-        Builder.log().println();
+
         if (this.bytesClassloader == null && this.jarable == null) {
-            Builder.log().title("Compiling").println(this.name);
             FileUtil.delete(this.stagingDir);
-        }
-        else {
-            Builder.log().title("Compiling").println(this.name);
-        }
-
-        if (OS.javaVersion > targetJavaVersion) {
-            Builder.log().title("Cross-Compile").println("Java v1." + targetJavaVersion);
         }
 
         boolean shouldBuild = !verifyChecksums();
@@ -312,7 +328,7 @@ class ProjectJava extends Project<ProjectJava> {
             }
 
             runCompile(targetJavaVersion);
-            Builder.log().println("Compile success");
+            BuildLog.println("Compile success");
 
             if (this.jarable != null) {
                 this.jarable.buildJar();
@@ -323,22 +339,23 @@ class ProjectJava extends Project<ProjectJava> {
 
 
             if (crossCompatBuiltFile != null) {
-                Builder.delete(crossCompatBuiltFile);
+                FileUtil.delete(crossCompatBuiltFile);
             }
 
             if (!keepStaging) {
+                BuildLog.println();
                 Builder.delete(this.stagingDir);
             }
             else {
-                Builder.log().println("Output - " + this.stagingDir);
+                BuildLog.println("Output - " + this.stagingDir);
             }
         }
         else {
-            Builder.log().println("Skipped (nothing changed)");
+            BuildLog.println("Skipped (nothing changed)");
         }
 
         buildList.add(this.name);
-        Builder.log().println();
+        BuildLog.finish();
     }
 
     /**
@@ -419,7 +436,7 @@ class ProjectJava extends Project<ProjectJava> {
         }
 
         if (this.buildOptions.compiler.debugEnabled) {
-            Builder.log().println("Adding debug info");
+            BuildLog.println("Adding debug info");
 
             args.add("-g"); // Generate all debugging information, including local variables. By default, only line number and source file information is generated.
         }

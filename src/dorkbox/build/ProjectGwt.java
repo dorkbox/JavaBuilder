@@ -15,6 +15,14 @@
  */
 package dorkbox.build;
 
+import com.esotericsoftware.wildcard.Paths;
+import dorkbox.Builder;
+import dorkbox.build.util.BuildLog;
+import dorkbox.build.util.jar.JarUtil;
+import dorkbox.util.FileUtil;
+import dorkbox.util.gwt.GwtSymbolMapParser;
+import dorkbox.util.process.JavaProcessBuilder;
+
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
@@ -24,14 +32,6 @@ import java.io.Writer;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map.Entry;
-
-import com.esotericsoftware.wildcard.Paths;
-
-import dorkbox.Builder;
-import dorkbox.build.util.jar.JarUtil;
-import dorkbox.util.FileUtil;
-import dorkbox.util.gwt.GwtSymbolMapParser;
-import dorkbox.util.process.JavaProcessBuilder;
 
 public class ProjectGwt extends Project<ProjectGwt> {
 
@@ -318,7 +318,7 @@ public class ProjectGwt extends Project<ProjectGwt> {
                 // calculate the hash of all the files in the source path
                 saveChecksums();
             } else {
-                Builder.log().println("Skipped (nothing changed)");
+                BuildLog.println("Skipped (nothing changed)");
             }
         } finally {
             if (shouldBuild) {

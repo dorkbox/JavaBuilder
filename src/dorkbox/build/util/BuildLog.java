@@ -21,80 +21,92 @@ import java.io.PrintStream;
 
 public
 class BuildLog {
-    public static final int STOCK_TITLE_WIDTH = 16;
+    public static final int STOCK_TITLE_WIDTH = 14;
+    public static int TITLE_WIDTH = 14;
 
     private static final String TITLE_MESSAGE_DELIMITER = "│";
     private static final String TITLE_SEPERATOR = "─";
 
-    public static volatile int TITLE_WIDTH = 14; // so the first one goes to 16
-    public static boolean wasNested = false;
-    private static volatile int suppressCount = 0;
+    public static BuildLog LOG = new BuildLog();
+    private static int nestedCount = 0;
+    private static int suppressCount = 0;
 
-    public static
+    private static PrintStream printer = System.err;
+
+    private static StringBuilder titleBuilder = null;
+
+    private static StringBuilder cachedSpacer;
+    private static int cachedSpacerWidth = -1;
+
+    public static synchronized
     BuildLog start() {
-        wasNested = true;
-        BuildLog buildLog = new BuildLog();
-        buildLog.titleStart();
-        return buildLog;
-    }
-
-    public static
-    BuildLog finish() {
-        BuildLog buildLog = new BuildLog();
-        buildLog.titleEnd();
-        return buildLog;
+        if (suppressCount == 0) {
+            nestedCount++;
+            titleStart();
+        }
+        return LOG;
     }
 
     public static synchronized
-    void enable() {
+    BuildLog finish() {
+        if (suppressCount == 0) {
+            nestedCount--;
+            titleEnd();
+        }
+        titleBuilder = null;
+        return LOG;
+    }
+
+    public static synchronized
+    BuildLog enable() {
         if (suppressCount > 0) {
             // don't let us go <0. Enable has to match disable counts to build, but if there are too many "enable", who cares
             suppressCount--;
         }
+        return LOG;
     }
 
     public static synchronized
-    void disable() {
+    BuildLog disable() {
         suppressCount++;
+        return LOG;
     }
 
-    private final PrintStream printer;
-    private StringBuilder titleBuilder = null;
-
-    private int cachedSize = -1;
-    private StringBuilder cachedSpacer;
-
-
-
-    public
-    BuildLog() {
-        this(System.err);
+    public static synchronized
+    PrintStream getOutput() {
+        return printer;
     }
 
-    public
-    BuildLog(PrintStream printer) {
-        this.printer = printer;
+    public static synchronized
+    BuildLog setOutput(PrintStream printer) {
+        BuildLog.printer = printer;
+        return LOG;
     }
 
-    public
+    public static synchronized
+    int getNestedCount() {
+        return nestedCount;
+    }
+
+    public static synchronized
     BuildLog title(String title) {
         prepTitle(title, true);
-        return this;
+        return LOG;
     }
 
-    private
+    private static synchronized
     void titleStart() {
+        boolean atBeginning = TITLE_WIDTH == STOCK_TITLE_WIDTH;
+
+        String sep = TITLE_SEPERATOR;
         TITLE_WIDTH += 2;
 
-        this.cachedSize = TITLE_WIDTH;
-        String sep = TITLE_SEPERATOR;
-
-        StringBuilder spacerTitle = new StringBuilder(this.cachedSize);
-        for (int i = 2; i < this.cachedSize; i++) {
+        StringBuilder spacerTitle = new StringBuilder(TITLE_WIDTH);
+        for (int i = 2; i < TITLE_WIDTH; i++) {
             spacerTitle.append(sep);
         }
 
-        if (this.cachedSize == STOCK_TITLE_WIDTH) {
+        if (atBeginning) {
             spacerTitle.append(sep);
             spacerTitle.append(sep);
             spacerTitle.append('╮');
@@ -104,20 +116,22 @@ class BuildLog {
             spacerTitle.append(sep);
             spacerTitle.append('╮');
         }
-        this.printer.println(spacerTitle.toString());
+
+        printer.println(spacerTitle.toString());
+
     }
 
-    private
+    private static
     void titleEnd() {
-        this.cachedSize = TITLE_WIDTH;
+        boolean atBeginning = TITLE_WIDTH - 2 == STOCK_TITLE_WIDTH;
         String sep = TITLE_SEPERATOR;
 
-        StringBuilder spacerTitle = new StringBuilder(this.cachedSize);
-        for (int i = 2; i < this.cachedSize; i++) {
+        StringBuilder spacerTitle = new StringBuilder(TITLE_WIDTH);
+        for (int i = 2; i < TITLE_WIDTH; i++) {
             spacerTitle.append(sep);
         }
 
-        if (this.cachedSize == STOCK_TITLE_WIDTH) {
+        if (atBeginning) {
             spacerTitle.append(sep);
             spacerTitle.append(sep);
             spacerTitle.append('╯');
@@ -127,58 +141,62 @@ class BuildLog {
             spacerTitle.append(sep);
             spacerTitle.append('╯');
         }
-        this.printer.println(spacerTitle.toString());
+
+        printer.println(spacerTitle.toString());
 
         TITLE_WIDTH -= 2;
     }
 
-    public
-    void println() {
+    public static synchronized
+    BuildLog println() {
         println((String) null);
+        return LOG;
     }
 
     /**
      * Creates everything in front of the message section, so that our "message" can be appended to each log entry if desired
      */
-    private
+    private static
     StringBuilder prepTitle(String title, boolean newLine) {
         char spacer1 = ' ';
 
-        if (this.cachedSize != TITLE_WIDTH || this.cachedSpacer == null) {
-            this.cachedSize = TITLE_WIDTH;
-            StringBuilder spacerTitle = new StringBuilder(this.cachedSize);
-            for (int i = 0; i < this.cachedSize; i++) {
+        if (cachedSpacerWidth != TITLE_WIDTH || cachedSpacer == null) {
+            cachedSpacerWidth = TITLE_WIDTH;
+            StringBuilder spacerTitle = new StringBuilder(TITLE_WIDTH);
+            for (int i = 0; i < TITLE_WIDTH; i++) {
                 spacerTitle.append(spacer1);
             }
-            this.cachedSpacer = spacerTitle;
+            cachedSpacer = spacerTitle;
         }
 
         if (title == null) {
-            if (this.titleBuilder == null) {
-                this.titleBuilder = new StringBuilder(1024);
-                this.titleBuilder.append(this.cachedSpacer).append(TITLE_MESSAGE_DELIMITER).append(spacer1);
+            if (titleBuilder == null) {
+                titleBuilder = new StringBuilder(1024);
+                titleBuilder.append(cachedSpacer)
+                            .append(TITLE_MESSAGE_DELIMITER)
+                            .append(spacer1);
             }
             else if (!newLine) {
-                this.titleBuilder = new StringBuilder(1024);
+                titleBuilder = new StringBuilder(1024);
             }
 
-            return this.titleBuilder;
+            return titleBuilder;
         }
 
-        if (this.titleBuilder == null) {
+        if (titleBuilder == null) {
             int length = title.length();
-            int padding = this.cachedSize - length - 1;
-            StringBuilder msg = new StringBuilder(this.cachedSize);
+            int padding = TITLE_WIDTH - length - 1;
+            StringBuilder msg = new StringBuilder(TITLE_WIDTH);
             boolean addFollowingSpacer = true;
 
             String adjustedTitle = title;
-            if (length == this.cachedSize) {
+            if (length == TITLE_WIDTH) {
                 // just BARELY too long!
                 addFollowingSpacer = false;
             }
-            else if (length > this.cachedSize) {
+            else if (length > TITLE_WIDTH) {
                 // too long!
-                adjustedTitle = title.substring(0, this.cachedSize - 2) + "..";
+                adjustedTitle = title.substring(0, TITLE_WIDTH - 2) + "..";
                 length = adjustedTitle.length();
                 addFollowingSpacer = false;
             }
@@ -193,26 +211,33 @@ class BuildLog {
                 msg.append(spacer1);
             }
 
-            this.titleBuilder = new StringBuilder(1024);
-            this.titleBuilder.append(msg).append(TITLE_MESSAGE_DELIMITER).append(spacer1);
+            titleBuilder = new StringBuilder(1024);
+            titleBuilder.append(msg)
+                        .append(TITLE_MESSAGE_DELIMITER)
+                        .append(spacer1);
         }
 
-        return this.titleBuilder;
+        return titleBuilder;
     }
 
-    public
-    void print(Object... message) {
+    public static synchronized
+    BuildLog print(Object... message) {
         print(false, message);
+        return LOG;
     }
 
-    public
-    void println(Object... message) {
+    public static synchronized
+    BuildLog println(Object... message) {
         print(true, message);
+        return LOG;
     }
 
-    private
+    private static
     void print(boolean newLine, Object... message) {
         if (suppressCount != 0) {
+            if (newLine) {
+                titleBuilder = null;
+            }
             return;
         }
 
@@ -236,17 +261,22 @@ class BuildLog {
                         msg.append(newLineToken);
                     }
                     // next line
-                    msg.append(this.cachedSpacer).append(titleMessageDelimiter).append(spacer1).append(spacer1).append(spacer1).append(m);
+                    msg.append(cachedSpacer)
+                       .append(titleMessageDelimiter)
+                       .append(spacer1)
+                       .append(spacer1)
+                       .append(spacer1)
+                       .append(m);
                 }
             }
         }
 
         if (newLine) {
-            this.printer.println(msg.toString());
-            this.titleBuilder = null;
+            printer.println(msg.toString());
+            titleBuilder = null;
         }
         else {
-            this.printer.print(msg.toString());
+            printer.print(msg.toString());
         }
     }
 }
