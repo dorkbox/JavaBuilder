@@ -79,6 +79,9 @@ class ProjectJava extends Project<ProjectJava> {
         super(projectName);
     }
 
+    /**
+     * Add paths to the list of sources that are available when compiling the code
+     */
     public
     ProjectJava sourcePath(Paths sourcePaths) {
         if (sourcePaths == null) {
@@ -92,6 +95,9 @@ class ProjectJava extends Project<ProjectJava> {
         return this;
     }
 
+    /**
+     * Add paths to the list of sources that are available when compiling the code
+     */
     public
     ProjectJava sourcePath(String srcDir) {
         if (srcDir.endsWith("src")) {
@@ -102,6 +108,9 @@ class ProjectJava extends Project<ProjectJava> {
         return sourcePath(new Paths(srcDir, "./"));
     }
 
+    /**
+     * Add paths to the list of sources that are available when compiling the code
+     */
     public
     ProjectJava sourcePath(String dir, String... patterns) {
         return sourcePath(new Paths(dir, patterns));
