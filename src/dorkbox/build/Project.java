@@ -239,6 +239,7 @@ class Project<T extends Project<T>> {
      * </p>
      * Make sure to delete this directory manually.
      */
+    @SuppressWarnings("unchecked")
     public
     T keepStaging() {
         this.keepStaging = true;
@@ -249,6 +250,7 @@ class Project<T extends Project<T>> {
     public
     void getRecursiveLicenses(Set<License> licenses) {
         licenses.addAll(this.licenses);
+
         Set<Project<?>> deps = new HashSet<Project<?>>();
         getRecursiveDependencies(deps);
 
@@ -357,8 +359,8 @@ class Project<T extends Project<T>> {
             throw new NullPointerException("Dependencies cannot be null!");
         }
 
-        this.dependencies.add(project);
         this.licenses.addAll(project.licenses);
+        this.dependencies.add(project);
 
         return (T) this;
     }
@@ -454,16 +456,44 @@ class Project<T extends Project<T>> {
         return (T) this;
     }
 
+
+    private boolean calledLicenseBefore = false;
+    /**
+     * This call needs to be (at least) before dependencies are added, otherwise the order of licenses might be in the incorrect order.
+     * Preferably, this should be the very first call.
+     */
     @SuppressWarnings("unchecked")
     public
     T license(License license) {
+        if (!calledLicenseBefore) {
+            calledLicenseBefore = true;
+
+            if (!this.licenses.isEmpty()) {
+                BuildLog.println("This is the first license added, yet there are already licenses' present. This is probably not the order of " +
+                                 "licenses that you want. We suggest calling .license() before adding dependencies.");
+            }
+        }
+
         this.licenses.add(license);
         return (T) this;
     }
 
+    /**
+     * This call needs to be (at least) before dependencies are added, otherwise the order of licenses might be in the incorrect order.
+     * Preferably, this should be the very first call.
+     */
     @SuppressWarnings("unchecked")
     public
     T license(List<License> licenses) {
+        if (!calledLicenseBefore) {
+            calledLicenseBefore = true;
+
+            if (!this.licenses.isEmpty()) {
+                BuildLog.println("This is the first license added, yet there are already licenses' present. This is probably not the order of " +
+                                 "licenses that you want. We suggest calling .license() before adding dependencies.");
+            }
+        }
+
         this.licenses.addAll(licenses);
         return (T) this;
     }
@@ -515,7 +545,7 @@ class Project<T extends Project<T>> {
         // now copy out dependencies
         for (Project<?> project : this.dependencies) {
             if (project instanceof ProjectJar) {
-                ((ProjectJar) project).copyFiles(targetLocation);
+                project.copyFiles(targetLocation);
             }
         }
     }

@@ -95,14 +95,22 @@ class License implements Comparable<License> {
 
 
         // The FIRST one is always FIRST! (the rest are alphabetical)
-        License firstLicense = licenses.remove(0);
+        License firstLicense = licenses.get(0);
         // remove dupes
         Set<License> dedupe = new HashSet<License>(licenses);
-        licenses.add(0, firstLicense);
 
         licenses = new ArrayList<License>(dedupe);
         Collections.sort(licenses);
+
+        for (int i = 0; i < licenses.size(); i++) {
+            if (firstLicense == licenses.get(i)) {
+                licenses.remove(i);
+                break;
+            }
+        }
         licenses.add(0, firstLicense);
+
+
 
 
         String NL = LINE_SEPARATOR;

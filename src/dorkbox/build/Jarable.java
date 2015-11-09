@@ -9,9 +9,10 @@ import dorkbox.build.util.jar.JarUtil;
 
 import java.io.IOException;
 
+@SuppressWarnings("unused")
 public
 class Jarable {
-    private ProjectJava projectJava;
+    private final ProjectJava projectJava;
 
     private long overrideDate = -1;
 
@@ -116,6 +117,7 @@ class Jarable {
         if (this.preJarAction != null) {
             BuildLog.start();
 
+            //noinspection AccessStaticViaInstance
             BuildLog.title("Pre-Jar action").println();
             this.preJarAction.executeBeforeJarHappens(this.projectJava.stagingDir);
 
@@ -127,6 +129,8 @@ class Jarable {
         jarOptions.outputFile = this.projectJava.outputFile;
         jarOptions.inputPaths = new Paths(this.projectJava.stagingDir.getAbsolutePath());
         jarOptions.extraPaths = this.projectJava.extraFiles;
+
+
         if (this.mainClass != null) {
             jarOptions.mainClass = this.mainClass.getCanonicalName();
             jarOptions.classpath = this.projectJava.classPaths;
@@ -149,6 +153,7 @@ class Jarable {
             jarOptions.outputFile = this.projectJava.outputFileSource;
             jarOptions.extraPaths = this.projectJava.extraFiles;
             jarOptions.sourcePaths = this.projectJava.sourcePaths;
+
             if (!this.projectJava.licenses.isEmpty()) {
                 jarOptions.licenses = this.projectJava.licenses;
             }
