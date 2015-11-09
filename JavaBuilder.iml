@@ -13,10 +13,22 @@
     </content>
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="jdk" jdkName="1.6" jdkType="JavaSDK" />
+    <orderEntry type="library" name="bouncyCastle bcpkix-jdk15on (1.53)" level="application" />
+    <orderEntry type="library" name="bouncyCastle bcprov-jdk15on (1.53)" level="application" />
+    <orderEntry type="library" name="dorkbox annotations" level="application" />
+    <orderEntry type="library" name="dorkbox cab_parser" level="application" />
+    <orderEntry type="library" name="dorkbox input_console" level="application" />
+    <orderEntry type="library" name="lzma-java" level="application" />
+    <orderEntry type="library" name="logging logback (1.0.13)" level="application" />
+    <orderEntry type="library" name="logging slf4j-api (1.7.5)" level="application" />
+    <orderEntry type="library" name="fast-md5" level="application" />
     <orderEntry type="module-library">
-      <library>
+      <library name="Base JavaBuilder Libs">
         <CLASSES>
           <root url="file://$MODULE_DIR$/libs" />
+          <root url="jar://$MODULE_DIR$/libs/javaparser-core-2.3.0.jar!/" />
+          <root url="jar://$MODULE_DIR$/libs/yamlbeans-1.08.jar!/" />
+          <root url="jar://$MODULE_DIR$/libs/wildcard-1.03.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES>
@@ -26,18 +38,7 @@
         <jarDirectory url="file://$MODULE_DIR$/libs" recursive="false" type="SOURCES" />
       </library>
     </orderEntry>
-    <orderEntry type="module-library">
-      <library>
-        <CLASSES>
-          <root url="jar://$MODULE_DIR$/libs/fast-md5/fast-md5.jar!/" />
-        </CLASSES>
-        <JAVADOC />
-        <SOURCES>
-          <root url="file://$MODULE_DIR$/libs/fast-md5" />
-        </SOURCES>
-        <jarDirectory url="file://$MODULE_DIR$/libs/fast-md5" recursive="false" type="SOURCES" />
-      </library>
-    </orderEntry>
+    <orderEntry type="library" name="bouncyCastle bcpg-jdk15on (1.53)" level="application" />
   </component>
   <component name="org.twodividedbyzero.idea.findbugs">
     <option name="_basePreferences">
