@@ -681,35 +681,7 @@ class Builder {
      */
     public static
     boolean isZipFile(File file) {
-        byte[] ZIP_HEADER = {'P', 'K', 0x3, 0x4};
-        boolean isZip = true;
-        byte[] buffer = new byte[ZIP_HEADER.length];
-
-        RandomAccessFile raf = null;
-        try {
-            raf = new RandomAccessFile(file, "r");
-            raf.readFully(buffer);
-            for (int i = 0; i < ZIP_HEADER.length; i++) {
-                if (buffer[i] != ZIP_HEADER[i]) {
-                    isZip = false;
-                    break;
-                }
-            }
-        } catch (Exception e) {
-            isZip = false;
-            if (e instanceof FileNotFoundException) {
-                e.printStackTrace();
-            }
-        } finally {
-            if (raf != null) {
-                try {
-                    raf.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-        return isZip;
+        return FileUtil.isZipFile(file);
     }
 
     public static
