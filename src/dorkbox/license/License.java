@@ -87,31 +87,40 @@ class License implements Comparable<License> {
     }
 
     /**
+     * Sorts the list of licenses.
+     */
+    public static
+    void sort(List<License> licenses) {
+        // The FIRST one is always FIRST! (the rest are alphabetical)
+        License firstLicense = licenses.get(0);
+
+        // remove dupes
+        Set<License> dedupe = new HashSet<License>(licenses);
+
+        List<License> copy = new ArrayList<License>(dedupe);
+        Collections.sort(copy);
+
+        // figure out where the first one went
+        for (int i = 0; i < copy.size(); i++) {
+            if (firstLicense == copy.get(i)) {
+                copy.remove(i);
+                break;
+            }
+        }
+
+        licenses.clear();
+        licenses.add(firstLicense);
+        licenses.addAll(copy);
+    }
+
+    /**
      * Returns the LICENSE text file, as a combo of the listed licenses. Duplicates are removed.
      */
     public static
     String buildString(List<License> licenses) {
         StringBuilder b = new StringBuilder(256);
 
-
-        // The FIRST one is always FIRST! (the rest are alphabetical)
-        License firstLicense = licenses.get(0);
-        // remove dupes
-        Set<License> dedupe = new HashSet<License>(licenses);
-
-        licenses = new ArrayList<License>(dedupe);
-        Collections.sort(licenses);
-
-        for (int i = 0; i < licenses.size(); i++) {
-            if (firstLicense == licenses.get(i)) {
-                licenses.remove(i);
-                break;
-            }
-        }
-        licenses.add(0, firstLicense);
-
-
-
+        sort(licenses);
 
         String NL = LINE_SEPARATOR;
         String HEADER = "    - ";
@@ -156,22 +165,12 @@ class License implements Comparable<License> {
     }
 
 
+    /**
+     * Install ALL of the known full text licenses into the target directory
+     */
     public static
     void install(File targetLocation) throws IOException {
-        if (targetLocation == null) {
-            throw new IllegalArgumentException("targetLocation cannot be null.");
-        }
-
-        // copy over full text licenses
-        List<LicenseWrapper> licenseWrappers = License.getActualLicensesAsBytes(null);
-        for (LicenseWrapper entry : licenseWrappers) {
-            byte[] bytes = entry.bytes;
-
-            File targetLicenseFile = new File(targetLocation, "LICENSE." + entry.license.getExtension());
-            FileOutputStream fileOutputStream = new FileOutputStream(targetLicenseFile);
-            Builder.copyStream(new ByteArrayInputStream(bytes), fileOutputStream);
-            fileOutputStream.close();
-        }
+        createFullTextLicenseFiles(targetLocation, null);
     }
 
     /**
@@ -221,6 +220,16 @@ class License implements Comparable<License> {
 
         Builder.copyStream(input, output);
         output.close();
+
+        // copy over full text licenses
+        createFullTextLicenseFiles(targetLocation, licenses);
+    }
+
+    private static
+    void createFullTextLicenseFiles(File targetLocation, List<License> licenses) throws IOException {
+        if (targetLocation == null) {
+            throw new IllegalArgumentException("targetLocation cannot be null.");
+        }
 
         // copy over full text licenses
         List<LicenseWrapper> licenseWrappers = License.getActualLicensesAsBytes(licenses);
@@ -290,15 +299,14 @@ class License implements Comparable<License> {
             }
         }
         else {
-            for (LicenseType lt : LicenseType.values()) {
-                types.add(lt);
-            }
+            Collections.addAll(types, LicenseType.values());
         }
 
         List<LicenseWrapper> licenseList = new ArrayList<LicenseWrapper>(types.size());
 
         // look on disk, or look in a jar for the licenses.
         // Either way, we want the BYTES of those files!
+        //noinspection ConstantConditions
         String rootPath = Build.get(License.class).getPath();
         File rootFile = new File(rootPath);
         String fileName = License.class.getCanonicalName();
@@ -340,6 +348,7 @@ class License implements Comparable<License> {
                 }
 
                 FileInputStream input = new FileInputStream(f);
+                //noinspection NumericCastThatLosesPrecision
                 ByteArrayOutputStream output = new ByteArrayOutputStream((int) f.length());
                 Builder.copyStream(input, output);
                 input.close();
