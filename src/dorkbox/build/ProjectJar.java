@@ -39,7 +39,7 @@ public class ProjectJar extends Project<ProjectJar> {
     }
 
     @Override
-    public void build() throws IOException {
+    public void build(final int targetJavaVersion) throws IOException {
     }
 
     @Override

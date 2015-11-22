@@ -25,20 +25,24 @@
     <orderEntry type="module-library">
       <library name="Base JavaBuilder Libs">
         <CLASSES>
-          <root url="file://$MODULE_DIR$/libs" />
           <root url="jar://$MODULE_DIR$/libs/javaparser-core-2.3.0.jar!/" />
           <root url="jar://$MODULE_DIR$/libs/yamlbeans-1.08.jar!/" />
           <root url="jar://$MODULE_DIR$/libs/wildcard-1.03.jar!/" />
+          <root url="jar://$MODULE_DIR$/libs/async-http-client-1.8.16.jar!/" />
+          <root url="jar://$MODULE_DIR$/libs/javatar-2.5.jar!/" />
+          <root url="jar://$MODULE_DIR$/libs/javatar-2.5-src.zip!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES>
           <root url="file://$MODULE_DIR$/libs" />
+          <root url="jar://$MODULE_DIR$/libs/javatar-2.5-src.zip!/javatar-2.5/source" />
         </SOURCES>
-        <jarDirectory url="file://$MODULE_DIR$/libs" recursive="false" />
         <jarDirectory url="file://$MODULE_DIR$/libs" recursive="false" type="SOURCES" />
       </library>
     </orderEntry>
     <orderEntry type="library" name="bouncyCastle bcpg-jdk15on (1.53)" level="application" />
+    <orderEntry type="module" module-name="Dorkbox-Util" />
+    <orderEntry type="module" module-name="JavaLauncher-Util" />
   </component>
   <component name="org.twodividedbyzero.idea.findbugs">
     <option name="_basePreferences">

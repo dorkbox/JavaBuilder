@@ -50,6 +50,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+@SuppressWarnings("unused")
 public
 class ProjectJava extends Project<ProjectJava> {
 
@@ -62,6 +63,7 @@ class ProjectJava extends Project<ProjectJava> {
 
     private Jarable jarable = null;
 
+    private MavenExporter mavenExporter;
     private boolean suppressSunWarnings = false;
     private final List<CrossCompileClass> crossCompileClasses = new ArrayList<CrossCompileClass>(4);
 
@@ -179,23 +181,15 @@ class ProjectJava extends Project<ProjectJava> {
     }
 
     /**
-     * Builds using the current, detected JDK.
-     */
-    @Override
-    public
-    void build() throws IOException {
-        build(OS.javaVersion);
-    }
-
-    /**
      * Specifies the version to compile to?
      * <p/>
      * IE: compile for 1.6 on JDK 1.8. When compiling for a different version, you jave that version's 1.6 rt.jar
      */
+    @SuppressWarnings("AccessStaticViaInstance")
     public
     void build(final int targetJavaVersion) throws IOException {
         // exit early if we already built this project
-        if (checkAndBuildDependencies()) {
+        if (checkAndBuildDependencies(targetJavaVersion)) {
             return;
         }
 
@@ -213,110 +207,21 @@ class ProjectJava extends Project<ProjectJava> {
             BuildLog.println(this.versionString);
         }
 
+
+        shouldBuild = !verifyChecksums();
+
         if (!fullDependencyList.isEmpty()) {
             String[] array2 = new String[fullDependencyList.size() + 1];
             array2[0] = "Depends";
             int i = 1;
             for (Project<?> s : fullDependencyList) {
                 array2[i++] = s.name;
+                // if one of our dependencies has to build, so do we
+                shouldBuild |= s.shouldBuild;
             }
-            BuildLog.println((Object[]) array2);
+            BuildLog.println().println((Object[]) array2);
         }
 
-
-        // have to build cross-compiled files first.
-        File crossCompatBuiltFile = null;
-        if (!crossCompileClasses.isEmpty()) {
-            BuildLog.println();
-
-            crossCompatBuiltFile = new File(this.stagingDir.getParent(), "crossCompileBuilt");
-            FileUtil.delete(crossCompatBuiltFile);
-            FileUtil.mkdir(crossCompatBuiltFile);
-
-            Map<File, String> relativeLocations = new HashMap<File, String>();
-            for (CrossCompileClass crossCompileClass : crossCompileClasses) {
-                Paths sourceFiles = crossCompileClass.sourceFiles;
-
-                if (OS.javaVersion > crossCompileClass.targetJavaVersion) {
-                    Set<String> dependencies = new HashSet<String>();
-
-                    for (File sourceFile : sourceFiles.getFiles()) {
-                        BuildLog.title("Cross-Compile").println(sourceFile.getName() + "  [Java v1." +
-                                                                crossCompileClass.targetJavaVersion + "]");
-
-                        String relativeNameNoExtension = DependencyWalker.collect(sourceFile, dependencies);
-                        relativeLocations.put(sourceFile, relativeNameNoExtension);
-                    }
-
-                    BuildLog.disable();
-
-                    Paths tempSource = new Paths();
-                    for (String dependency : dependencies) {
-                        tempSource.addFile(dependency);
-                    }
-
-                    ProjectJava tempProject = ProjectJava.create("CrossCompileClasses")
-                                                      .options(buildOptions)
-                                                      .keepStaging()
-                                                      .sourcePath(tempSource)
-                                                      .sourcePath(sourceFiles);
-                    tempProject.build(crossCompileClass.targetJavaVersion);
-
-                    // now have to save out the source files (that are now converted to .class files)
-                    for (File sourceFile : sourceFiles.getFiles()) {
-                        String s = relativeLocations.get(sourceFile) + ".class";
-                        File file = new File(tempProject.stagingDir, s);
-                        FileUtil.copyFile(file, new File(crossCompatBuiltFile, s));
-                    }
-
-                    FileUtil.delete(tempProject.stagingDir);
-                    BuildLog.enable();
-                }
-            }
-
-            // now have to add this dir to our project
-            Paths crossFiles = new Paths();
-            crossFiles.addFile(crossCompatBuiltFile.getAbsolutePath());
-            classPath(crossFiles);
-
-            Paths crossIncludeFiles = new Paths();
-            for (String relativeName : relativeLocations.values()) {
-                crossIncludeFiles.add(crossCompatBuiltFile.getAbsolutePath(), relativeName + ".class");
-
-            }
-            extraFiles(crossIncludeFiles);
-
-
-            // have to remove all the relative java files (since we don't want to normally build them)
-            // the EASIEST way is to make a copy
-            List<File> files = sourcePaths.getFiles();
-            Paths copy = new Paths();
-            for (File file : files) {
-                boolean canAdd = true;
-
-                for (File crossFile : relativeLocations.keySet()) {
-                    if (crossFile.equals(file)) {
-                        canAdd = false;
-                        break;
-                    }
-                }
-
-                if (canAdd) {
-                    copy.add(file.getParent(), file.getName());
-                }
-            }
-            sourcePaths = copy;
-        }
-        // done with extra-file cross-compile
-        BuildLog.println();
-
-
-
-        if (this.bytesClassloader == null && this.jarable == null) {
-            FileUtil.delete(this.stagingDir);
-        }
-
-        boolean shouldBuild = !verifyChecksums();
         if (shouldBuild) {
             // barf if we don't have source files!
             if (this.sourcePaths.getFiles().isEmpty()) {
@@ -336,31 +241,144 @@ class ProjectJava extends Project<ProjectJava> {
                 this.classPaths.addFile(project.outputFile.getAbsolutePath());
             }
 
+            // have to build cross-compiled files first.
+            File crossCompatBuiltFile = null;
+            if (!crossCompileClasses.isEmpty()) {
+                BuildLog.println();
+
+                crossCompatBuiltFile = new File(this.stagingDir.getParent(), "crossCompileBuilt");
+                FileUtil.delete(crossCompatBuiltFile);
+                FileUtil.mkdir(crossCompatBuiltFile);
+
+                Map<File, String> relativeLocations = new HashMap<File, String>();
+                for (CrossCompileClass crossCompileClass : crossCompileClasses) {
+                    Paths sourceFiles = crossCompileClass.sourceFiles;
+
+                    if (OS.javaVersion > crossCompileClass.targetJavaVersion) {
+                        Set<String> dependencies = new HashSet<String>();
+
+                        for (File sourceFile : sourceFiles.getFiles()) {
+                            BuildLog.title("Cross-Compile").println(sourceFile.getName() + "  [Java v1." +
+                                                                    crossCompileClass.targetJavaVersion + "]");
+
+                            String relativeNameNoExtension = DependencyWalker.collect(sourceFile, dependencies);
+                            relativeLocations.put(sourceFile, relativeNameNoExtension);
+                        }
+
+                        BuildLog.disable();
+
+                        Paths tempSource = new Paths();
+                        for (String dependency : dependencies) {
+                            tempSource.addFile(dependency);
+                        }
+
+                        ProjectJava tempProject = ProjectJava.create("CrossCompileClasses")
+                                                             .options(buildOptions)
+                                                             .sourcePath(tempSource)
+                                                             .sourcePath(sourceFiles);
+                        tempProject.build(crossCompileClass.targetJavaVersion);
+
+                        // now have to save out the source files (that are now converted to .class files)
+                        for (File sourceFile : sourceFiles.getFiles()) {
+                            String s = relativeLocations.get(sourceFile) + ".class";
+                            File file = new File(tempProject.stagingDir, s);
+                            FileUtil.copyFile(file, new File(crossCompatBuiltFile, s));
+                        }
+
+                        FileUtil.delete(tempProject.stagingDir);
+                        BuildLog.enable();
+                    }
+                }
+
+                // now have to add this dir to our project
+                Paths crossFiles = new Paths();
+                crossFiles.addFile(crossCompatBuiltFile.getAbsolutePath());
+                classPath(crossFiles);
+
+                Paths crossIncludeFiles = new Paths();
+                for (String relativeName : relativeLocations.values()) {
+                    crossIncludeFiles.add(crossCompatBuiltFile.getAbsolutePath(), relativeName + ".class");
+
+                }
+                extraFiles(crossIncludeFiles);
+
+
+                // have to remove all the relative java files (since we don't want to normally build them)
+                // the EASIEST way is to make a copy
+                List<File> files = sourcePaths.getFiles();
+                Paths copy = new Paths();
+                for (File file : files) {
+                    boolean canAdd = true;
+
+                    for (File crossFile : relativeLocations.keySet()) {
+                        if (crossFile.equals(file)) {
+                            canAdd = false;
+                            break;
+                        }
+                    }
+
+                    if (canAdd) {
+                        copy.add(file.getParent(), file.getName());
+                    }
+                }
+                sourcePaths = copy;
+            }
+            // done with extra-file cross-compile
+            BuildLog.println();
+
+
+
+            if (this.bytesClassloader == null && this.jarable == null) {
+                FileUtil.delete(this.stagingDir);
+            }
+
+
             runCompile(targetJavaVersion);
             BuildLog.println("Compile success");
 
             if (this.jarable != null) {
+                if (!keepOldFiles) {
+                    // before we create the jar (and sources if necessary), we delete any of the old versions that might be in the target
+                    // directory.
+                    final File parentFile = this.outputFile.getParentFile();
+                    final File[] files = parentFile.listFiles();
+                    if (files != null) {
+                        for (int i = 0; i < files.length; i++) {
+                            File file = files[i];
+                            if (file.isDirectory()) {
+                                continue;
+                            }
+
+                            final String name = file.getName();
+
+                            // if the file has our output name, delete it. We don't delete EVERYTHING, because there might be other files
+                            // in this directory that we care about... also, only delete the files that we would be replacing.
+                            if (name.startsWith(outputFileNameOnly)) {
+                                file.delete();
+                            }
+                        }
+                    }
+                }
+
+
                 this.jarable.buildJar();
             }
 
             // calculate the hash of all the files in the source path
             saveChecksums();
 
+            if (this.mavenExporter != null) {
+                this.mavenExporter.export(targetJavaVersion);
+            }
 
             if (crossCompatBuiltFile != null) {
                 FileUtil.delete(crossCompatBuiltFile);
             }
 
-            if (!keepStaging) {
-                BuildLog.println();
-                Builder.delete(this.stagingDir);
-            }
-            else {
-                BuildLog.println("Output - " + this.stagingDir);
-            }
+            BuildLog.title("Staging").println(this.stagingDir);
         }
         else {
-            BuildLog.println("Skipped (nothing changed)");
+            BuildLog.println().println("Skipped (nothing changed)");
         }
 
         buildList.add(this.name);
@@ -368,63 +386,9 @@ class ProjectJava extends Project<ProjectJava> {
     }
 
     /**
-     * @return true if the checksums for path match the saved checksums and the jar file exists
-     */
-    @Override
-    boolean verifyChecksums() throws IOException {
-        boolean sourceHashesSame = super.verifyChecksums();
-        if (!sourceHashesSame) {
-            return false;
-        }
-
-        // if the sources are the same, check the jar file
-        if (this.jarable != null && this.outputFile.canRead()) {
-            String jarChecksum = generateChecksum(this.outputFile);
-            String checkContents = Builder.settings.get(this.outputFile.getAbsolutePath(), String.class);
-
-            boolean outputFileGood = jarChecksum != null && jarChecksum.equals(checkContents);
-
-            if (outputFileGood) {
-                if (!this.jarable.includeSourceAsSeparate) {
-                    return true;
-                }
-                else {
-                    // now check the src.zip file (if there was one).
-                    jarChecksum = generateChecksum(this.outputFileSource);
-                    checkContents = Builder.settings.get(this.outputFileSource.getAbsolutePath(), String.class);
-
-                    return jarChecksum != null && jarChecksum.equals(checkContents);
-                }
-            }
-        }
-        // output file was removed
-        return false;
-    }
-
-    /**
-     * Saves the checksums for a given path
-     */
-    @Override
-    void saveChecksums() throws IOException {
-        super.saveChecksums();
-
-        // hash/save the jar file (if there was one)
-        if (this.outputFile.exists()) {
-            String fileChecksum = generateChecksum(this.outputFile);
-            Builder.settings.save(this.outputFile.getAbsolutePath(), fileChecksum);
-
-            if (this.jarable != null && this.jarable.includeSourceAsSeparate) {
-                // now check the src.zip file (if there was one).
-                fileChecksum = generateChecksum(this.outputFileSource);
-
-                Builder.settings.save(this.outputFileSource.getAbsolutePath(), fileChecksum);
-            }
-        }
-    }
-
-    /**
      * Compiles into class files.
      */
+    @SuppressWarnings("AccessStaticViaInstance")
     private synchronized
     void runCompile(final int targetJavaVersion) throws IOException {
         // if you get messages, such as
@@ -543,7 +507,9 @@ class ProjectJava extends Project<ProjectJava> {
             final String temp = FileUtil.tempDirectory("temp");
             final File tempFile = new File(temp);
             String tempDir = tempFile.getParent();
-            tempFile.delete();
+            if (!tempFile.delete()) {
+                BuildLog.println("Error deleting temp directory!!", tempDir);
+            }
 
             BuildLog.enable();
             for (Diagnostic<? extends JavaFileObject> diagnostic : diagnostics.getDiagnostics()) {
@@ -557,8 +523,8 @@ class ProjectJava extends Project<ProjectJava> {
                     continue;
                 }
 
-                BuildLog log = BuildLog.start();
-                log.title(kind.toString()).println(message);
+                BuildLog.start();
+                BuildLog.title(kind.toString()).println(message);
 
                 final JavaFileObject source = diagnostic.getSource();
                 String className = null;
@@ -583,18 +549,18 @@ class ProjectJava extends Project<ProjectJava> {
                     }
 
                     if (className == null) {
-                        log.title("Location").println(getLineInfo(diagnostic));
+                        BuildLog.title("Location").println(getLineInfo(diagnostic));
                         className = name;
                     }
                 }
 
 
                 if (className != null) {
-                    log.println(className);
+                    BuildLog.println(className);
                 }
                 else {
-                    log.title("Location").println(getLineInfo(diagnostic));
-                    log.println("Unknown location");
+                    BuildLog.title("Location").println(getLineInfo(diagnostic));
+                    BuildLog.println("Unknown location");
                 }
                 BuildLog.finish();
             }
@@ -608,7 +574,7 @@ class ProjectJava extends Project<ProjectJava> {
         System.gc();
         try {
             Thread.sleep(100);
-        } catch (InterruptedException ex) {
+        } catch (InterruptedException ignored) {
         }
     }
 
@@ -647,8 +613,27 @@ class ProjectJava extends Project<ProjectJava> {
         return this;
     }
 
+    /**
+     * Exports this project to the maven central repository
+     */
+    public
+    MavenExporter maven() {
+        mavenExporter = new MavenExporter(versionString);
+        mavenExporter.setProject(this);
+        return mavenExporter;
+    }
 
-    public static
+    /**
+     * Exports this project to the maven central repository
+     */
+    public
+    ProjectJava maven(MavenExporter exporter) {
+        mavenExporter = exporter;
+        return this;
+    }
+
+
+    public
     interface OnJarEntryAction {
         boolean canHandle(String fileName);
 
@@ -717,4 +702,70 @@ class ProjectJava extends Project<ProjectJava> {
         super.version(versionString);
         return this;
     }
+
+
+    /**
+     * @return true if the checksums for path match the saved checksums and the jar file exists
+     */
+    @Override
+    boolean verifyChecksums() throws IOException {
+        boolean sourceHashesSame = super.verifyChecksums();
+        if (!sourceHashesSame) {
+            return false;
+        }
+
+        // if the sources are the same, check the jar file
+        if (this.jarable != null && !this.jarable.temporary) {
+            if (this.outputFile.canRead()) {
+                String jarChecksum = generateChecksum(this.outputFile);
+                String checkContents = Builder.settings.get(this.outputFile.getAbsolutePath(), String.class);
+
+                boolean outputFileGood = jarChecksum != null && jarChecksum.equals(checkContents);
+
+                if (outputFileGood) {
+                    if (!this.jarable.includeSourceAsSeparate) {
+                        return true;
+                    }
+                    else {
+                        // now check the src.zip file (if there was one).
+                        jarChecksum = generateChecksum(this.outputFileSource);
+                        checkContents = Builder.settings.get(this.outputFileSource.getAbsolutePath(), String.class);
+
+                        return jarChecksum != null && jarChecksum.equals(checkContents);
+                    }
+                }
+            }
+            else {
+                // output file was removed
+                BuildLog.println("Output file was removed.");
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+
+
+    /**
+     * Saves the checksums for a given path
+     */
+    @Override
+    void saveChecksums() throws IOException {
+        super.saveChecksums();
+
+        // hash/save the jar file (if there was one)
+        if (this.outputFile.exists()) {
+            String fileChecksum = generateChecksum(this.outputFile);
+            Builder.settings.save(this.outputFile.getAbsolutePath(), fileChecksum);
+
+            if (this.jarable != null && this.jarable.includeSourceAsSeparate) {
+                // now check the src.zip file (if there was one).
+                fileChecksum = generateChecksum(this.outputFileSource);
+
+                Builder.settings.save(this.outputFileSource.getAbsolutePath(), fileChecksum);
+            }
+        }
+    }
+
 }
