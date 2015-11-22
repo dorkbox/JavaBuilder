@@ -18,7 +18,7 @@ package dorkbox.build.util.jar;
 import dorkbox.build.util.BuildLog;
 import dorkbox.util.Base64Fast;
 import dorkbox.util.Sys;
-import dorkbox.util.crypto.Crypto.DSA;
+import dorkbox.util.crypto.CryptoDSA;
 import dorkbox.util.crypto.CryptoX509;
 import org.bouncycastle.asn1.ASN1Integer;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
@@ -202,7 +202,7 @@ class JarSigner {
         if (!wimpyKeyRawFile.canRead()) {
             // using DSA, since that is compatible with ALL java versions
             @SuppressWarnings("deprecation")
-            AsymmetricCipherKeyPair generateKeyPair = DSA.generateKeyPair(new SecureRandom(), 8192);
+            AsymmetricCipherKeyPair generateKeyPair = CryptoDSA.generateKeyPair(new SecureRandom(), 8192);
             wimpyPrivateKey = (DSAPrivateKeyParameters) generateKeyPair.getPrivate();
             wimpyPublicKey = (DSAPublicKeyParameters) generateKeyPair.getPublic();
 
@@ -219,7 +219,7 @@ class JarSigner {
 
                 // using DSA, since that is compatible with ALL java versions
                 @SuppressWarnings("deprecation")
-                AsymmetricCipherKeyPair generateKeyPair = DSA.generateKeyPair(new SecureRandom(), 8192);
+                AsymmetricCipherKeyPair generateKeyPair = CryptoDSA.generateKeyPair(new SecureRandom(), 8192);
                 wimpyPrivateKey = (DSAPrivateKeyParameters) generateKeyPair.getPrivate();
                 wimpyPublicKey = (DSAPublicKeyParameters) generateKeyPair.getPublic();
 

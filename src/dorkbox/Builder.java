@@ -735,6 +735,29 @@ class Builder {
     }
 
     public static
+    File copyFileToDir(File source, File target) throws IOException {
+        source = FileUtil.normalize(source);
+        target = FileUtil.normalize(target);
+
+
+        BuildLog.title("Copying file to dir")
+                .println("  ╭─ " + source.getAbsolutePath(), "╰─> " + target.getAbsolutePath());
+
+        return FileUtil.copyFileToDir(source, target);
+    }
+
+    public static
+    void copyFileToDir(String source, String target) throws IOException {
+        source = FileUtil.normalizeAsFile(source);
+        target = FileUtil.normalizeAsFile(target);
+
+        BuildLog.title("Copying file to dir")
+                .println("  ╭─ " + source, "╰─> " + target);
+
+        FileUtil.copyFileToDir(source, target);
+    }
+
+    public static
     void copyDirectory(String source, String target, String... dirNamesToIgnore) throws IOException {
         source = FileUtil.normalizeAsFile(source);
         target = FileUtil.normalizeAsFile(target);

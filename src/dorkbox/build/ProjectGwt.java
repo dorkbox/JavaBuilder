@@ -116,10 +116,9 @@ public class ProjectGwt extends Project<ProjectGwt> {
     /**
      * This uses the same gwt symbol parser as the web-server project.
      */
-    @Override
-    public void build() throws IOException {
+    public void build(final int targetJavaVersion) throws IOException {
         // exit early if we already built this project
-        if (checkAndBuildDependencies()) {
+        if (checkAndBuildDependencies(targetJavaVersion)) {
             return;
         }
 
@@ -318,7 +317,7 @@ public class ProjectGwt extends Project<ProjectGwt> {
                 // calculate the hash of all the files in the source path
                 saveChecksums();
             } else {
-                BuildLog.println("Skipped (nothing changed)");
+                BuildLog.println().println("Skipped (nothing changed)");
             }
         } finally {
             if (shouldBuild) {

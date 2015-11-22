@@ -7,6 +7,7 @@ import dorkbox.build.util.jar.JarOptions;
 import dorkbox.build.util.jar.JarSigner;
 import dorkbox.build.util.jar.JarUtil;
 
+import java.io.File;
 import java.io.IOException;
 
 @SuppressWarnings("unused")
@@ -31,6 +32,7 @@ class Jarable {
     private Class<?> mainClass;
     private transient PreJarAction preJarAction;
     private Paths newClassPath;
+    public boolean temporary;
 
 
     public
@@ -166,13 +168,39 @@ class Jarable {
         }
     }
 
-    public
+    /**
+     * If the specified file is ONLY a filename, then it (and the source file, if necessary) will be placed into the staging directory.
+     * If a path + name is specified, then they will be placed as is.
+     * <p>
+     * If no extension is provide, the default is '.jar'
+     */    public
     ProjectJava outputFile(String jarOutputFileName) {
+        return this.projectJava.outputFile(jarOutputFileName);
+    }
+
+    /**
+     * If the specified file is ONLY a filename, then it (and the source file, if necessary) will be placed into the staging directory.
+     * If a path + name is specified, then they will be placed as is.
+     * <p>
+     * If no extension is provide, the default is '.jar'
+     */
+    public
+    ProjectJava outputFile(File jarOutputFileName) {
         return this.projectJava.outputFile(jarOutputFileName);
     }
 
     public
     ProjectJava asProject() {
         return this.projectJava;
+    }
+
+    /**
+     * Sets this jar to be temporary, meaning that the decision to build this does NOT depend on the output files from this project
+     * existing, meaning that the only reason for the build on this to run is if the source code changes.
+     */
+    public
+    Jarable setTemporary() {
+        temporary = true;
+        return this;
     }
 }

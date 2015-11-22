@@ -23,12 +23,14 @@ import dorkbox.build.util.BuildLog;
 import dorkbox.license.License;
 import dorkbox.util.Base64Fast;
 import dorkbox.util.FileUtil;
+import dorkbox.util.OS;
 import org.bouncycastle.crypto.digests.MD5Digest;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
 
+@SuppressWarnings("unused")
 public abstract
 class Project<T extends Project<T>> {
     public static final String JAR_EXTENSION = ".jar";
@@ -124,12 +126,15 @@ class Project<T extends Project<T>> {
     public final String name;
 
     protected String versionString;
-    // has the version been set?
-    protected boolean setVersion = false;
 
     public File stagingDir;
+
+    // if true, we do not delete the older versions during a build
+    public boolean keepOldFiles;
+
     public File outputFile;
     public File outputFileSource = null;
+    public String outputFileNameOnly;
 
     public List<File> sources = new ArrayList<File>();
     // could also be called native lib location
@@ -150,13 +155,13 @@ class Project<T extends Project<T>> {
     private ArrayList<String> unresolvedDependencies = new ArrayList<String>();
 
 
-    protected boolean keepStaging = false;
-
-
+    /** true if we had to build this project */
+    protected boolean shouldBuild = false;
 
     public static
     Project<?> get(String projectName) {
         if (deps.containsKey(projectName)) {
+            //noinspection UnnecessaryLocalVariable
             Project<?> project = deps.get(projectName);
             // put swt lib into jar!
             return project;
@@ -226,25 +231,24 @@ class Project<T extends Project<T>> {
         outputFile(new File(this.stagingDir.getParentFile(), this.name + getExtension()));
     }
 
+    /**
+     * Builds using the current, detected JDK.
+     */
+    public final
+    void build() throws IOException {
+        build(OS.javaVersion);
+    }
+
+
+    /**
+     * Builds using the current, detected JDK.
+     */
     public abstract
-    void build() throws IOException;
+    void build(final int targetJavaVersion) throws IOException;
 
     public abstract
     String getExtension();
 
-
-
-    /**
-     * Keeps the staging directory (normally this is deleted when the compile is finished).
-     * </p>
-     * Make sure to delete this directory manually.
-     */
-    @SuppressWarnings("unchecked")
-    public
-    T keepStaging() {
-        this.keepStaging = true;
-        return (T) this;
-    }
 
 
     public
@@ -276,7 +280,7 @@ class Project<T extends Project<T>> {
      */
     @SuppressWarnings("all")
     protected
-    boolean checkAndBuildDependencies() throws IOException {
+    boolean checkAndBuildDependencies(final int targetJavaVersion) throws IOException {
         resolveDeps();
 
         // exit early if we already built this project
@@ -313,7 +317,7 @@ class Project<T extends Project<T>> {
                         boolean prev = project.isBuildingDependencies;
                         project.isBuildingDependencies = true;
 
-                        project.build();
+                        project.build(targetJavaVersion);
 
                         project.isBuildingDependencies = prev;
                     }
@@ -394,34 +398,48 @@ class Project<T extends Project<T>> {
         return outputFile(outputFile.getAbsolutePath());
     }
 
+
+    /**
+     * If the specified file is ONLY a filename, then it (and the source file, if necessary) will be placed into the staging directory.
+     * If a path + name is specified, then they will be placed as is.
+     * <p>
+     * If no extension is provide, the default is '.jar'
+     */
     @SuppressWarnings("unchecked")
     public
     T outputFile(String outputFileName) {
-        this.setVersion = true;
+        if (!outputFileName.contains(File.separator)) {
+            outputFileName = new File(this.stagingDir, outputFileName).getAbsolutePath();
+        }
+
         String withVersionName;
         // version string is appended to the fileName
         if (this.versionString != null) {
-            int index = outputFileName.lastIndexOf('.');
-            if (index < 0) {
-                withVersionName = outputFileName + "_" + this.versionString;
+            String extension = FileUtil.getExtension(outputFileName);
+            if (extension == null) {
+                withVersionName = outputFileName + "_" + this.versionString + Project.JAR_EXTENSION;
+                this.outputFileNameOnly = outputFileName;
             }
             else {
-                String first = outputFileName.substring(0, index);
-                String extension = outputFileName.substring(index);
-
-                withVersionName = first + "_" + this.versionString + extension;
+                String nameWithOutExtension = FileUtil.getNameWithoutExtension(outputFileName);
+                withVersionName = nameWithOutExtension + "_" + this.versionString + extension;
+                this.outputFileNameOnly = nameWithOutExtension;
             }
         }
         else {
             withVersionName = outputFileName;
+            this.outputFileNameOnly = outputFileName;
         }
 
         this.outputFile = FileUtil.normalize(new File(withVersionName));
 
 
+        // setup the name for the source file
+
         String name = this.outputFile.getAbsolutePath();
         int lastIndexOf = name.lastIndexOf('.');
         if (lastIndexOf > 0) {
+            // take off the extension
             name = name.substring(0, lastIndexOf);
         }
 
@@ -590,7 +608,7 @@ class Project<T extends Project<T>> {
     /**
      * Generates checksums for the given path
      */
-    public static final
+    public static
     String generateChecksum(File file) throws IOException {
         synchronized (Project.class) {
             // calculate the hash of file
@@ -605,6 +623,7 @@ class Project<T extends Project<T>> {
 
             byte[] hashBytes = MD5.getHash(file);
 
+            //noinspection UnnecessaryLocalVariable
             String fileChecksums = Base64Fast.encodeToString(hashBytes, false);
             return fileChecksums;
         }
@@ -613,7 +632,7 @@ class Project<T extends Project<T>> {
     /**
      * Generates checksums for the given path
      */
-    public static final
+    public static
     String generateChecksums(Paths... paths) throws IOException {
         synchronized (Project.class) {
             // calculate the hash of all the files in the source path
@@ -644,6 +663,7 @@ class Project<T extends Project<T>> {
             byte[] hashBytes = new byte[md5_digest.getDigestSize()];
             md5_digest.doFinal(hashBytes, 0);
 
+            //noinspection UnnecessaryLocalVariable
             String fileChecksums = Base64Fast.encodeToString(hashBytes, false);
             return fileChecksums;
         }
@@ -652,6 +672,20 @@ class Project<T extends Project<T>> {
     public
     Project<?> version(String versionString) {
         this.versionString = versionString;
+        return this;
+    }
+
+    public
+    void cleanup() {
+        if (stagingDir.exists()) {
+            BuildLog.println("Deleting staging location" + this.stagingDir);
+            FileUtil.delete(this.stagingDir);
+        }
+    }
+
+    public
+    Project<?> keepOldFiles() {
+        keepOldFiles = true;
         return this;
     }
 
@@ -670,6 +704,7 @@ class Project<T extends Project<T>> {
         return result;
     }
 
+    @SuppressWarnings("Duplicates")
     @Override
     public
     boolean equals(Object obj) {
