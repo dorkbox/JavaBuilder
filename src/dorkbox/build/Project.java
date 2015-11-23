@@ -154,6 +154,7 @@ class Project<T extends Project<T>> {
 
     private ArrayList<String> unresolvedDependencies = new ArrayList<String>();
 
+    protected MavenExporter<T> mavenExporter;
 
     /** true if we had to build this project */
     protected boolean shouldBuild = false;
@@ -185,6 +186,8 @@ class Project<T extends Project<T>> {
             }
         }
     }
+
+    public MavenInfo<T> mavenInfo;
 
     /**
      * resolves all of the dependencies for this project, since the build order can be specified in ANY order
@@ -246,9 +249,44 @@ class Project<T extends Project<T>> {
     public abstract
     void build(final int targetJavaVersion) throws IOException;
 
+
+    /**
+     * Exports this project to the maven central repository
+     */
+    @SuppressWarnings("unchecked")
+    public
+    MavenExporter mavenExport(final String groupId) {
+        mavenExport(new MavenExporter<T>(new MavenInfo(groupId, name, this.versionString)));
+        return mavenExporter;
+    }
+
+    /**
+     * Exports this project to the maven central repository
+     */
+    @SuppressWarnings("unchecked")
+    public
+    T mavenExport(MavenExporter<T> exporter) {
+        mavenExporter = exporter;
+        return (T)this;
+    }
+
+    /**
+     * Specifies the specific maven info for this project, to configure dependencies
+     */
+    @SuppressWarnings("unchecked")
+    public
+    T mavenInfo(final String groupId, final String artifactId, final String version) {
+        mavenInfo = new MavenInfo<T>(groupId, artifactId, version);
+        return (T)this;
+    }
+
+    public
+    List<License> getLicenses() {
+        return this.licenses;
+    }
+
     public abstract
     String getExtension();
-
 
 
     public
@@ -728,4 +766,6 @@ class Project<T extends Project<T>> {
         }
         return true;
     }
+
+
 }

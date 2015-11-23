@@ -665,28 +665,30 @@ class JarUtil {
             if (options.extraPaths != null) {
                 List<SortedFiles> sortList = new ArrayList<SortedFiles>(options.extraPaths.count());
 
-                BuildLog.println("\tAdding extras");
+                if (!sortList.isEmpty()) {
+                    BuildLog.println("\tAdding extras");
 
-                fullPaths = options.extraPaths.getPaths();
-                relativePaths = options.extraPaths.getRelativePaths();
+                    fullPaths = options.extraPaths.getPaths();
+                    relativePaths = options.extraPaths.getRelativePaths();
 
-                for (int i = 0, n = fullPaths.size(); i < n; i++) {
-                    String fileName;
-                    fileName = relativePaths.get(i).replace('\\', '/');
+                    for (int i = 0, n = fullPaths.size(); i < n; i++) {
+                        String fileName;
+                        fileName = relativePaths.get(i).replace('\\', '/');
 
-                    BuildLog.println("\t  " + fileName);
+                        BuildLog.println("\t  " + fileName);
 
-                    SortedFiles file = new SortedFiles();
-                    file.file = new File(fullPaths.get(i));
-                    file.fileName = fileName;
-                    sortList.add(file);
+                        SortedFiles file = new SortedFiles();
+                        file.file = new File(fullPaths.get(i));
+                        file.fileName = fileName;
+                        sortList.add(file);
+                    }
+
+                    InputStream input;
+
+                    // sort them
+                    Collections.sort(sortList);
+                    addFilesToJar(options, makeJar, output, sortList);
                 }
-
-                InputStream input;
-
-                // sort them
-                Collections.sort(sortList);
-                addFilesToJar(options, makeJar, output, sortList);
             }
 
             ///////////////////////////////////////////////

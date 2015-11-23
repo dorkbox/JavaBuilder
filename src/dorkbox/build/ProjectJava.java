@@ -63,7 +63,6 @@ class ProjectJava extends Project<ProjectJava> {
 
     private Jarable jarable = null;
 
-    private MavenExporter mavenExporter;
     private boolean suppressSunWarnings = false;
     private final List<CrossCompileClass> crossCompileClasses = new ArrayList<CrossCompileClass>(4);
 
@@ -368,6 +367,7 @@ class ProjectJava extends Project<ProjectJava> {
             saveChecksums();
 
             if (this.mavenExporter != null) {
+                this.mavenExporter.setProject(this);
                 this.mavenExporter.export(targetJavaVersion);
             }
 
@@ -613,26 +613,6 @@ class ProjectJava extends Project<ProjectJava> {
         return this;
     }
 
-    /**
-     * Exports this project to the maven central repository
-     */
-    public
-    MavenExporter maven() {
-        mavenExporter = new MavenExporter(versionString);
-        mavenExporter.setProject(this);
-        return mavenExporter;
-    }
-
-    /**
-     * Exports this project to the maven central repository
-     */
-    public
-    ProjectJava maven(MavenExporter exporter) {
-        mavenExporter = exporter;
-        return this;
-    }
-
-
     public
     interface OnJarEntryAction {
         boolean canHandle(String fileName);
@@ -689,11 +669,6 @@ class ProjectJava extends Project<ProjectJava> {
     ProjectJava compilerClassloader(ByteClassloader bytesClassloader) {
         this.bytesClassloader = bytesClassloader;
         return this;
-    }
-
-    public
-    List<License> getLicenses() {
-        return this.licenses;
     }
 
     @Override
@@ -767,5 +742,4 @@ class ProjectJava extends Project<ProjectJava> {
             }
         }
     }
-
 }
