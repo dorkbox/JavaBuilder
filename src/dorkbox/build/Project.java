@@ -19,7 +19,9 @@ import com.esotericsoftware.wildcard.Paths;
 import com.twmacinta.util.MD5;
 import dorkbox.BuildOptions;
 import dorkbox.Builder;
+import dorkbox.Version;
 import dorkbox.build.util.BuildLog;
+import dorkbox.build.util.OutputFile;
 import dorkbox.license.License;
 import dorkbox.util.Base64Fast;
 import dorkbox.util.FileUtil;
@@ -69,42 +71,57 @@ class Project<T extends Project<T>> {
     protected boolean isBuildingDependencies = false;
 
     public static List<File> builderFiles = new ArrayList<File>();
+    private static Thread shutdownHook;
 
     static {
-        if (!Builder.isJar) {
-            // check to see if our deploy code has changed. if yes, then we have to rebuild everything since
-            // we don't know what might have changed.
-            Paths paths = new Paths();
-            File file = new File(Project.class.getSimpleName() + ".java").getAbsoluteFile().getParentFile();
-            paths.glob(file.getAbsolutePath(), Java_Pattern);
+        // check to see if our deploy code has changed. if yes, then we have to rebuild everything since
+        // we don't know what might have changed.
+        final Paths paths = new Paths();
+        File file = new File(Project.class.getSimpleName() + ".java").getAbsoluteFile().getParentFile();
+        paths.glob(file.getAbsolutePath(), Java_Pattern);
 
-            for (File f : builderFiles) {
-                paths.glob(f.getAbsolutePath(), Java_Pattern);
-            }
+        for (File f : builderFiles) {
+            paths.glob(f.getAbsolutePath(), Java_Pattern);
+        }
 
-            try {
-                String oldHash = Builder.settings.get("BUILD", String.class);
-                String hashedContents = generateChecksums(paths);
+        try {
+            String oldHash = Builder.settings.get("BUILD", String.class);
+            String hashedContents = generateChecksums(paths);
 
-                if (oldHash != null) {
-                    if (!oldHash.equals(hashedContents)) {
-                        forceRebuild = true;
-                    }
-                }
-                else {
+            if (oldHash != null) {
+                if (!oldHash.equals(hashedContents)) {
                     forceRebuild = true;
                 }
-
-                if (forceRebuild) {
-                    if (!alreadyChecked) {
-                        alreadyChecked = true;
-                        BuildLog.println("Build system changed. Rebuilding.");
-                    }
-                    Builder.settings.save("BUILD", hashedContents);
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
             }
+            else {
+                forceRebuild = true;
+            }
+
+            if (forceRebuild) {
+                if (!alreadyChecked) {
+                    alreadyChecked = true;
+                    BuildLog.println("Build system changed. Rebuilding.");
+                }
+
+                // we only want to save the project checksums ON EXIT (so version modifications/save() can be applied)!
+                shutdownHook = new Thread(new Runnable() {
+                    @Override
+                    public
+                    void run() {
+                        try {
+                            BuildLog.println("Saving build system checksums.");
+                            String hashedContents = generateChecksums(paths);
+                            Builder.settings.save("BUILD", hashedContents);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                });
+
+                Runtime.getRuntime().addShutdownHook(shutdownHook);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
@@ -125,16 +142,14 @@ class Project<T extends Project<T>> {
 
     public final String name;
 
-    protected String versionString;
+    protected Version version;
 
     public File stagingDir;
 
     // if true, we do not delete the older versions during a build
-    public boolean keepOldFiles;
+    public boolean keepOldVersion;
 
-    public File outputFile;
-    public File outputFileSource = null;
-    public String outputFileNameOnly;
+    public OutputFile outputFile;
 
     public List<File> sources = new ArrayList<File>();
     // could also be called native lib location
@@ -155,9 +170,19 @@ class Project<T extends Project<T>> {
     private ArrayList<String> unresolvedDependencies = new ArrayList<String>();
 
     protected MavenExporter<T> mavenExporter;
+    public MavenInfo mavenInfo;
 
     /** true if we had to build this project */
     protected boolean shouldBuild = false;
+
+    /**
+     * Temporary projects are always built, but not always exported to maven (this is controlled by the parent, non-temp project
+     * recursively)
+     */
+    public boolean temporary = false;
+    public boolean overrideTemporary = false;
+
+    public String description;
 
     public static
     Project<?> get(String projectName) {
@@ -186,8 +211,6 @@ class Project<T extends Project<T>> {
             }
         }
     }
-
-    public MavenInfo<T> mavenInfo;
 
     /**
      * resolves all of the dependencies for this project, since the build order can be specified in ANY order
@@ -236,18 +259,22 @@ class Project<T extends Project<T>> {
 
     /**
      * Builds using the current, detected JDK.
+     *
+     * @return true if this project was built, false otherwise
      */
     public final
-    void build() throws IOException {
-        build(OS.javaVersion);
+    boolean build() throws IOException {
+        return build(OS.javaVersion);
     }
 
 
     /**
      * Builds using the current, detected JDK.
+     *
+     * @return true if this project was built, false otherwise
      */
     public abstract
-    void build(final int targetJavaVersion) throws IOException;
+    boolean build(final int targetJavaVersion) throws IOException;
 
 
     /**
@@ -255,8 +282,8 @@ class Project<T extends Project<T>> {
      */
     @SuppressWarnings("unchecked")
     public
-    MavenExporter mavenExport(final String groupId) {
-        mavenExport(new MavenExporter<T>(new MavenInfo(groupId, name, this.versionString)));
+    MavenExporter mavenExport(final String groupId, final MavenInfo.Scope scope) {
+        mavenExport(new MavenExporter<T>(new MavenInfo(groupId, name, this.version, scope)));
         return mavenExporter;
     }
 
@@ -275,8 +302,38 @@ class Project<T extends Project<T>> {
      */
     @SuppressWarnings("unchecked")
     public
-    T mavenInfo(final String groupId, final String artifactId, final String version) {
-        mavenInfo = new MavenInfo<T>(groupId, artifactId, version);
+    T mavenInfo(final String groupId) {
+        mavenInfo = new MavenInfo(groupId, this.name, this.version, null); // null = Scope.COMPILE
+        return (T)this;
+    }
+
+    /**
+     * Specifies the specific maven info for this project, to configure dependencies
+     */
+    @SuppressWarnings("unchecked")
+    public
+    T mavenInfo(final String groupId, final MavenInfo.Scope scope) {
+        mavenInfo = new MavenInfo(groupId, this.name, this.version, scope);
+        return (T)this;
+    }
+
+    /**
+     * Specifies the specific maven info for this project, to configure dependencies
+     */
+    @SuppressWarnings("unchecked")
+    public
+    T mavenInfo(final String groupId, final String artifactId, final MavenInfo.Scope scope) {
+        mavenInfo = new MavenInfo(groupId, artifactId, this.version, scope);
+        return (T)this;
+    }
+
+    /**
+     * Specifies the specific maven info for this project, to configure dependencies
+     */
+    @SuppressWarnings("unchecked")
+    public
+    T mavenInfo(final String groupId, final String artifactId, final String version, final MavenInfo.Scope scope) {
+        mavenInfo = new MavenInfo(groupId, artifactId, new Version(version), scope);
         return (T)this;
     }
 
@@ -318,52 +375,28 @@ class Project<T extends Project<T>> {
      */
     @SuppressWarnings("all")
     protected
-    boolean checkAndBuildDependencies(final int targetJavaVersion) throws IOException {
+    void resolveAndCheckDependencies(final int targetJavaVersion) throws IOException {
         resolveDeps();
 
-        // exit early if we already built this project
-        if (buildList.contains(this.name)) {
-            if (!this.isBuildingDependencies) {
-                BuildLog.title("Building").println(this.name + " already built this run");
-            }
-            return true;
+        if (fullDependencyList == null) {
+            // ONLY build the dependencies as well
+            HashSet<Project<?>> deps = new HashSet<Project<?>>();
+            getRecursiveDependencies(deps);
+
+            Project<?>[] array = new Project<?>[deps.size()];
+            deps.toArray(array);
+            fullDependencyList = Arrays.asList(array);
+            Collections.sort(fullDependencyList, dependencyComparator);
         }
-
-        if (fullDependencyList != null) {
-            return true;
-        }
-
-        // ONLY build the dependencies as well
-        HashSet<Project<?>> deps = new HashSet<Project<?>>();
-        getRecursiveDependencies(deps);
-
-
-        Project<?>[] array = new Project<?>[deps.size()];
-        deps.toArray(array);
-        fullDependencyList = Arrays.asList(array);
-        Collections.sort(fullDependencyList, dependencyComparator);
 
         for (Project<?> project : fullDependencyList) {
             // dep can be a jar as well (don't have to build a jar)
             if (!(project instanceof ProjectJar)) {
-                if (!buildList.contains(project.name)) {
-                    // check the hashes to see if the project changed before we build it.
-                    // a change in the hashes would ALSO mean a dependency of it changed as well.
-
-                    boolean nothingChangd = project.verifyChecksums();
-                    if (!nothingChangd) {
-                        boolean prev = project.isBuildingDependencies;
-                        project.isBuildingDependencies = true;
-
-                        project.build(targetJavaVersion);
-
-                        project.isBuildingDependencies = prev;
-                    }
-                }
+                project.resolveAndCheckDependencies(targetJavaVersion);
+                // if one of our dependencies has to build, so do we
+                shouldBuild |= project.shouldBuild;
             }
         }
-
-        return false;
     }
 
 
@@ -431,6 +464,13 @@ class Project<T extends Project<T>> {
         return (T) this;
     }
 
+    @SuppressWarnings("unchecked")
+    public
+    T extraFiles(File file) {
+        this.extraFiles.add(new Paths(file.getParent(), file.getName()));
+        return (T) this;
+    }
+
     public
     T outputFile(File outputFile) {
         return outputFile(outputFile.getAbsolutePath());
@@ -446,43 +486,13 @@ class Project<T extends Project<T>> {
     @SuppressWarnings("unchecked")
     public
     T outputFile(String outputFileName) {
+        // output file is used for hash checking AND for new builds
+
         if (!outputFileName.contains(File.separator)) {
             outputFileName = new File(this.stagingDir, outputFileName).getAbsolutePath();
         }
 
-        String withVersionName;
-        // version string is appended to the fileName
-        if (this.versionString != null) {
-            String extension = FileUtil.getExtension(outputFileName);
-            if (extension == null) {
-                withVersionName = outputFileName + "_" + this.versionString + Project.JAR_EXTENSION;
-                this.outputFileNameOnly = outputFileName;
-            }
-            else {
-                String nameWithOutExtension = FileUtil.getNameWithoutExtension(outputFileName);
-                withVersionName = nameWithOutExtension + "_" + this.versionString + extension;
-                this.outputFileNameOnly = nameWithOutExtension;
-            }
-        }
-        else {
-            withVersionName = outputFileName;
-            this.outputFileNameOnly = outputFileName;
-        }
-
-        this.outputFile = FileUtil.normalize(new File(withVersionName));
-
-
-        // setup the name for the source file
-
-        String name = this.outputFile.getAbsolutePath();
-        int lastIndexOf = name.lastIndexOf('.');
-        if (lastIndexOf > 0) {
-            // take off the extension
-            name = name.substring(0, lastIndexOf);
-        }
-
-        name += SRC_EXTENSION;
-        this.outputFileSource = new File(name);
+        this.outputFile = new OutputFile(version, outputFileName);
 
         return (T) this;
     }
@@ -502,6 +512,12 @@ class Project<T extends Project<T>> {
     public
     Project<T> dist(String distLocation) {
         this.distLocation = FileUtil.normalizeAsFile(distLocation);
+        return this;
+    }
+
+    public
+    Project<T> dist(File distLocation) {
+        this.distLocation = FileUtil.normalize(distLocation).getAbsolutePath();
         return this;
     }
 
@@ -556,13 +572,23 @@ class Project<T extends Project<T>> {
 
 
     public
+    void copyFiles(String targetLocation) throws IOException {
+        copyFiles(new File(FileUtil.normalizeAsFile(targetLocation)));
+    }
+
+    public
     void copyFiles(File targetLocation) throws IOException {
+        File file = null;
+        if (this.outputFile != null) {
+            file = this.outputFile.get();
+        }
+
         // copy dist dir over
         boolean canCopySingles = false;
         if (this.distLocation != null) {
             Builder.copyDirectory(this.distLocation, targetLocation.getAbsolutePath());
 
-            if (this.outputFile == null || !this.outputFile.getAbsolutePath().startsWith(this.distLocation)) {
+            if (file == null || !file.getAbsolutePath().startsWith(this.distLocation)) {
                 canCopySingles = true;
             }
         }
@@ -571,13 +597,18 @@ class Project<T extends Project<T>> {
         }
 
         if (canCopySingles) {
-            if (this.outputFile != null && this.outputFile.canRead()) {
-                Builder.copyFile(this.outputFile, new File(targetLocation, this.outputFile.getName()));
+            if (file != null && file.canRead()) {
+                Builder.copyFile(file, new File(targetLocation, file.getName()));
+            }
+
+            File source = null;
+            if (this.outputFile != null) {
+                source = this.outputFile.getSource();
             }
 
             // do we have a "source" file as well?
-            if (this.outputFileSource != null && this.outputFileSource.canRead()) {
-                Builder.copyFile(this.outputFileSource, new File(targetLocation, this.outputFileSource.getName()));
+            if (source != null && source.canRead()) {
+                Builder.copyFile(source, new File(targetLocation, source.getName()));
             }
 
             for (File f : this.sources) {
@@ -606,6 +637,30 @@ class Project<T extends Project<T>> {
         }
     }
 
+    public
+    void copyMainFiles(String targetLocation) throws IOException {
+        copyMainFiles(new File(FileUtil.normalizeAsFile(targetLocation)));
+    }
+
+
+    public
+    void copyMainFiles(File targetLocation) throws IOException {
+        if (this.outputFile != null) {
+            final File file = this.outputFile.get();
+            final File source = this.outputFile.getSource();
+
+
+            if (file != null && file.canRead()) {
+                Builder.copyFile(file, new File(targetLocation, file.getName()));
+            }
+
+            // do we have a "source" file as well?
+            if (source != null && source.canRead()) {
+                Builder.copyFile(source, new File(targetLocation, source.getName()));
+            }
+        }
+    }
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 //// CHECKSUM LOGIC
@@ -620,7 +675,8 @@ class Project<T extends Project<T>> {
     }
 
     /**
-     * @return true if the checksums for path match the saved checksums and the jar file exists
+     * @return true if the checksums for path match the saved checksums and the jar file exists, false if the check failed and the
+     * project needs to rebuild
      */
     boolean verifyChecksums() throws IOException {
         if (forceRebuild || this.buildOptions.compiler.forceRebuild) {
@@ -707,24 +763,58 @@ class Project<T extends Project<T>> {
         }
     }
 
+    @SuppressWarnings("unchecked")
     public
-    Project<?> version(String versionString) {
-        this.versionString = versionString;
-        return this;
+    T version(Version version) {
+        this.version = version;
+        return (T) this;
     }
 
+    /**
+     * This cleans up and deletes the staging directory
+     */
     public
     void cleanup() {
+        if (fullDependencyList != null) {
+            for (Project<?> project : fullDependencyList) {
+                 project.cleanup();
+            }
+        }
+
         if (stagingDir.exists()) {
             BuildLog.println("Deleting staging location" + this.stagingDir);
             FileUtil.delete(this.stagingDir);
         }
     }
 
+    /**
+     * Will keep the old files. Meaning that if you have SuperCool-v1.4, and release SuperCool-v1.5; the v1.4 release will not be deleted.
+     */
     public
-    Project<?> keepOldFiles() {
-        keepOldFiles = true;
+    Project<?> keepOldVersion() {
+        keepOldVersion = true;
         return this;
+    }
+
+    /**
+     * Description used for the build process
+     */
+    @SuppressWarnings("unchecked")
+    public
+    T description(String description) {
+        this.description = description;
+        return (T) this;
+    }
+
+    /**
+     * Sets this project to be temporary, meaning that the decision to build this does NOT depend on the output files from this project
+     * existing, meaning that this project will ALWAYS build if the parent, non-temp project needs it to (ie: source code changes)
+     */
+    @SuppressWarnings("unchecked")
+    public
+    T temporary() {
+        temporary = true;
+        return (T) this;
     }
 
     @Override
@@ -766,6 +856,4 @@ class Project<T extends Project<T>> {
         }
         return true;
     }
-
-
 }

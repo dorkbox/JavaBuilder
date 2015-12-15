@@ -286,7 +286,9 @@ class Builder {
 
                 for (Method m : methods) {
                     if (m.getName()
+                         .toLowerCase(Locale.US)
                          .equals(methodNameToCall)) {
+
                         Class<?>[] p = m.getParameterTypes();
 
                         switch (p.length) {
@@ -684,19 +686,49 @@ class Builder {
         return FileUtil.isZipFile(file);
     }
 
+
+    /**
+     * Deletes a file or directory and all files and sub-directories under it.
+     *
+     * @return true iff the file/dir was deleted (or didn't exist)
+     */
     public static
     boolean delete(String target) {
         return delete(new File(FileUtil.normalizeAsFile(target)));
     }
 
+    /**
+     * Deletes a file or directory and all files and sub-directories under it.
+     *
+     * @return true iff the file/dir was deleted (or didn't exist)
+     */
     public static
     boolean delete(File target) {
         target = FileUtil.normalize(target);
 
-        BuildLog.title("Deleting")
-             .println(target.getAbsolutePath());
+        if (target.exists()) {
+            BuildLog.title("Deleting")
+                    .println(target.getAbsolutePath());
 
-        return FileUtil.delete(target);
+            return FileUtil.delete(target);
+        }
+        else {
+            return true;
+        }
+    }
+
+    public static
+    boolean delete(File target, String... filesToIgnore) {
+        target = FileUtil.normalize(target);
+
+        final List<String> strings = new ArrayList<String>(Arrays.asList(filesToIgnore));
+        strings.add(0, target.getAbsolutePath());
+        strings.add(1, "Ignoring:");
+
+        BuildLog.title("Deleting")
+                .println(strings.toArray(new String[strings.size()]));
+
+        return FileUtil.delete(target, filesToIgnore);
     }
 
     public static

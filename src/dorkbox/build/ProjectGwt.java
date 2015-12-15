@@ -33,27 +33,69 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map.Entry;
 
-public class ProjectGwt extends Project<ProjectGwt> {
+public
+class ProjectGwt extends Project<ProjectGwt> {
 
-    private String[] extraOptions;
-    private String projectLocation;
-    protected Paths sourcePaths = new Paths();
-
-    public static ProjectGwt create(String projectName, String projectLocation) {
+    public static
+    ProjectGwt create(String projectName, String projectLocation) {
         ProjectGwt project = new ProjectGwt(projectName, projectLocation);
         deps.put(projectName, project);
 
         return project;
     }
 
+    /**
+     * Parses the relevant data from the symbol map and saves it in the specified file.
+     */
+    public static
+    void parseAndCopyGwtSymbols(File sourceFile, File destSymbolFile) throws IOException {
+        GwtSymbolMapParser parser = new GwtSymbolMapParser();
 
-    protected ProjectGwt(String projectName, String projectLocation) {
-       super(projectName);
+        //FileReader always assumes default encoding is OK!
+        FileInputStream fileInputStream = new FileInputStream(sourceFile);
+        parser.parse(fileInputStream);
 
-       this.projectLocation = projectLocation;
+        destSymbolFile.getParentFile()
+                      .mkdirs();
+        Writer output = new BufferedWriter(new FileWriter(destSymbolFile));
+
+        try {
+            // FileWriter always assumes default encoding is OK
+            output.write("# BUILD-SCRIPT MODIFIED: only relevant symbols are present.\n");
+
+            StringBuilder stringBuilder = new StringBuilder();
+            for (Entry<String, String> entry : parser.getSymbolMap()
+                                                     .entrySet()) {
+                stringBuilder.delete(0, stringBuilder.capacity());
+                // create a "shrunk" version for deployment. This is marginally better than the original version
+                stringBuilder.append(entry.getKey()) // jsName
+                             .append(",")
+                             .append(entry.getValue()) // java className
+                             .append("\n");
+
+
+                String line = stringBuilder.toString();
+
+                // FileWriter always assumes default encoding is OK
+                output.write(line);
+            }
+        } finally {
+            output.close();
+        }
+    }
+    protected Paths sourcePaths = new Paths();
+    private String[] extraOptions;
+    private String projectLocation;
+
+    protected
+    ProjectGwt(String projectName, String projectLocation) {
+        super(projectName);
+
+        this.projectLocation = projectLocation;
     }
 
-    public ProjectGwt sourcePath(Paths sourcePaths) {
+    public
+    ProjectGwt sourcePath(Paths sourcePaths) {
         if (sourcePaths == null) {
             throw new NullPointerException("Source paths cannot be null!");
         }
@@ -62,65 +104,31 @@ public class ProjectGwt extends Project<ProjectGwt> {
         return this;
     }
 
-    public ProjectGwt sourcePath(String srcDir) {
+    public
+    ProjectGwt sourcePath(String srcDir) {
         if (srcDir.endsWith("src")) {
-            String parent = new File(srcDir).getAbsoluteFile().getParent();
+            String parent = new File(srcDir).getAbsoluteFile()
+                                            .getParent();
             checksum(new Paths(parent));
         }
 
         return sourcePath(new Paths(srcDir, "./"));
     }
 
-    public ProjectGwt sourcePath(String dir, String... patterns) {
+    public
+    ProjectGwt sourcePath(String dir, String... patterns) {
         return sourcePath(new Paths(dir, patterns));
     }
 
     /**
-     * GWT only cares about the output dir (it doesn't make jars for compiling)
-     * @return true if the checksums for path match the saved checksums and the jar file exists
-     */
-    @Override
-    boolean verifyChecksums() throws IOException {
-        boolean sourceHashesSame = super.verifyChecksums();
-        if (!sourceHashesSame) {
-            return false;
-        }
-
-        // if the sources are the same, check the output dir
-        if (this.stagingDir.exists()) {
-            String dirChecksum = generateChecksum(this.stagingDir);
-            String checkContents = Builder.settings.get(this.stagingDir.getAbsolutePath(), String.class);
-
-            return dirChecksum != null && dirChecksum.equals(checkContents);
-        }
-
-        return true;
-    }
-
-    /**
-     * GWT only cares about the output dir (it doesn't make jars for compiling)
-     * Saves the checksums for a given path
-     */
-    @Override
-    void saveChecksums() throws IOException {
-        super.saveChecksums();
-
-        // hash/save the output files (if there are any)
-        if (this.stagingDir.exists()) {
-            String fileChecksum = generateChecksum(this.stagingDir);
-            Builder.settings.save(this.stagingDir.getAbsolutePath(), fileChecksum);
-        }
-    }
-
-
-    /**
      * This uses the same gwt symbol parser as the web-server project.
+     *
+     * @return true if this project was built, false otherwise
      */
-    public void build(final int targetJavaVersion) throws IOException {
-        // exit early if we already built this project
-        if (checkAndBuildDependencies(targetJavaVersion)) {
-            return;
-        }
+    public
+    boolean build(final int targetJavaVersion) throws IOException {
+        // check dependencies for this project
+        resolveAndCheckDependencies(targetJavaVersion);
 
         boolean shouldBuild = false;
         try {
@@ -132,7 +140,7 @@ public class ProjectGwt extends Project<ProjectGwt> {
                 if (this.dependencies != null) {
                     for (Project<?> project : this.dependencies) {
                         if (project != null) {
-                            this.sourcePaths.addFile(project.outputFile.getAbsolutePath());
+                            this.sourcePaths.addFile(project.outputFile.get().getAbsolutePath());
                         }
                     }
                 }
@@ -171,7 +179,8 @@ public class ProjectGwt extends Project<ProjectGwt> {
 
 
                 System.err.println("Compiling GWT modules. This can take a while....");
-                System.err.println("  Working location: " + FileUtil.normalize(new File("test")).getParent());
+                System.err.println("  Working location: " + FileUtil.normalize(new File("test"))
+                                                                    .getParent());
 
                 JavaProcessBuilder builder = new JavaProcessBuilder(System.in, System.out, System.err);
                 builder.setMaximumHeapSizeInMegabytes(512);
@@ -225,7 +234,8 @@ public class ProjectGwt extends Project<ProjectGwt> {
                 if (this.buildOptions.compiler.debugEnabled) {
 //                    builder.addArgument("-style PRETTY");
                     builder.addArgument("-style DETAILED");
-                } else {
+                }
+                else {
                     builder.addArgument("-style OBF");
                 }
 
@@ -286,7 +296,7 @@ public class ProjectGwt extends Project<ProjectGwt> {
 
                 List<String> paths = this.extraFiles.getPaths();
                 List<String> paths2 = this.extraFiles.getRelativePaths();
-                for (int i=0;i<paths.size();i++) {
+                for (int i = 0; i < paths.size(); i++) {
                     String path = paths.get(i);
                     String dest = paths2.get(i);
                     FileUtil.copyFile(path, new File(warDir, dest).getPath());
@@ -299,25 +309,29 @@ public class ProjectGwt extends Project<ProjectGwt> {
                 // war it up
                 warFiles = new Paths(stagingWar, "**");
 
-                List<String> fullPaths = warFiles.filesOnly().getPaths();
-                List<String> relativePaths = warFiles.filesOnly().getRelativePaths();
+                List<String> fullPaths = warFiles.filesOnly()
+                                                 .getPaths();
+                List<String> relativePaths = warFiles.filesOnly()
+                                                     .getRelativePaths();
 
-                if (this.outputFile.exists()) {
-                    this.outputFile.delete();
+                if (this.outputFile.get().exists()) {
+                    this.outputFile.get().delete();
                 }
-                FileUtil.mkdir(this.outputFile.getParent());
+                FileUtil.mkdir(this.outputFile.get().getParent());
 
 
                 // make a jar (really a war file)
-                JarUtil.war(this.outputFile.getAbsolutePath(), fullPaths, relativePaths);
+                JarUtil.war(this.outputFile.get().getAbsolutePath(), fullPaths, relativePaths);
 
                 // cleanup
                 FileUtil.delete(stagingWar);
 
                 // calculate the hash of all the files in the source path
                 saveChecksums();
-            } else {
-                BuildLog.println().println("Skipped (nothing changed)");
+            }
+            else {
+                BuildLog.println()
+                        .println("Skipped (nothing changed)");
             }
         } finally {
             if (shouldBuild) {
@@ -326,62 +340,65 @@ public class ProjectGwt extends Project<ProjectGwt> {
         }
 
         System.err.println("   Build success: " + this.stagingDir);
+        return shouldBuild;
     }
 
-    public ProjectGwt options(String... options) {
+    @Override
+    public
+    String getExtension() {
+        return ".war";
+    }
+
+    /**
+     * GWT only cares about the output dir (it doesn't make jars for compiling)
+     *
+     * @return true if the checksums for path match the saved checksums and the jar file exists
+     */
+    @Override
+    boolean verifyChecksums() throws IOException {
+        boolean sourceHashesSame = super.verifyChecksums();
+        if (!sourceHashesSame) {
+            return false;
+        }
+
+        // if the sources are the same, check the output dir
+        if (this.stagingDir.exists()) {
+            String dirChecksum = generateChecksum(this.stagingDir);
+            String checkContents = Builder.settings.get(this.stagingDir.getAbsolutePath(), String.class);
+
+            return dirChecksum != null && dirChecksum.equals(checkContents);
+        }
+
+        return true;
+    }
+
+    /**
+     * GWT only cares about the output dir (it doesn't make jars for compiling) Saves the checksums for a given path
+     */
+    @Override
+    void saveChecksums() throws IOException {
+        super.saveChecksums();
+
+        // hash/save the output files (if there are any)
+        if (this.stagingDir.exists()) {
+            String fileChecksum = generateChecksum(this.stagingDir);
+            Builder.settings.save(this.stagingDir.getAbsolutePath(), fileChecksum);
+        }
+    }
+
+    public
+    ProjectGwt options(String... options) {
         if (this.extraOptions != null) {
             List<String> origList = Arrays.asList(this.extraOptions);
             List<String> newList = Arrays.asList(options);
 
             origList.addAll(newList);
             this.extraOptions = origList.toArray(new String[0]);
-        } else {
+        }
+        else {
             this.extraOptions = options;
         }
 
         return this;
-    }
-
-    /**
-     * Parses the relevant data from the symbol map and saves it in the specified file.
-     */
-    public static void parseAndCopyGwtSymbols(File sourceFile, File destSymbolFile) throws IOException {
-        GwtSymbolMapParser parser = new GwtSymbolMapParser();
-
-        //FileReader always assumes default encoding is OK!
-        FileInputStream fileInputStream = new FileInputStream(sourceFile);
-        parser.parse(fileInputStream);
-
-        destSymbolFile.getParentFile().mkdirs();
-        Writer output = new BufferedWriter(new FileWriter(destSymbolFile));
-
-        try {
-            // FileWriter always assumes default encoding is OK
-            output.write("# BUILD-SCRIPT MODIFIED: only relevant symbols are present.\n");
-
-            StringBuilder stringBuilder = new StringBuilder();
-            for (Entry<String, String> entry : parser.getSymbolMap().entrySet()) {
-                stringBuilder.delete(0, stringBuilder.capacity());
-                // create a "shrunk" version for deployment. This is marginally better than the original version
-                stringBuilder
-                    .append(entry.getKey()) // jsName
-                    .append(",")
-                    .append(entry.getValue()) // java className
-                    .append("\n");
-
-
-                String line = stringBuilder.toString();
-
-                // FileWriter always assumes default encoding is OK
-                output.write(line);
-            }
-        } finally {
-            output.close();
-        }
-    }
-
-    @Override
-    public String getExtension() {
-        return ".war";
     }
 }

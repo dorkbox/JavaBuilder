@@ -22,7 +22,7 @@ public class Repack {
     private int           actionValue = 0;
 
     public Repack(Project<?> project, PackAction... actions) {
-        this(project.outputFile.getName(), actions);
+        this(project.outputFile.get().getName(), actions);
     }
 
     public Repack(String name, PackAction... actions) {

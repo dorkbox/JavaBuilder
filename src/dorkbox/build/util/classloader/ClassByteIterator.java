@@ -15,6 +15,8 @@
  */
 package dorkbox.build.util.classloader;
 
+import dorkbox.util.annotation.ClassIterator;
+
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FilenameFilter;
@@ -22,8 +24,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Iterator;
 import java.util.Map.Entry;
-
-import dorkbox.util.annotation.ClassIterator;
 
 /**
  * {@code ClassBytesIterator} is used to iterate over all Java ClassFile files available within
@@ -51,7 +51,7 @@ public class ClassByteIterator implements ClassIterator {
     }
 
     /**
-     * Return the name of the Java ClassFile returned from the last call to {@link #next()}.
+     * Return the name of the Java ClassFile returned from the last call to {@link #next(FilenameFilter)}.
      * The name is the PACKAGE name of a file
      */
     @Override

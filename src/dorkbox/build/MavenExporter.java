@@ -21,6 +21,7 @@ import com.ning.http.client.providers.jdk.JDKAsyncHttpProvider;
 import com.ning.http.multipart.FilePart;
 import com.ning.http.multipart.StringPart;
 import dorkbox.Builder;
+import dorkbox.Version;
 import dorkbox.build.util.BuildLog;
 import dorkbox.license.License;
 import dorkbox.util.Base64Fast;
@@ -30,11 +31,15 @@ import dorkbox.util.crypto.CryptoPGP;
 import org.bouncycastle.openpgp.PGPException;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.ConnectException;
+import java.net.URL;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
@@ -44,13 +49,19 @@ import java.util.concurrent.ExecutionException;
  */
 public
 class MavenExporter<T extends Project<T>> {
+    public static Version version = Version.get("v2.2");  // Version is set by JavaBuilder build process. DO NOT EDIT MANUALLY!
+
     private static final String NL = OS.LINE_SEPARATOR;
+
+    private static final boolean testBuild = true;
 
     private static final String repositoryId = "repositoryId";
     private static final String profileId = "profileId";
 
+    private static final int retryCount = 30;
+
     private String groupId;
-    private String version;
+    private String projectVersion;
 
     private String githubUrl;
     private String gitHubParent;
@@ -62,13 +73,13 @@ class MavenExporter<T extends Project<T>> {
 
     static {
         // set the user-agent for NING. This is so it is clear who/what uploaded to sonatype
-        System.setProperty(AsyncHttpClientConfig.class.getName() + "." + "userAgent", "JavaBuilder/1.0");
+        System.setProperty(AsyncHttpClientConfig.class.getName() + "." + "userAgent", "JavaBuilder_" + version);
     }
 
     public
     MavenExporter(final MavenInfo info) {
         this.groupId = info.getGroupId();
-        this.version = info.getVersion().replace("v", "").replace("V", "");
+        this.projectVersion = info.getVersion().toStringOnlyNumbers();
     }
 
     /**
@@ -111,11 +122,42 @@ class MavenExporter<T extends Project<T>> {
     @SuppressWarnings("AccessStaticViaInstance")
     public
     void export(final int targetJavaVersion) throws IOException {
-        String fileName = project.name + "-" + version;
+        BuildLog.start();
+
+        if (testBuild) {
+            BuildLog.title("MAVEN").println("Testing build. Not actually exporting to maven.");
+            BuildLog.finish();
+            return;
+        }
+
+        // make sure we have internet!
+        URL maven = new URL("http://www.maven.org/");
+        BufferedReader in = null;
+        boolean hasInternet = false;
+        try {
+            in = new BufferedReader(new InputStreamReader(maven.openStream()));
+            hasInternet = true;
+        } catch (Exception ignored) {
+        } finally {
+            Sys.closeQuietly(in);
+        }
+
+
+        if (!hasInternet) {
+            BuildLog.title("MAVEN").println("Not able to connect to maven.org, aborting.");
+            BuildLog.finish();
+            return;
+        }
+
+        BuildLog.title("MAVEN").println("Exporting to sonatype");
+
+        // TODO: maybe use straight java (ie: no libs?)
+        // https://stackoverflow.com/questions/2793150/using-java-net-urlconnection-to-fire-and-handle-http-requests
+
+        String fileName = project.name + "-" + projectVersion;
         fileName = new File(project.stagingDir, fileName).getAbsolutePath();
 
-        BuildLog.start();
-        BuildLog.title("MAVEN").println("Exporting to sonatype");
+
         final File pomFile = new File(fileName + ".pom");
         final File jarFile = new File(fileName + ".jar");
         final File sourcesFile = new File(fileName + "-sources.jar");
@@ -146,7 +188,8 @@ class MavenExporter<T extends Project<T>> {
         String password = properties.getProperty("password");
 
         if (!"OSSRH".equalsIgnoreCase(repoId)) {
-            throw new RuntimeException("Only sonatype OSSRH supported at this time. Please create a github issue to support other types.");
+            throw new RuntimeException("Only sonatype repo (OSSRH) supported at this time. Please create a github issue to support other " +
+                                       "types.");
         }
 
 
@@ -170,8 +213,8 @@ class MavenExporter<T extends Project<T>> {
         }
 
 
-        Builder.copyFile(project.outputFile, jarFile);
-        Builder.copyFile(project.outputFileSource, sourcesFile);
+        Builder.copyFile(project.outputFile.get(), jarFile);
+        Builder.copyFile(project.outputFile.getSource(), sourcesFile);
 
 
         BuildLog.title("Creating fake docs").println("  " + docsFile);
@@ -222,63 +265,82 @@ class MavenExporter<T extends Project<T>> {
         // now upload the bundle
         final String authInfo = Base64Fast.encodeToString((username + ":" + password).getBytes(OS.UTF_8), false);
 
-        RequestBuilder builder;
-        Request request;
-
-
         BuildLog.title("Uploading files").println();
 
-        final String nameAndVersion = project.name + " v" + version;
+        final String nameAndVersion = project.name + " v" + projectVersion;
         final String description = "Automated build of " + nameAndVersion + " by JavaBuilder";
         String uploadURL = "https://oss.sonatype.org/service/local/staging/upload";
 
-
+        String hasErrors = "";
         String repo = "";
         String profile = "";
 
+        RequestBuilder builder;
+        Request request;
+        int retryCount = MavenExporter.retryCount;
+
+
+        Exception exception = null;
 
         // first we upload POM + main jar
         BuildLog.println(jarFile.getName());
-        builder = new RequestBuilder("POST");
-        request = builder.setUrl(uploadURL)
-                         .addHeader("Authorization", "Basic " + authInfo)
+        while (retryCount-- >= 0) {
+            exception = null;
 
-                         .addBodyPart(new StringPart("hasPom", "true"))
-                         .addBodyPart(new StringPart("c", ""))
-                         .addBodyPart(new StringPart("e", "jar"))  // extension
-                         .addBodyPart(new StringPart("desc", description))
+            builder = new RequestBuilder("POST");
+            request = builder.setUrl(uploadURL)
+                             .addHeader("Authorization", "Basic " + authInfo)
 
-                         .addBodyPart(new FilePart("file", pomFile))
-                         .addBodyPart(new FilePart("file", jarFile))
-                         .build();
+                             .addBodyPart(new StringPart("hasPom", "true"))
+                             .addBodyPart(new StringPart("c", ""))
+                             .addBodyPart(new StringPart("e", "jar"))  // extension
+                             .addBodyPart(new StringPart("desc", description))
 
-        final String s = sendHttpRequest(request);
+                             .addBodyPart(new FilePart("file", pomFile))
+                             .addBodyPart(new FilePart("file", jarFile))
+                             .build();
 
-        final int repositoryIndex = s.lastIndexOf(repositoryId);
-        final int profileIndex = s.lastIndexOf(profileId);
+            hasErrors = sendHttp(request);
 
-        try {
-            repo = s.substring(repositoryIndex + repositoryId.length() + 3, s.length() - 2);
-            profile = s.substring(profileIndex + profileId.length() + 3, repositoryIndex - 3);
-        } catch (Exception e) {
-            e.printStackTrace();
+            final int repositoryIndex = hasErrors.lastIndexOf(repositoryId);
+            final int profileIndex = hasErrors.lastIndexOf(profileId);
+
+            try {
+                repo = hasErrors.substring(repositoryIndex + repositoryId.length() + 3, hasErrors.length() - 2);
+                profile = hasErrors.substring(profileIndex + profileId.length() + 3, repositoryIndex - 3);
+                break;
+            } catch (Exception e) {
+                BuildLog.println("Error uploading POM/JAR: '" + hasErrors + "', retrying...");
+                exception = e;
+            }
+        }
+
+        if (retryCount == 0) {
+            BuildLog.println();
+            BuildLog.println("Error uploading POM/JAR: '" + hasErrors + "'");
+            throw new RuntimeException("Unable to upload POM/JAR. Please login and verify errors.", exception);
         }
 
 
-        final Uploader uploader = new Uploader(project.name, uploadURL, repo, authInfo, groupId, version, description);
+
+
+
+
+
+        final Uploader uploader = new Uploader(project.name, uploadURL, repo, authInfo, groupId, projectVersion, description);
         String groupID_asPath = groupId.replaceAll("\\.", "/");
 
         // now POM signature
         BuildLog.println(pomAscFile.getName());
         uploader.upload(pomAscFile, "pom.asc");
-        deleteSignatureTurds(authInfo, repo, groupID_asPath, project.name, version, pomAscFile);
+        deleteSignatureTurds(authInfo, repo, groupID_asPath, project.name, projectVersion, pomAscFile);
 
 
 
         // now jar signature
         BuildLog.println(jarAscFile.getName());
         uploader.upload(jarAscFile, "jar.asc");
-        deleteSignatureTurds(authInfo, repo, groupID_asPath, project.name, version, jarAscFile);
+        deleteSignatureTurds(authInfo, repo, groupID_asPath, project.name, projectVersion, jarAscFile);
 
 
 
@@ -289,7 +351,7 @@ class MavenExporter<T extends Project<T>> {
         // now sources signature
         BuildLog.println(sourcesAscFile.getName());
         uploader.upload(sourcesAscFile, "jar.asc", "sources");
-        deleteSignatureTurds(authInfo, repo, groupID_asPath, project.name, version, sourcesAscFile);
+        deleteSignatureTurds(authInfo, repo, groupID_asPath, project.name, projectVersion, sourcesAscFile);
 
 
 
@@ -301,13 +363,13 @@ class MavenExporter<T extends Project<T>> {
         // now javadoc signature
         BuildLog.println(docsAscFile.getName());
         uploader.upload(docsAscFile, "jar.asc", "javadoc");
-        deleteSignatureTurds(authInfo, repo, groupID_asPath, project.name, version, docsAscFile);
+        deleteSignatureTurds(authInfo, repo, groupID_asPath, project.name, projectVersion, docsAscFile);
 
 
         // Now tell the repo we are finished (and the build will verify everything)
 
         BuildLog.title("Closing Repo").println();
-        String hasErrors = closeRepo(authInfo, profile, repo, nameAndVersion);
+        hasErrors = closeRepo(authInfo, profile, repo, nameAndVersion);
 
 
         if (!hasErrors.isEmpty()) {
@@ -324,9 +386,17 @@ class MavenExporter<T extends Project<T>> {
         }
         else {
             // now to promote it to a release!
+            //
+            //
+            // WARNING: If the exact same file name exists (or the exact same version, if it's a snapshot) -- you will get a 401
+            // authorization error. BUMP THE VERSION to solve this problem
+            //
+            //
             BuildLog.print("Releasing ");
 
-            int retryCount = 30;
+
+            // CLOSE THE REPO
+            retryCount = MavenExporter.retryCount;
             while (retryCount-- >= 0) {
                 // we have to WAIT until it's ready!
                 // sleep for xx seconds (initially) and also for retries
@@ -340,20 +410,13 @@ class MavenExporter<T extends Project<T>> {
                 hasErrors = activityForRepo(authInfo, repo);
                 if (hasErrors.contains("repositoryCloseFailed")) {
                     BuildLog.println();
-                    BuildLog.println("Error for repo '" + repo + "' during close! '" + hasErrors + "'");
+                    BuildLog.println("Error for repo '" + repo + "' during close!'", hasErrors);
                     throw new RuntimeException("Error while closing repo! Please log-in manually and correct the problem.");
                 }
                 else if (hasErrors.contains("<stagingActivity>\n    <name>close</name>")) {
                     // sometimes we get error 500, or something else -- so we need to retry. Only pass if we have something that
                     // KINDOF passes as valid XML
                     BuildLog.print(" Closed ");
-                    try {
-                        // can still go too fast, keep it slow
-                        BuildLog.print(".");
-                        Thread.sleep(1000L);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
                     break;
                 }
             }
@@ -363,29 +426,61 @@ class MavenExporter<T extends Project<T>> {
                 throw new RuntimeException("Error closing repo! Please log-in manually and correct the problem.");
             }
 
-            retryCount = 30;
+
+            // PROMOTE THE REPO
+
+            retryCount = MavenExporter.retryCount;
             while (retryCount-- >= 0) {
+                // we have to WAIT until it's ready!
+                // sleep for xx seconds (initially) and also for retries
+                try {
+                    BuildLog.print(".");
+                    Thread.sleep(4000L);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+
                 // if we go too quickly, promoting will get this error:  {"errors":[{"id":"*","msg":"Unhandled: Repository: comdorkbox-1024 has invalid state: open"}]}
+                // or will get a "already transitioning" error.
                 hasErrors = promoteRepo(authInfo, profile, repo, nameAndVersion);
-                if (hasErrors.isEmpty()) {
+                if (!hasErrors.isEmpty()) {
+                    //noinspection StatementWithEmptyBody
+                    if (hasErrors.contains("has invalid state: open") || hasErrors.contains("is already transitioning")) {
+                        // WHOOPS. went too fast. retry
+                    } else {
+                        if (retryCount == 0) {
+                            BuildLog.println("Unknown error during promotion (no more retries available)!", hasErrors);
+                        }
+                        else {
+                            BuildLog.println("Unknown error during promotion!", hasErrors);
+                        }
+                    }
+                }
+                else {
                     BuildLog.println(" Released");
                     BuildLog.title("Access URL")
-                            .println("https://oss.sonatype.org/content/repositories/releases/" + groupID_asPath + "/" + project.name + "/" + version + "/");
+                            .println("https://oss.sonatype.org/content/repositories/releases/" + groupID_asPath + "/" + project.name + "/" +
+                                     projectVersion + "/");
 
                     // NOW we drop the repo (since it was a success!
                     hasErrors = "Keeping repo on server";
                     if (!keepOnServer) {
+                        BuildLog.println(" Success, dropping repo.");
+                        try {
+                            Thread.sleep(4000L);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
                         hasErrors = dropRepo(authInfo, profile, repo, nameAndVersion);
+                    }
+                    else {
+                        BuildLog.println(" Keeping repo anyways!");
                     }
 
                     if (!hasErrors.isEmpty()) {
                         BuildLog.println("'" + hasErrors + "'");
                     }
                     break;
-                }
-                else if (hasErrors.contains("has invalid state: open")) {
-                    // WHOOPS. went too fast. retry
-                    BuildLog.print(".");
                 }
             }
 
@@ -414,8 +509,29 @@ class MavenExporter<T extends Project<T>> {
 
                                  .build();
 
-        return sendHttpRequest(request);
+        return sendHttp(request);
     }
+
+
+//    /**
+//     * Start the repo
+//     * @throws IOException
+//     */
+//    private static
+//    String startRepo(final String authInfo, final String profile, final String repo, final String nameAndVersion) throws IOException {
+//
+//        String repoInfo = "{'data':{'stagedRepositoryId':'" + repo + "','description':'Closing " + nameAndVersion + "'}}";
+//        RequestBuilder builder = new RequestBuilder("POST");
+//        Request request = builder.setUrl("https://oss.sonatype.org/service/local/staging/profiles/" + profile + "/start")
+//                                 .addHeader("Content-Type", "application/json")
+//                                 .addHeader("Authorization", "Basic " + authInfo)
+//
+//                                 .setBody(repoInfo.getBytes(OS.UTF_8))
+//
+//                                 .build();
+//
+//        return sendHttpRequest(request);
+//    }
 
     /**
      * Closes the repo and (the server) will verify everything is correct.
@@ -434,7 +550,7 @@ class MavenExporter<T extends Project<T>> {
 
                                  .build();
 
-        return sendHttpRequest(request);
+        return sendHttp(request);
     }
 
     /**
@@ -453,7 +569,7 @@ class MavenExporter<T extends Project<T>> {
                          .setBody(repoInfo.getBytes(OS.UTF_8))
 
                          .build();
-        return sendHttpRequest(request);
+        return sendHttp(request);
     }
 
     /**
@@ -473,7 +589,7 @@ class MavenExporter<T extends Project<T>> {
 
                          .build();
 
-        return sendHttpRequest(request);
+        return sendHttp(request);
     }
 
     /**
@@ -496,13 +612,13 @@ class MavenExporter<T extends Project<T>> {
         request = builder.setUrl(delURL + ".sha1")
                          .addHeader("Authorization", "Basic " + authInfo)
                          .build();
-        sendHttpRequest(request);
+        sendHttp(request);
 
         builder = new RequestBuilder("DELETE");
         request = builder.setUrl(delURL + ".md5")
                          .addHeader("Authorization", "Basic " + authInfo)
                          .build();
-        sendHttpRequest(request);
+        sendHttp(request);
     }
 
     /**
@@ -510,7 +626,7 @@ class MavenExporter<T extends Project<T>> {
      * @throws IOException
      */
     private static
-    String sendHttpRequest(final Request request) throws IOException {
+    String sendHttp(final Request request) throws IOException {
         // we configure the client to use the DEFAULT JDK one, to lessen the number of dependencies required.
         final AsyncHttpClientConfig build = (new AsyncHttpClientConfig.Builder()).build();
         AsyncHttpClient client = new AsyncHttpClient(new JDKAsyncHttpProvider(build), build);
@@ -555,6 +671,8 @@ class MavenExporter<T extends Project<T>> {
         try {
             Response response = (Response) done.get();
             return response.getResponseBody();
+        } catch (ConnectException ignored) {
+            return "Not connected or bad address";
         } catch (InterruptedException e) {
             e.printStackTrace();
         } catch (ExecutionException e) {
@@ -569,6 +687,10 @@ class MavenExporter<T extends Project<T>> {
      */
     private
     String createString(Project<?> project, final int targetJavaVersion, final Properties properties) {
+        if (project.description == null) {
+            throw new RuntimeException("Must specify a project description for project '" + project.name + "'  Aborting.");
+        }
+
         String dev_name = properties.getProperty("developerName");
         String dev_email = properties.getProperty("developerEmail");
         String dev_organization = properties.getProperty("developerOrganization");
@@ -585,13 +707,13 @@ class MavenExporter<T extends Project<T>> {
 
         space(b,1).append("<groupId>").append(groupId).append("</groupId>").append(NL);
         space(b,1).append("<artifactId>").append(project.name).append("</artifactId>").append(NL);
-        space(b,1).append("<version>").append(version).append("</version>").append(NL);
+        space(b,1).append("<version>").append(projectVersion).append("</version>").append(NL);
         space(b,1).append("<packaging>").append("jar").append("</packaging>").append(NL);
 
         b.append(NL);
 
         space(b,1).append("<name>").append(project.name).append("</name>").append(NL);
-        space(b,1).append("<description>").append("Extremely fast, lightweight annotation scanner for the classpath, classloader, or specified location.").append("</description>").append(NL);
+        space(b,1).append("<description>").append(project.description).append("</description>").append(NL);
         space(b,1).append("<url>").append(githubUrl).append("</url>").append(NL);
 
         b.append(NL);
@@ -666,9 +788,10 @@ class MavenExporter<T extends Project<T>> {
         // have to add maven dependencies here
         if (!project.dependencies.isEmpty()) {
             boolean header = false;
+
             for (int i = 0; i < project.dependencies.size(); i++) {
                 Project<?> p = project.dependencies.get(i);
-                final MavenInfo<?> mavenInfo = p.mavenInfo;
+                final MavenInfo mavenInfo = p.mavenInfo;
                 if (mavenInfo != null) {
                     if (!header) {
                         header = true;
@@ -678,9 +801,12 @@ class MavenExporter<T extends Project<T>> {
                     space(b,2).append("<dependency>").append(NL);
                     space(b,3).append("<groupId>").append(mavenInfo.getGroupId()).append("</groupId>").append(NL);
                     space(b,3).append("<artifactId>").append(mavenInfo.getArtifactId()).append("</artifactId>").append(NL);
-                    space(b,3).append("<version>").append(mavenInfo.getVersion()).append("</version>").append(NL);
-                    space(b,3).append("<scope>").append("compile").append("</scope>").append(NL);
-                    space(b,3).append("<type>").append("pom").append("</type>").append(NL);
+                    space(b,3).append("<version>").append(mavenInfo.getVersion().toStringOnlyNumbers()).append("</version>").append(NL);
+
+                    if (mavenInfo.getScope() != null) {
+                        space(b,3).append("<scope>").append(mavenInfo.getScope()).append("</scope>").append(NL);
+                    }
+//                    space(b,3).append("<type>").append("pom").append("</type>").append(NL); // since it's a JAR, we ignore this.
                     space(b,2).append("</dependency>").append(NL);
                 }
             }
@@ -762,7 +888,14 @@ class MavenExporter<T extends Project<T>> {
             requestBuilder.addBodyPart(new FilePart("file", file));
             final Request request = requestBuilder.build();
 
-            return sendHttpRequest(request);
+            return sendHttp(request);
         }
     }
 }
+
+
+
+
+
+
+

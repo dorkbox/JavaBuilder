@@ -15,21 +15,24 @@
  */
 package dorkbox.build;
 
+import dorkbox.Version;
+
 /**
  * Contains maven dependency info for a project
  */
 public
-class MavenInfo<T extends Project<T>> {
-
+class MavenInfo {
     private final String groupId;
     private final String artifactId;
-    private final String version;
+    private final Version version;
+    private final Scope scope;
 
     public
-    MavenInfo(final String groupId, final String artifactId, final String version) {
+    MavenInfo(final String groupId, final String artifactId, final Version version, final Scope scope) {
         this.groupId = groupId;
         this.artifactId = artifactId;
         this.version = version;
+        this.scope = scope;
     }
 
     public
@@ -43,7 +46,17 @@ class MavenInfo<T extends Project<T>> {
     }
 
     public
-    String getVersion() {
+    Version getVersion() {
         return version;
+    }
+
+    public
+    Scope getScope() {
+        return scope;
+    }
+
+    public
+    enum Scope {
+        COMPILE, PROVIDED, RUNTIME, TEST, SYSETM, IMPORT;
     }
 }
