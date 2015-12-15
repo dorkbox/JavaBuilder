@@ -49,11 +49,11 @@ import java.util.concurrent.ExecutionException;
  */
 public
 class MavenExporter<T extends Project<T>> {
-    public static Version version = Version.get("v2.2");  // Version is set by JavaBuilder build process. DO NOT EDIT MANUALLY!
+    public static Version version = Version.get("v2.3");  // Version is set by JavaBuilder build process. DO NOT EDIT MANUALLY!
 
     private static final String NL = OS.LINE_SEPARATOR;
 
-    private static final boolean testBuild = true;
+    private static final boolean testBuild = false;
 
     private static final String repositoryId = "repositoryId";
     private static final String profileId = "profileId";
@@ -63,7 +63,7 @@ class MavenExporter<T extends Project<T>> {
     private String groupId;
     private String projectVersion;
 
-    private String githubUrl;
+    private String gitHubUrl;
     private String gitHubParent;
     private String gitHubProject;
 
@@ -93,7 +93,7 @@ class MavenExporter<T extends Project<T>> {
 
     public
     MavenExporter repoInfo(final String githubUrl, final String gitHubParent, final String gitHubProject) {
-        this.githubUrl = githubUrl;
+        this.gitHubUrl = githubUrl;
         this.gitHubParent = gitHubParent;
         this.gitHubProject = gitHubProject;
 
@@ -714,13 +714,13 @@ class MavenExporter<T extends Project<T>> {
 
         space(b,1).append("<name>").append(project.name).append("</name>").append(NL);
         space(b,1).append("<description>").append(project.description).append("</description>").append(NL);
-        space(b,1).append("<url>").append(githubUrl).append("</url>").append(NL);
+        space(b,1).append("<url>").append(gitHubUrl).append("</url>").append(NL);
 
         b.append(NL);
         b.append(NL);
 
         space(b,1).append("<issueManagement>").append(NL);
-        space(b,2).append("<url>").append(githubUrl).append("/issues").append("</url>").append(NL);
+        space(b,2).append("<url>").append(gitHubUrl).append("/issues").append("</url>").append(NL);
         space(b,2).append("<system>").append("GitHub Issues").append("</system>").append(NL);
         space(b,1).append("</issueManagement>").append(NL);
 
@@ -892,6 +892,20 @@ class MavenExporter<T extends Project<T>> {
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

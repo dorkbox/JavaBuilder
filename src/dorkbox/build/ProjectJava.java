@@ -396,7 +396,7 @@ class ProjectJava extends Project<ProjectJava> {
                 FileUtil.delete(crossCompatBuiltFile);
             }
 
-            // if it's a temporary jar, the project that built it
+
             if (this.mavenExporter != null) {
                 this.mavenExporter.setProject(this);
                 this.mavenExporter.export(targetJavaVersion);
@@ -405,12 +405,22 @@ class ProjectJava extends Project<ProjectJava> {
             if (!keepOldVersion) {
                 // before we create the jar (and sources if necessary), we delete any of the old versions that might be in the target
                 // directory.
+                if (this.version != null) {
+                    if (this.version.hasChanged()) {
+                        final File originalJar = this.outputFile.getOriginal();
+                        final File originalSource = this.outputFile.getSourceOriginal();
 
-                final File originalJar = this.outputFile.getOriginal();
-                final File originalSource = this.outputFile.getSourceOriginal();
+                        Builder.delete(originalJar);
+                        Builder.delete(originalSource);
+                    }
+                }
+                else {
+                    final File originalJar = this.outputFile.getOriginal();
+                    final File originalSource = this.outputFile.getSourceOriginal();
 
-                Builder.delete(originalJar);
-                Builder.delete(originalSource);
+                    Builder.delete(originalJar);
+                    Builder.delete(originalSource);
+                }
             }
 
             BuildLog.title("Staging").println(this.stagingDir);
