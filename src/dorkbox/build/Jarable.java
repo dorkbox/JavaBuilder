@@ -32,7 +32,6 @@ class Jarable {
     private Class<?> mainClass;
     private transient PreJarAction preJarAction;
     private Paths newClassPath;
-    public boolean temporary;
 
 
     public
@@ -128,7 +127,7 @@ class Jarable {
 
         JarOptions jarOptions = new JarOptions();
         jarOptions.overrideDate = this.overrideDate;
-        jarOptions.outputFile = this.projectJava.outputFile;
+        jarOptions.outputFile = this.projectJava.outputFile.get();
         jarOptions.inputPaths = new Paths(this.projectJava.stagingDir.getAbsolutePath());
         jarOptions.extraPaths = this.projectJava.extraFiles;
 
@@ -152,7 +151,7 @@ class Jarable {
         if (this.includeSourceAsSeparate) {
             jarOptions = new JarOptions();
             jarOptions.overrideDate = this.overrideDate;
-            jarOptions.outputFile = this.projectJava.outputFileSource;
+            jarOptions.outputFile = this.projectJava.outputFile.getSource();
             jarOptions.extraPaths = this.projectJava.extraFiles;
             jarOptions.sourcePaths = this.projectJava.sourcePaths;
 
@@ -164,7 +163,7 @@ class Jarable {
         }
 
         if (this.signJar) {
-            JarSigner.sign(this.projectJava.outputFile.getAbsolutePath(), this.sigName);
+            JarSigner.sign(this.projectJava.outputFile.get().getAbsolutePath(), this.sigName);
         }
     }
 
@@ -192,15 +191,5 @@ class Jarable {
     public
     ProjectJava asProject() {
         return this.projectJava;
-    }
-
-    /**
-     * Sets this jar to be temporary, meaning that the decision to build this does NOT depend on the output files from this project
-     * existing, meaning that the only reason for the build on this to run is if the source code changes.
-     */
-    public
-    Jarable setTemporary() {
-        temporary = true;
-        return this;
     }
 }

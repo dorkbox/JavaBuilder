@@ -1,5 +1,7 @@
 package dorkbox.build;
 
+import dorkbox.Version;
+
 import java.io.File;
 import java.io.IOException;
 
@@ -28,8 +30,8 @@ public class ProjectJar extends Project<ProjectJar> {
     }
 
     @Override
-    public ProjectJar version(String versionString) {
-        super.version(versionString);
+    public ProjectJar version(Version version) {
+        super.version(version);
         return this;
     }
 
@@ -39,7 +41,9 @@ public class ProjectJar extends Project<ProjectJar> {
     }
 
     @Override
-    public void build(final int targetJavaVersion) throws IOException {
+    public boolean
+    build(final int targetJavaVersion) throws IOException {
+        return false;
     }
 
     @Override
