@@ -12,6 +12,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -26,6 +27,7 @@ class Version {
     private String prefix;
     private int[] dots;
     private File readme;
+    private boolean ignoreSaves = false;
 
     public
     Version(String version) {
@@ -37,8 +39,10 @@ class Version {
     Version(final Version other) {
         file = other.file;
         originalVersion = other.originalVersion;
+
         prefix = other.prefix;
         readme = other.readme;
+        ignoreSaves = other.ignoreSaves;
 
         final int length = other.dots.length;
         dots = new int[length];
@@ -170,21 +174,19 @@ class Version {
     }
 
     /**
-     * Sets this version information to a COPY of what the specified version info is. The FILE info is not changed, and the
-     * originalVersion is saved as the pre-modified version.
+     * Sets this version NUMBER to a copy of what the specified version info is. NOTHING ELSE is changed.
      */
     public
-    Version set(final Version version) {
+    Version set(final Version other) {
         if (originalVersion != null) {
             originalVersion.set(this);
         }
 
-        this.prefix = version.prefix;
-        this.readme = version.readme;
+        prefix = other.prefix;
 
-        final int length = version.dots.length;
+        final int length = other.dots.length;
         dots = new int[length];
-        System.arraycopy(version.dots, 0, dots, 0, length);
+        System.arraycopy(other.dots, 0, dots, 0, length);
 
         return this;
     }
@@ -273,18 +275,21 @@ class Version {
      */
     public
     Version save() {
-        // only saves the readme if it was included.
-        if (readme != null) {
-            final String readmeOrigText = "<version>" + originalVersion.toStringOnlyNumbers() + "</version>";
-            final String readmeNewText = "<version>" + toStringOnlyNumbers() + "</version>";
 
-            save(readme, readmeOrigText, readmeNewText);
+        if (!ignoreSaves) {
+            // only saves the readme if it was included.
+            if (readme != null) {
+                final String readmeOrigText = "<version>" + originalVersion.toStringOnlyNumbers() + "</version>";
+                final String readmeNewText = "<version>" + toStringOnlyNumbers() + "</version>";
+
+                save(readme, readmeOrigText, readmeNewText);
+            }
+
+            final String origText = "Version version = Version.get(\"" + originalVersion.toString() + "\")";
+            final String newText = "Version version = Version.get(\"" + toString() + "\")";
+
+            save(file, origText, newText);
         }
-
-        final String origText = "Version version = Version.get(\"" + originalVersion.toString() + "\")";
-        final String newText = "Version version = Version.get(\"" + toString() + "\")";
-
-        save(file, origText, newText);
 
         return this;
     }
@@ -295,51 +300,53 @@ class Version {
      */
     public
     Version save(final File file, String origText, String newText) {
-        if (file == null) {
-            throw new RuntimeException("Unable to save the version information if the calling class is not detected.");
-        }
-
-        try {
-            List<String> strings = FileUtil.readLines(new FileReader(file));
-
-
-            boolean found = false;
-
-            for (int i = 0; i < strings.size(); i++) {
-                String string =  strings.get(i);
-                // it cannot be "final", because "final" (if static) is inlined by the compiler.
-                if (string.contains(origText)) {
-                    string = string.replace(origText, newText);
-
-                    strings.set(i, string);
-                    found = true;
-                    break;
-                }
+        if (!ignoreSaves) {
+            if (file == null) {
+                throw new RuntimeException("Unable to save the version information if the calling class is not detected.");
             }
 
-            if (!found) {
-                throw new RuntimeException("Version string/info NOT FOUND. Check spacing/formatting and try again.");
-            }
-
-            // now write the strings back to the file
-            Writer output = null;
             try {
-                output = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file)));
-                // FileWriter always assumes default encoding is OK
+                List<String> strings = FileUtil.readLines(new FileReader(file));
 
-                // write all of the original args
-                for (String arg : strings) {
-                    output.write(arg);
-                    output.write(OS.LINE_SEPARATOR);
+
+                boolean found = false;
+
+                for (int i = 0; i < strings.size(); i++) {
+                    String string =  strings.get(i);
+                    // it cannot be "final", because "final" (if static) is inlined by the compiler.
+                    if (string.contains(origText)) {
+                        string = string.replace(origText, newText);
+
+                        strings.set(i, string);
+                        found = true;
+                        break;
+                    }
                 }
 
-                // make sure there is a new line at the end of the argument (so it's easier to read)
-                output.write(OS.LINE_SEPARATOR);
-            } finally {
-                Sys.close(output);
+                if (!found) {
+                    throw new RuntimeException("Version string/info NOT FOUND. Check spacing/formatting and try again.");
+                }
+
+                // now write the strings back to the file
+                Writer output = null;
+                try {
+                    output = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file)));
+                    // FileWriter always assumes default encoding is OK
+
+                    // write all of the original args
+                    for (String arg : strings) {
+                        output.write(arg);
+                        output.write(OS.LINE_SEPARATOR);
+                    }
+
+                    // make sure there is a new line at the end of the argument (so it's easier to read)
+                    output.write(OS.LINE_SEPARATOR);
+                } finally {
+                    Sys.close(output);
+                }
+            } catch (IOException e) {
+                throw new RuntimeException("Unable to write file.", e);
             }
-        } catch (IOException e) {
-            throw new RuntimeException("Unable to write file.", e);
         }
 
         return this;
@@ -434,5 +441,36 @@ class Version {
                 return null;
             }
         }
+    }
+
+    /**
+     * @return a copy of the current version. Any updates to the copy do not apply to the original.
+     */
+    public
+    Version copy() {
+        final Version version = new Version(this);
+        return version;
+    }
+
+    /**
+     * @return true if this version number has been changed.
+     */
+    public
+    boolean hasChanged() {
+        return !this.versionEquals(originalVersion);
+    }
+
+    /**
+     * @return true if this version number equals the specified version number
+     */
+    public
+    boolean versionEquals(final Version version) {
+        return Arrays.equals(this.dots, version.dots);
+    }
+
+    public
+    Version ignoreSaves() {
+        this.ignoreSaves = true;
+        return this;
     }
 }
