@@ -49,7 +49,7 @@ class OutputFile {
                     return FileUtil.normalize(new File(cleanedName + "_" + this.version + Project.JAR_EXTENSION));
                 }
                 else {
-                    return FileUtil.normalize(new File(cleanedName + "_" + this.version + extension));
+                    return FileUtil.normalize(new File(cleanedName + "_" + this.version + "." + extension));
                 }
             }
         }
@@ -114,7 +114,7 @@ class OutputFile {
                     return FileUtil.normalize(new File(cleanedName + "_" + this.version.getOriginal() + Project.JAR_EXTENSION));
                 }
                 else {
-                    return FileUtil.normalize(new File(cleanedName + "_" + this.version.getOriginal() + extension));
+                    return FileUtil.normalize(new File(cleanedName + "_" + this.version.getOriginal() + "." + extension));
                 }
             }
         }
