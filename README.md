@@ -37,3 +37,8 @@ Please see the commit log for a comprehensive changelog
 Note: This project was inspired (and some parts heavily modified) by the excellent 
       Scar project, and includes utility classes/methods from a variety of sources.
 ```
+
+
+<h2>License</h2>
+
+This project is distributed under the terms of the Apache v2.0 License. See file "LICENSE" for further references.
