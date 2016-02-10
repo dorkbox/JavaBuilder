@@ -20,8 +20,8 @@ import com.ning.http.client.*;
 import com.ning.http.client.providers.jdk.JDKAsyncHttpProvider;
 import com.ning.http.multipart.FilePart;
 import com.ning.http.multipart.StringPart;
+import dorkbox.Build;
 import dorkbox.Builder;
-import dorkbox.Version;
 import dorkbox.build.util.BuildLog;
 import dorkbox.license.License;
 import dorkbox.util.Base64Fast;
@@ -49,8 +49,6 @@ import java.util.concurrent.ExecutionException;
  */
 public
 class MavenExporter<T extends Project<T>> {
-    public static Version version = Version.get("v2.3");  // Version is set by JavaBuilder build process. DO NOT EDIT MANUALLY!
-
     private static final String NL = OS.LINE_SEPARATOR;
 
 //    private static final boolean testBuild = true;
@@ -74,7 +72,8 @@ class MavenExporter<T extends Project<T>> {
 
     static {
         // set the user-agent for NING. This is so it is clear who/what uploaded to sonatype
-        System.setProperty(AsyncHttpClientConfig.class.getName() + "." + "userAgent", "JavaBuilder_" + version);
+        // also set the version used to identify what builder version uploads the files to sonatype/maven
+        System.setProperty(AsyncHttpClientConfig.class.getName() + "." + "userAgent", "JavaBuilder_" + Build.getVersion());
     }
 
     public
@@ -893,6 +892,9 @@ class MavenExporter<T extends Project<T>> {
         }
     }
 }
+
+
+
 
 
 
