@@ -385,7 +385,7 @@ class ProjectJava extends Project<ProjectJava> {
             }
 
             if (!temporary && this.version != null) {
-                // only save the version if we are NOT temporary
+                // only save the version info + files if we are NOT temporary
                 this.version.save();
             }
 

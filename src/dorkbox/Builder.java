@@ -27,8 +27,8 @@ import dorkbox.build.util.jar.Pack200Util;
 import dorkbox.util.FileUtil;
 import dorkbox.util.LZMA;
 import dorkbox.util.Sys;
-import dorkbox.util.annotation.AnnotationDefaults;
-import dorkbox.util.annotation.AnnotationDetector;
+import dorkbox.annotation.AnnotationDefaults;
+import dorkbox.annotation.AnnotationDetector;
 import dorkbox.util.properties.PropertiesProvider;
 
 import java.io.*;
@@ -860,7 +860,7 @@ class Builder {
     private
     void start(BuildOptions buildOptions, SimpleArgs args) throws Exception {
 
-        dorkbox.util.annotation.Builder detector;
+        dorkbox.annotation.Builder detector;
 
         if (this.classloader != null) {
             detector = AnnotationDetector.scan(this.classloader, new ClassByteIterator(this.classloader, null));

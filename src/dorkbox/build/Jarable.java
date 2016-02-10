@@ -10,7 +10,6 @@ import dorkbox.build.util.jar.JarUtil;
 import java.io.File;
 import java.io.IOException;
 
-@SuppressWarnings("unused")
 public
 class Jarable {
     private final ProjectJava projectJava;

@@ -53,6 +53,7 @@ class MavenExporter<T extends Project<T>> {
 
     private static final String NL = OS.LINE_SEPARATOR;
 
+//    private static final boolean testBuild = true;
     private static final boolean testBuild = false;
 
     private static final String repositoryId = "repositoryId";
