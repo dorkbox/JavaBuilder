@@ -1,6 +1,7 @@
 package dorkbox;
 
 import com.esotericsoftware.wildcard.Paths;
+import dorkbox.build.util.BuildLog;
 import dorkbox.util.FileUtil;
 import dorkbox.util.OS;
 import dorkbox.util.Sys;
@@ -16,7 +17,10 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Utility class to deal with getting version strings, and incrementing version numbers
+ * Utility class to deal with getting version strings, and incrementing version numbers.
+ *
+ * CRITICAL: If the "version" modified the build file, the variable used in the build file CANNOT be `static final`! This is because the
+ * compiler will inline the value during compiletime, and we cannot modify it during runtime
  */
 public
 class Version {
@@ -27,6 +31,7 @@ class Version {
     private String prefix;
     private int[] dots;
     private File readme;
+    private File sourceFile;
     private boolean ignoreSaves = false;
 
     public
@@ -42,6 +47,7 @@ class Version {
 
         prefix = other.prefix;
         readme = other.readme;
+        sourceFile = other.sourceFile;
         ignoreSaves = other.ignoreSaves;
 
         final int length = other.dots.length;
@@ -174,6 +180,30 @@ class Version {
     }
 
     /**
+     * Specifies that a source-code file is ALSO a part of the versioning information
+     *
+     * @param name project name for getting module/project location information via the source file
+     * @param sourceRootPath the location on disk of the /src (root location of all source code) where the source file is located
+     * @param sourceFile the .java file (specified as a class file) that also has version info in it
+     */
+    public
+    Version sourceFile(final String name, final String sourceRootPath, final Class<?> sourceFile) {
+        // register this module. This could be refactored out -- however it is best to do it this way so we don't duplicate code
+        Builder.registerModule(name, sourceRootPath);
+
+        try {
+            // now we get the location (based on the module info above) for this class file
+            final Paths source = Builder.getJavaFile(sourceFile);
+            this.sourceFile = source.getFiles()
+                                    .get(0);
+        } catch (Exception e) {
+            BuildLog.println("Error getting sourceFile for class " + sourceFile.getClass());
+            e.printStackTrace();
+        }
+        return this;
+    }
+
+    /**
      * Sets this version NUMBER to a copy of what the specified version info is. NOTHING ELSE is changed.
      */
     public
@@ -282,13 +312,22 @@ class Version {
                 final String readmeOrigText = "<version>" + originalVersion.toStringOnlyNumbers() + "</version>";
                 final String readmeNewText = "<version>" + toStringOnlyNumbers() + "</version>";
 
-                save(readme, readmeOrigText, readmeNewText);
+                save(readme, null, readmeOrigText, readmeNewText);
+            }
+
+            // only saves the sourcefile if it was included.
+            if (sourceFile != null) {
+                final String precedingText = "String getVersion() {";
+                final String readmeOrigText = "return \"" + originalVersion.toStringOnlyNumbers() + "\";";
+                final String readmeNewText = "return \"" + toStringOnlyNumbers() + "\";";
+
+                save(sourceFile, precedingText, readmeOrigText, readmeNewText);
             }
 
             final String origText = "Version version = Version.get(\"" + originalVersion.toString() + "\")";
             final String newText = "Version version = Version.get(\"" + toString() + "\")";
 
-            save(file, origText, newText);
+            save(file, null, origText, newText);
         }
 
         return this;
@@ -297,9 +336,14 @@ class Version {
 
     /**
      * Saves this file, if there is a file specified.
+     *
+     * @param file this is the file we are rewriting
+     * @param precedingText can be NULL, but is the PRECEDING text to the orig text (in the event we want a more exact match)
+     * @param origText this is what the ORIGINAL text must be
+     * @param newText this is what the text will become
      */
     public
-    Version save(final File file, String origText, String newText) {
+    Version save(final File file, String precedingText, String origText, String newText) {
         if (!ignoreSaves) {
             if (file == null) {
                 throw new RuntimeException("Unable to save the version information if the calling class is not detected.");
@@ -309,22 +353,45 @@ class Version {
                 List<String> strings = FileUtil.readLines(new FileReader(file));
 
 
+                boolean hasPrecedingText = precedingText != null && !precedingText.isEmpty();
+                boolean foundPrecedingText = false;
                 boolean found = false;
 
-                for (int i = 0; i < strings.size(); i++) {
-                    String string =  strings.get(i);
-                    // it cannot be "final", because "final" (if static) is inlined by the compiler.
-                    if (string.contains(origText)) {
-                        string = string.replace(origText, newText);
+                if (hasPrecedingText) {
+                    for (int i = 0; i < strings.size(); i++) {
+                        String string = strings.get(i);
+                        if (string.contains(precedingText)) {
+                            foundPrecedingText = true;
+                        }
 
-                        strings.set(i, string);
-                        found = true;
-                        break;
+                        if (foundPrecedingText && string.contains(origText)) {
+                            string = string.replace(origText, newText);
+
+                            strings.set(i, string);
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+                else {
+                    for (int i = 0; i < strings.size(); i++) {
+                        String string =  strings.get(i);
+
+                        // it cannot be "final", because "final" (if static) is inlined by the compiler.
+                        if (string.contains(origText)) {
+                            string = string.replace(origText, newText);
+
+                            strings.set(i, string);
+                            found = true;
+                            break;
+                        }
                     }
                 }
 
+
                 if (!found) {
-                    throw new RuntimeException("Version string/info NOT FOUND. Check spacing/formatting and try again.");
+                    throw new RuntimeException("Expected version string/info NOT FOUND in '" + file +
+                                               "'. Check spacing/formatting and try again.");
                 }
 
                 // now write the strings back to the file
@@ -448,8 +515,7 @@ class Version {
      */
     public
     Version copy() {
-        final Version version = new Version(this);
-        return version;
+        return new Version(this);
     }
 
     /**

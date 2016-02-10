@@ -106,9 +106,18 @@ class Build {
         }
     }
 
+    /**
+     * Gets the version number.
+     */
+    public static
+    String getVersion() {
+        return "2.4";
+    }
+
     public static
     void main(String... _args) throws Exception {
         // now startup like normal
         Builder.start(_args);
     }
 }
+
