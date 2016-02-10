@@ -515,8 +515,6 @@ class JarUtil {
 
                 // ALSO handle "extra" directories
                 if (options.extraPaths != null) {
-                    List<SortedFiles> sortList = new ArrayList<SortedFiles>(options.extraPaths.count());
-
                     List<String> extraFullPaths = options.extraPaths.getPaths();
                     List<String> extraRelativePaths = options.extraPaths.getRelativePaths();
 
@@ -533,8 +531,6 @@ class JarUtil {
 
                 // ALSO handle "source" directories
                 if (options.sourcePaths != null && !options.sourcePaths.isEmpty()) {
-                    List<SortedFiles> sortList = new ArrayList<SortedFiles>(options.sourcePaths.count());
-
                     List<String> sourceFullPaths = options.sourcePaths.getPaths();
                     List<String> sourceRelativePaths = options.sourcePaths.getRelativePaths();
 
@@ -683,8 +679,6 @@ class JarUtil {
                         sortList.add(file);
                     }
 
-                    InputStream input;
-
                     // sort them
                     Collections.sort(sortList);
                     addFilesToJar(options, makeJar, output, sortList);
@@ -711,8 +705,6 @@ class JarUtil {
                     file.fileName = fileName;
                     sortList.add(file);
                 }
-
-                InputStream input;
 
                 // sort them
                 Collections.sort(sortList);

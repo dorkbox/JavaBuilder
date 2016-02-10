@@ -15,7 +15,7 @@
  */
 package dorkbox.build.util.classloader;
 
-import dorkbox.util.annotation.ClassIterator;
+import dorkbox.annotation.ClassIterator;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
