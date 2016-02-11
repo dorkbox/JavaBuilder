@@ -316,10 +316,15 @@ class ProjectJava extends Project<ProjectJava> {
                             tempSource.addFile(dependency);
                         }
 
+
                         ProjectJava tempProject = ProjectJava.create("CrossCompileClasses")
+                                                             .temporary()
                                                              .options(buildOptions)
                                                              .sourcePath(tempSource)
                                                              .sourcePath(sourceFiles);
+
+                        FileUtil.delete(tempProject.stagingDir);
+                        FileUtil.mkdir(tempProject.stagingDir);
                         tempProject.build(crossCompileClass.targetJavaVersion);
 
                         // now have to save out the source files (that are now converted to .class files)
@@ -397,11 +402,6 @@ class ProjectJava extends Project<ProjectJava> {
             }
 
 
-            if (this.mavenExporter != null) {
-                this.mavenExporter.setProject(this);
-                this.mavenExporter.export(targetJavaVersion);
-            }
-
             if (!keepOldVersion) {
                 // before we create the jar (and sources if necessary), we delete any of the old versions that might be in the target
                 // directory.
@@ -421,6 +421,11 @@ class ProjectJava extends Project<ProjectJava> {
                     Builder.delete(originalJar);
                     Builder.delete(originalSource);
                 }
+            }
+
+            if (this.mavenExporter != null) {
+                this.mavenExporter.setProject(this);
+                this.mavenExporter.export(targetJavaVersion);
             }
 
             BuildLog.title("Staging").println(this.stagingDir);
@@ -734,14 +739,18 @@ class ProjectJava extends Project<ProjectJava> {
      */
     @Override
     boolean verifyChecksums() throws IOException {
+        // if temporary, we ALWAYS build it
+        if (this.temporary && !this.overrideTemporary) {
+            return false;
+        }
+
         boolean sourceHashesSame = super.verifyChecksums();
         if (!sourceHashesSame) {
             return false;
         }
 
-        // if the sources are the same, check the jar file
-        // if temporary, ignore the jar file
-        if (this.jarable == null || (this.temporary && !this.overrideTemporary)) {
+        // if we have no jar file (and the sources are the same) then we are done.
+        if (this.jarable == null) {
             return true;
         }
 
