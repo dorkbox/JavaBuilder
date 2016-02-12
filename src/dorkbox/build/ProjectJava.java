@@ -208,11 +208,20 @@ class ProjectJava extends Project<ProjectJava> {
             buildList.add(this.name);
         }
 
+
         BuildLog.start();
 
 
         String version = "";
         if (this.version != null) {
+            final String verify = this.version.verify();
+
+            if (verify != null) {
+                BuildLog.title("ERROR").println(verify);
+                BuildLog.println();
+                return false;
+            }
+
             version = this.version.toString();
         }
 
