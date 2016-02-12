@@ -128,7 +128,7 @@ class ProjectGwt extends Project<ProjectGwt> {
     public
     boolean build(final int targetJavaVersion) throws IOException {
         // check dependencies for this project
-        resolveAndCheckDependencies(targetJavaVersion);
+        resolveDependencies(targetJavaVersion);
 
         boolean shouldBuild = false;
         try {
