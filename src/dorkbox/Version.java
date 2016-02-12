@@ -577,7 +577,7 @@ class Version {
         // java < 8, it is SIGNIFICANTLY faster to call sun.reflect.Reflection.getCallerClass
         // java >= 8, Thread.stackTrace was fixed, so it is the now preferred method
         if (OS.javaVersion < 8) {
-            Class<?> callerClass = sun.reflect.Reflection.getCallerClass(2);
+            Class<?> callerClass = sun.reflect.Reflection.getCallerClass(3);
 
             if (callerClass == null) {
                 return null;
