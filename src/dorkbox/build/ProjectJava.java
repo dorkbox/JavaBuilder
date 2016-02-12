@@ -192,7 +192,19 @@ class ProjectJava extends Project<ProjectJava> {
     public
     boolean build(final int targetJavaVersion) throws IOException {
         // check dependencies for this project
-        resolveAndCheckDependencies(targetJavaVersion);
+        resolveDependencies(targetJavaVersion);
+
+        // we want to make sure that we build IF one of our dependencies needs to build too
+        for (Project<?> project : fullDependencyList) {
+            // dep can be a jar as well (don't have to build a jar)
+            if (!(project instanceof ProjectJar)) {
+                // if one of our dependencies has to build, so do we
+
+                // if false, this means that the source files ARE NOT THE SAME (they have not changed)
+                final boolean b = project.verifyChecksums();
+                shouldBuild |= !b;
+            }
+        }
 
         shouldBuild |= !verifyChecksums();
 
@@ -743,13 +755,13 @@ class ProjectJava extends Project<ProjectJava> {
 
 
     /**
-     * @return true if the checksums for path match the saved checksums and the jar file exists. If it's a temp project (and specifies a
-     * jar) the jarChecksum is ignored (so only checksums based on source code changes)
+     * @return true if the checksums for path match the saved checksums.  If there is a JAR file, it also checks to see if it is built &
+     * matches the saved checksums.  If it's a temp project (and specifies a jar) the jarChecksum is ignored (so only checksums based on source code changes)
      */
     @Override
     boolean verifyChecksums() throws IOException {
-        // if temporary, we ALWAYS build it
-        if (this.temporary && !this.overrideTemporary) {
+        // if temporary + we override the status, we ALWAYS build it
+        if (this.temporary && this.overrideTemporary) {
             return false;
         }
 
@@ -758,8 +770,8 @@ class ProjectJava extends Project<ProjectJava> {
             return false;
         }
 
-        // if we have no jar file (and the sources are the same) then we are done.
-        if (this.jarable == null) {
+        // if we have no jar file (and the sources are the same) OR we are temporary + don't override, it will have a jar, but won't save it
+        if (this.jarable == null || (this.temporary && !this.overrideTemporary)) {
             return true;
         }
 

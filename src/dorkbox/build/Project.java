@@ -375,7 +375,7 @@ class Project<T extends Project<T>> {
      */
     @SuppressWarnings("all")
     protected
-    void resolveAndCheckDependencies(final int targetJavaVersion) throws IOException {
+    void resolveDependencies(final int targetJavaVersion) throws IOException {
         resolveDeps();
 
         if (fullDependencyList == null) {
@@ -387,15 +387,6 @@ class Project<T extends Project<T>> {
             deps.toArray(array);
             fullDependencyList = Arrays.asList(array);
             Collections.sort(fullDependencyList, dependencyComparator);
-        }
-
-        for (Project<?> project : fullDependencyList) {
-            // dep can be a jar as well (don't have to build a jar)
-            if (!(project instanceof ProjectJar)) {
-                project.resolveAndCheckDependencies(targetJavaVersion);
-                // if one of our dependencies has to build, so do we
-                shouldBuild |= project.shouldBuild;
-            }
         }
     }
 
