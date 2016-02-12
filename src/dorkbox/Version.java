@@ -299,13 +299,49 @@ class Version {
         return this;
     }
 
+    /**
+     * Verifies that all of the version information on save() will be valid.
+     *
+     * @return null indicates everything is OK, false is the error message
+     */
+    public
+    String verify() {
+        if (ignoreSaves) {
+            return null;
+        }
+
+        // only saves the readme if it was included.
+        if (readme != null) {
+            final String readmeOrigText = "<version>" + originalVersion.toStringOnlyNumbers() + "</version>";
+
+            final String validate = validate(readme, null, readmeOrigText, originalVersion.toStringOnlyNumbers());
+            if (validate != null) {
+                return validate;
+            }
+        }
+
+        // only saves the sourcefile if it was included.
+        if (sourceFile != null) {
+            final String precedingText = "String getVersion() {";
+            final String readmeOrigText = "return \"" + originalVersion.toStringOnlyNumbers() + "\";";
+
+            final String validate = validate(sourceFile, precedingText, readmeOrigText, originalVersion.toStringOnlyNumbers());
+            if (validate != null) {
+                return validate;
+            }
+        }
+
+        final String origText = "Version version = Version.get(\"" + originalVersion.toString() + "\")";
+
+        return validate(file, null, origText, originalVersion.toString());
+    }
+
 
     /**
      * Saves this file (if specified) and the README.md file (if specified)
      */
     public
     Version save() {
-
         if (!ignoreSaves) {
             // only saves the readme if it was included.
             if (readme != null) {
@@ -342,83 +378,141 @@ class Version {
      * @param origText this is what the ORIGINAL text must be
      * @param newText this is what the text will become
      */
-    public
-    Version save(final File file, String precedingText, String origText, String newText) {
-        if (!ignoreSaves) {
-            if (file == null) {
-                throw new RuntimeException("Unable to save the version information if the calling class is not detected.");
-            }
-
-            try {
-                List<String> strings = FileUtil.readLines(new FileReader(file));
-
-
-                boolean hasPrecedingText = precedingText != null && !precedingText.isEmpty();
-                boolean foundPrecedingText = false;
-                boolean found = false;
-
-                if (hasPrecedingText) {
-                    for (int i = 0; i < strings.size(); i++) {
-                        String string = strings.get(i);
-                        if (string.contains(precedingText)) {
-                            foundPrecedingText = true;
-                        }
-
-                        if (foundPrecedingText && string.contains(origText)) {
-                            string = string.replace(origText, newText);
-
-                            strings.set(i, string);
-                            found = true;
-                            break;
-                        }
-                    }
-                }
-                else {
-                    for (int i = 0; i < strings.size(); i++) {
-                        String string =  strings.get(i);
-
-                        // it cannot be "final", because "final" (if static) is inlined by the compiler.
-                        if (string.contains(origText)) {
-                            string = string.replace(origText, newText);
-
-                            strings.set(i, string);
-                            found = true;
-                            break;
-                        }
-                    }
-                }
-
-
-                if (!found) {
-                    throw new RuntimeException("Expected version string/info NOT FOUND in '" + file +
-                                               "'. Check spacing/formatting and try again.");
-                }
-
-                // now write the strings back to the file
-                Writer output = null;
-                try {
-                    output = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file)));
-                    // FileWriter always assumes default encoding is OK
-
-                    // write all of the original args
-                    for (String arg : strings) {
-                        output.write(arg);
-                        output.write(OS.LINE_SEPARATOR);
-                    }
-
-                    // make sure there is a new line at the end of the argument (so it's easier to read)
-                    output.write(OS.LINE_SEPARATOR);
-                } finally {
-                    Sys.close(output);
-                }
-            } catch (IOException e) {
-                throw new RuntimeException("Unable to write file.", e);
-            }
+    private static
+    void save(final File file, String precedingText, String origText, String newText) {
+        if (file == null) {
+            throw new RuntimeException("Unable to save the version information if the calling class is not detected.");
         }
 
-        return this;
+        try {
+            List<String> strings = FileUtil.readLines(new FileReader(file));
+
+
+            boolean hasPrecedingText = precedingText != null && !precedingText.isEmpty();
+            boolean foundPrecedingText = false;
+            boolean found = false;
+
+            if (hasPrecedingText) {
+                for (int i = 0; i < strings.size(); i++) {
+                    String string = strings.get(i);
+                    if (string.contains(precedingText)) {
+                        foundPrecedingText = true;
+                    }
+
+                    if (foundPrecedingText && string.contains(origText)) {
+                        string = string.replace(origText, newText);
+
+                        strings.set(i, string);
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            else {
+                for (int i = 0; i < strings.size(); i++) {
+                    String string =  strings.get(i);
+
+                    // it cannot be "final", because "final" (if static) is inlined by the compiler.
+                    if (string.contains(origText)) {
+                        string = string.replace(origText, newText);
+
+                        strings.set(i, string);
+                        found = true;
+                        break;
+                    }
+                }
+            }
+
+
+            if (!found) {
+                throw new RuntimeException("Expected version string/info NOT FOUND in '" + file +
+                                           "'. Check spacing/formatting and try again.");
+            }
+
+            // now write the strings back to the file
+            Writer output = null;
+            try {
+                output = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file)));
+                // FileWriter always assumes default encoding is OK
+
+                int lastIndex = strings.size();
+                // remove all ending strings (except the one JUST BEFORE there is text)
+                for (int i = lastIndex - 1; i >= 0; i--) {
+                    final String string = strings.get(i);
+
+                    if (string == null || string.isEmpty()) {
+                        lastIndex = i;
+                    } else {
+                        break;
+                    }
+                }
+
+                // write all of the original args
+                for (int i = 0; i < lastIndex; i++) {
+                    final String arg = strings.get(i);
+                    output.write(arg);
+                    output.write(OS.LINE_SEPARATOR);
+                }
+
+                // make sure there is a new line at the end of the file (so it's easier to read)
+                output.write(OS.LINE_SEPARATOR);
+            } finally {
+                Sys.close(output);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Unable to write file.", e);
+        }
     }
 
+    private static
+    String validate(final File file, final String precedingText, final String origText, final String expectedVersion) {
+        if (file == null) {
+            return "Unable to save the version information if the calling class is not detected.";
+        }
+
+        try {
+            List<String> strings = FileUtil.readLines(new FileReader(file));
+
+
+            boolean hasPrecedingText = precedingText != null && !precedingText.isEmpty();
+            boolean foundPrecedingText = false;
+            boolean found = false;
+
+            if (hasPrecedingText) {
+                for (int i = 0; i < strings.size(); i++) {
+                    String string = strings.get(i);
+                    if (string.contains(precedingText)) {
+                        foundPrecedingText = true;
+                    }
+
+                    if (foundPrecedingText && string.contains(origText)) {
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            else {
+                for (int i = 0; i < strings.size(); i++) {
+                    String string =  strings.get(i);
+
+                    // it cannot be "final", because "final" (if static) is inlined by the compiler.
+                    if (string.contains(origText)) {
+                        found = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!found) {
+                return "Expected version string/info '" + expectedVersion + "' NOT FOUND in '" + file +
+                       "'. Check spacing/formatting and try again.";
+            }
+        } catch (IOException e) {
+            return "Unable to read file. " + e.getMessage();
+        }
+
+        return null;
+    }
 
 
     @Override
