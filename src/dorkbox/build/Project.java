@@ -772,7 +772,7 @@ class Project<T extends Project<T>> {
             }
         }
 
-        if (!keepOldVersion) {
+        if (!keepOldVersion && !((T)this instanceof ProjectJar)) {
             // before we create the jar (and sources if necessary), we delete any of the old versions that might be in the target
             // directory.
             if (this.version != null) {
