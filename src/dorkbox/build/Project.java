@@ -175,6 +175,9 @@ class Project<T extends Project<T>> {
     /** true if we had to build this project */
     protected boolean shouldBuild = false;
 
+    /** true if we skipped building this project */
+    protected boolean skippedBuild = false;
+
     /**
      * Temporary projects are always built, but not always exported to maven (this is controlled by the parent, non-temp project
      * recursively)
@@ -772,7 +775,7 @@ class Project<T extends Project<T>> {
             }
         }
 
-        if (!keepOldVersion && !((T)this instanceof ProjectJar)) {
+        if (!skippedBuild && !keepOldVersion && !((T)this instanceof ProjectJar)) {
             // before we create the jar (and sources if necessary), we delete any of the old versions that might be in the target
             // directory.
             if (this.version != null) {

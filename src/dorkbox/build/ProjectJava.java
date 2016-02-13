@@ -69,6 +69,8 @@ class ProjectJava extends Project<ProjectJava> {
 
     private File readme = null;
 
+    private Integer targetJavaVersion = null;
+
     public static
     ProjectJava create(String projectName) {
         ProjectJava project = new ProjectJava(projectName);
@@ -76,9 +78,6 @@ class ProjectJava extends Project<ProjectJava> {
 
         return project;
     }
-
-    private Integer targetJavaVersion = null;
-    private boolean skippedBuild = false;
 
     private
     ProjectJava(String projectName) {
