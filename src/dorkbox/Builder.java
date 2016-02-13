@@ -16,6 +16,8 @@
 package dorkbox;
 
 import com.esotericsoftware.wildcard.Paths;
+import dorkbox.annotation.AnnotationDefaults;
+import dorkbox.annotation.AnnotationDetector;
 import dorkbox.build.Project;
 import dorkbox.build.ProjectJava;
 import dorkbox.build.SimpleArgs;
@@ -27,15 +29,26 @@ import dorkbox.build.util.jar.Pack200Util;
 import dorkbox.util.FileUtil;
 import dorkbox.util.LZMA;
 import dorkbox.util.Sys;
-import dorkbox.annotation.AnnotationDefaults;
-import dorkbox.annotation.AnnotationDetector;
 import dorkbox.util.properties.PropertiesProvider;
 
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map.Entry;
+import java.util.TimeZone;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -276,6 +289,9 @@ class Builder {
             return false;
         }
 
+        methodNameToCall = methodNameToCall.toLowerCase();
+        projectToBuild = projectToBuild.toLowerCase();
+
         boolean found = false;
         for (Class<?> c : builders) {
             String simpleName = c.getSimpleName()
@@ -286,7 +302,7 @@ class Builder {
 
                 for (Method m : methods) {
                     if (m.getName()
-                         .toLowerCase(Locale.US)
+                         .toLowerCase()
                          .equals(methodNameToCall)) {
 
                         Class<?>[] p = m.getParameterTypes();
@@ -873,6 +889,16 @@ class Builder {
                                              .collect(AnnotationDefaults.getType);
 
         if (controllers != null) {
+            if (controllers.size() > 1) {
+                List<String> newList = new ArrayList<String>();
+                for (Class<?> controller : controllers) {
+                    newList.add(controller.getSimpleName());
+                }
+
+                BuildLog.title("Warning")
+                        .println("Multiple controllers defined with @" + Config.class.getSimpleName() + ". Only using '" + newList.get(0) + "'", newList);
+            }
+
             // do we have something to control the build process??
             // now we want to update/search for all project builders if we didn't already run our specific builder
             for (Class<?> c : controllers) {
