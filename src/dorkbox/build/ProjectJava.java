@@ -77,6 +77,9 @@ class ProjectJava extends Project<ProjectJava> {
         return project;
     }
 
+    private Integer targetJavaVersion = null;
+    private boolean skippedBuild = false;
+
     private
     ProjectJava(String projectName) {
         super(projectName);
@@ -191,6 +194,13 @@ class ProjectJava extends Project<ProjectJava> {
     @SuppressWarnings("AccessStaticViaInstance")
     public
     boolean build(final int targetJavaVersion) throws IOException {
+        if (this.targetJavaVersion != null) {
+            throw new IOException("Project already built!");
+        }
+
+        // save off the target version we build
+        this.targetJavaVersion = targetJavaVersion;
+
         // check dependencies for this project
         resolveDependencies(targetJavaVersion);
 
@@ -319,7 +329,7 @@ class ProjectJava extends Project<ProjectJava> {
                 for (CrossCompileClass crossCompileClass : crossCompileClasses) {
                     Paths sourceFiles = crossCompileClass.sourceFiles;
 
-                    if (OS.javaVersion > crossCompileClass.targetJavaVersion) {
+                    if (OS.javaVersion > targetJavaVersion && targetJavaVersion < crossCompileClass.targetJavaVersion) {
                         Set<String> dependencies = new HashSet<String>();
 
                         for (File sourceFile : sourceFiles.getFiles()) {
@@ -422,36 +432,10 @@ class ProjectJava extends Project<ProjectJava> {
                 FileUtil.delete(crossCompatBuiltFile);
             }
 
-
-            if (!keepOldVersion) {
-                // before we create the jar (and sources if necessary), we delete any of the old versions that might be in the target
-                // directory.
-                if (this.version != null) {
-                    if (this.version.hasChanged()) {
-                        final File originalJar = this.outputFile.getOriginal();
-                        final File originalSource = this.outputFile.getSourceOriginal();
-
-                        Builder.delete(originalJar);
-                        Builder.delete(originalSource);
-                    }
-                }
-                else {
-                    final File originalJar = this.outputFile.getOriginal();
-                    final File originalSource = this.outputFile.getSourceOriginal();
-
-                    Builder.delete(originalJar);
-                    Builder.delete(originalSource);
-                }
-            }
-
-            if (this.mavenExporter != null) {
-                this.mavenExporter.setProject(this);
-                this.mavenExporter.export(targetJavaVersion);
-            }
-
             BuildLog.title("Staging").println(this.stagingDir);
         }
         else {
+            skippedBuild = true;
             BuildLog.println().println("Skipped (nothing changed)");
         }
 
@@ -753,6 +737,25 @@ class ProjectJava extends Project<ProjectJava> {
         return this;
     }
 
+    @SuppressWarnings("unchecked")
+    public
+    void uploadToMaven() throws IOException {
+        if (!skippedBuild) {
+            for (Project project : fullDependencyList) {
+                // dep can be a jar as well (don't upload dependency jars)
+                if (project instanceof ProjectJava) {
+                    project.uploadToMaven();
+                }
+            }
+
+            if (this.mavenExporter != null) {
+                this.mavenExporter.setProject(this);
+                this.mavenExporter.export(this.targetJavaVersion);
+
+                mavenExporter = null; // make sure we can only upload once.
+            }
+        }
+    }
 
     /**
      * @return true if the checksums for path match the saved checksums.  If there is a JAR file, it also checks to see if it is built &

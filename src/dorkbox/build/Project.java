@@ -772,6 +772,27 @@ class Project<T extends Project<T>> {
             }
         }
 
+        if (!keepOldVersion) {
+            // before we create the jar (and sources if necessary), we delete any of the old versions that might be in the target
+            // directory.
+            if (this.version != null) {
+                if (this.version.hasChanged()) {
+                    final File originalJar = this.outputFile.getOriginal();
+                    final File originalSource = this.outputFile.getSourceOriginal();
+
+                    Builder.delete(originalJar);
+                    Builder.delete(originalSource);
+                }
+            }
+            else {
+                final File originalJar = this.outputFile.getOriginal();
+                final File originalSource = this.outputFile.getSourceOriginal();
+
+                Builder.delete(originalJar);
+                Builder.delete(originalSource);
+            }
+        }
+
         if (stagingDir.exists()) {
             BuildLog.println("Deleting staging location" + this.stagingDir);
             FileUtil.delete(this.stagingDir);
@@ -846,5 +867,9 @@ class Project<T extends Project<T>> {
             return false;
         }
         return true;
+    }
+
+    public
+    void uploadToMaven() throws IOException {
     }
 }
