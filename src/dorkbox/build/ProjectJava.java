@@ -377,6 +377,7 @@ class ProjectJava extends Project<ProjectJava> {
                     crossIncludeFiles.add(crossCompatBuiltFile.getAbsolutePath(), relativeName + ".class");
 
                 }
+                // now that this file is compiled, we add it to our "extra files" to be bundled up when we make the jar
                 extraFiles(crossIncludeFiles);
 
 
