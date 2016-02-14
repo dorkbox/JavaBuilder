@@ -366,11 +366,23 @@ class MavenExporter<T extends Project<T>> {
         deleteSignatureTurds(authInfo, repo, groupID_asPath, project.name, projectVersion, docsAscFile);
 
 
-        // Now tell the repo we are finished (and the build will verify everything)
+        // give sonatype time to catch-up - we sometimes go too fast
+        try {
+            Thread.sleep(2000L);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
 
+        // Now tell the repo we are finished (and the build will verify everything)
         BuildLog.title("Closing Repo").println();
         hasErrors = closeRepo(authInfo, profile, repo, nameAndVersion);
 
+        // give sonatype time to catch-up - we sometimes go too fast
+        try {
+            Thread.sleep(4000L);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
 
         if (!hasErrors.isEmpty()) {
             BuildLog.title("Errors!").println("'" + hasErrors + "'");
