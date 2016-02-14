@@ -203,14 +203,15 @@ class Builder {
 
             log.title("ERROR")
                .println(e.getMessage());
-            StackTraceElement[] stackTrace = e.getStackTrace();
-            if (stackTrace.length > 0) {
-                e.printStackTrace();
-            }
+
+            BuildLog.finish();
         }
 
         BuildLog.finish();
+
+        // make sure to rethrow the errors
         if (e != null) {
+            System.err.println(""); // add a small space
             throw e;
         }
     }
