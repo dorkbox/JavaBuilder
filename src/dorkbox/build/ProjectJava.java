@@ -193,10 +193,6 @@ class ProjectJava extends Project<ProjectJava> {
     @SuppressWarnings("AccessStaticViaInstance")
     public
     boolean build(final int targetJavaVersion) throws IOException {
-        if (this.targetJavaVersion != null) {
-            throw new IOException("Project already built!");
-        }
-
         // save off the target version we build
         this.targetJavaVersion = targetJavaVersion;
 
@@ -228,7 +224,6 @@ class ProjectJava extends Project<ProjectJava> {
         else {
             buildList.add(this.name);
         }
-
 
         BuildLog.start();
 
