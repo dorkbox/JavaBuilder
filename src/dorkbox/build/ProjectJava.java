@@ -238,9 +238,7 @@ class ProjectJava extends Project<ProjectJava> {
             final String verify = this.version.verify();
 
             if (verify != null) {
-                BuildLog.title("ERROR").println(verify);
-                BuildLog.println();
-                return false;
+                throw new IOException(verify);
             }
 
             version = this.version.toString();
