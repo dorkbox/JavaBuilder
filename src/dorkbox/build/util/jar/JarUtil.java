@@ -659,9 +659,10 @@ class JarUtil {
             // These files will MATCH the path hierarchy in the jar
             ///////////////////////////////////////////////
             if (options.extraPaths != null) {
-                List<SortedFiles> sortList = new ArrayList<SortedFiles>(options.extraPaths.count());
+                final int count = options.extraPaths.count();
+                List<SortedFiles> sortList = new ArrayList<SortedFiles>(count);
 
-                if (!sortList.isEmpty()) {
+                if (count > 0) {
                     BuildLog.println("\tAdding extras");
 
                     fullPaths = options.extraPaths.getPaths();
