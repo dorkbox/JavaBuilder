@@ -29,10 +29,16 @@ class Version {
     private final Version originalVersion;
 
     private String prefix;
-    private int[] dots;
+    private String[] subVersion;
     private File readme;
     private File sourceFile;
     private boolean ignoreSaves = false;
+    private final String originalText;
+
+    public
+    Version() {
+        this(null, "0");
+    }
 
     public
     Version(String version) {
@@ -49,14 +55,16 @@ class Version {
         readme = other.readme;
         sourceFile = other.sourceFile;
         ignoreSaves = other.ignoreSaves;
+        originalText = other.originalText;
 
-        final int length = other.dots.length;
-        dots = new int[length];
-        System.arraycopy(other.dots, 0, dots, 0, length);
+        final int length = other.subVersion.length;
+        subVersion = new String[length];
+        System.arraycopy(other.subVersion, 0, subVersion, 0, length);
     }
 
     public
     Version(final Class<?> clazz, final String version) {
+        originalText = version;
         if (clazz != null) {
             final Paths javaFile;
             try {
@@ -74,9 +82,12 @@ class Version {
         }
 
         final int length = version.length();
+
+        // if an empty or null string is passed it, it's version is "0"
         if (length == 0) {
             prefix = "";
-            dots = new int[1];
+            subVersion = new String[1];
+            subVersion[0] = "0";
             originalVersion = new Version(this);
             return;
         }
@@ -115,7 +126,7 @@ class Version {
         }
 
         int groupCount = dotCount + 1;
-        dots = new int[groupCount];
+        subVersion = new String[groupCount];
 
         String dotString;
 
@@ -130,17 +141,13 @@ class Version {
                 dotString = version.substring(startIndex);
             }
 
-            try {
-                dots[0] = Integer.parseInt(dotString);
-            } catch (Exception e) {
-                throw new NumberFormatException("Provided version '" + version + "' does not have a major number assigned or is improperly " +
-                                                "formatted (it must be a number): " + e.getMessage());
-            }
+            subVersion[0] = dotString;
+
         }
         else {
             int i = 0;
             if (startIndex > dotIndex) {
-                dots[0] = 0;
+                subVersion[0] = "0";
                 i++;
                 dotIndex = length;
             }
@@ -155,26 +162,7 @@ class Version {
                     dotIndex = length;
                 }
 
-                try {
-                    dots[i] = Integer.parseInt(dotString);
-                } catch (Exception e) {
-                    if (i == 0) {
-                        throw new NumberFormatException("Provided version '" + version + "' does not have a major(X.x) assigned or is improperly " +
-                                                        "formatted: " + e.getMessage());
-                    }
-                    else if (i == 1) {
-                        throw new NumberFormatException("Provided version '" + version + "' does not have a minor (X.x) assigned or is improperly " +
-                                                        "formatted: " + e.getMessage());
-                    }
-                    else {
-                        // we are past major and minor, so just ignore this (this is because we ONLY care about major/minor internally!).
-                        dots[i] = 0;
-                        BuildLog.title("Version Error")
-                                .println("Invalid number detected for '" + version + "'. Since it wasn't the major or minor version, index '"
-                                         + i + "' was assigned '0' for string '" + dotString + "'.");
-
-                    }
-                }
+                subVersion[i] = dotString;
             }
         }
 
@@ -228,9 +216,9 @@ class Version {
 
         prefix = other.prefix;
 
-        final int length = other.dots.length;
-        dots = new int[length];
-        System.arraycopy(other.dots, 0, dots, 0, length);
+        final int length = other.subVersion.length;
+        subVersion = new String[length];
+        System.arraycopy(other.subVersion, 0, subVersion, 0, length);
 
         return this;
     }
@@ -243,7 +231,12 @@ class Version {
      */
     public
     int getMajor() {
-        return dots[0];
+        try {
+            return Integer.parseInt(subVersion[0]);
+        } catch (Exception e) {
+                throw new NumberFormatException("Provided version '" + originalText + "' does not have a major (X.x.x.x) assigned or is " +
+                                                "improperly formatted: " + e.getMessage());
+        }
     }
 
     /**
@@ -254,8 +247,13 @@ class Version {
      */
     public
     int getMinor() {
-        if (dots.length > 1) {
-            return dots[1];
+        if (subVersion.length > 1) {
+            try {
+                return Integer.parseInt(subVersion[1]);
+            } catch (Exception e) {
+                throw new NumberFormatException("Provided version '" + originalText + "' does not have a minor (x.X.x.x) assigned or is " +
+                                                "improperly formatted: " + e.getMessage());
+            }
         }
         else {
             return 0;
@@ -266,8 +264,8 @@ class Version {
      * @return the version information as an ARRAY.
      */
     public
-    int[] get() {
-        return dots;
+    String[] get() {
+        return subVersion;
     }
 
 
@@ -300,13 +298,18 @@ class Version {
      */
     public
     Version increment(int index) {
-        dots[index] = dots[index] + 1;
+        try {
+            subVersion[index] = Integer.toString(Integer.parseInt(subVersion[index]) + 1);
+        } catch (Exception e) {
+            throw new NumberFormatException("Provided version '" + originalText + "' does not have a major number assigned or is improperly " +
+                                            "formatted (it must be a number): " + e.getMessage());
+        }
 
         // if there are any indices "smaller" than the specified, we zero them out.
-        final int length = dots.length;
+        final int length = subVersion.length;
         if (length > index) {
             for (int i = index+1; i < length; i++) {
-                dots[i] = 0; // reset minor/patch/etc to 0
+                subVersion[i] = "0"; // reset minor/patch/etc to 0
             }
         }
 
@@ -326,9 +329,9 @@ class Version {
 
         // only saves the readme if it was included.
         if (readme != null) {
-            final String readmeOrigText = "<version>" + originalVersion.toStringOnlyNumbers() + "</version>";
+            final String readmeOrigText = "<version>" + originalVersion.toStringWithoutPrefix() + "</version>";
 
-            final String validate = validate(readme, null, readmeOrigText, originalVersion.toStringOnlyNumbers());
+            final String validate = validate(readme, null, readmeOrigText, originalVersion.toStringWithoutPrefix());
             if (validate != null) {
                 return validate;
             }
@@ -337,9 +340,9 @@ class Version {
         // only saves the sourcefile if it was included.
         if (sourceFile != null) {
             final String precedingText = "String getVersion() {";
-            final String readmeOrigText = "return \"" + originalVersion.toStringOnlyNumbers() + "\";";
+            final String readmeOrigText = "return \"" + originalVersion.toStringWithoutPrefix() + "\";";
 
-            final String validate = validate(sourceFile, precedingText, readmeOrigText, originalVersion.toStringOnlyNumbers());
+            final String validate = validate(sourceFile, precedingText, readmeOrigText, originalVersion.toStringWithoutPrefix());
             if (validate != null) {
                 return validate;
             }
@@ -359,8 +362,8 @@ class Version {
         if (!ignoreSaves) {
             // only saves the readme if it was included.
             if (readme != null) {
-                final String readmeOrigText = "<version>" + originalVersion.toStringOnlyNumbers() + "</version>";
-                final String readmeNewText = "<version>" + toStringOnlyNumbers() + "</version>";
+                final String readmeOrigText = "<version>" + originalVersion.toStringWithoutPrefix() + "</version>";
+                final String readmeNewText = "<version>" + toStringWithoutPrefix() + "</version>";
 
                 save(readme, null, readmeOrigText, readmeNewText);
             }
@@ -368,8 +371,8 @@ class Version {
             // only saves the sourcefile if it was included.
             if (sourceFile != null) {
                 final String precedingText = "String getVersion() {";
-                final String readmeOrigText = "return \"" + originalVersion.toStringOnlyNumbers() + "\";";
-                final String readmeNewText = "return \"" + toStringOnlyNumbers() + "\";";
+                final String readmeOrigText = "return \"" + originalVersion.toStringWithoutPrefix() + "\";";
+                final String readmeNewText = "return \"" + toStringWithoutPrefix() + "\";";
 
                 save(sourceFile, precedingText, readmeOrigText, readmeNewText);
             }
@@ -509,7 +512,7 @@ class Version {
                 for (int i = 0; i < strings.size(); i++) {
                     String string =  strings.get(i);
 
-                    // it cannot be "final", because "final" (if static) is inlined by the compiler.
+                    // the source string (in the file) cannot be "final", because "final" (if static) is inlined by the compiler.
                     if (string.contains(origText)) {
                         found = true;
                         break;
@@ -532,16 +535,16 @@ class Version {
     @Override
     public
     String toString() {
-        return prefix + toStringOnlyNumbers();
+        return originalText;
     }
 
     public
-    String toStringOnlyNumbers() {
-        final int length = dots.length;
+    String toStringWithoutPrefix() {
+        final int length = subVersion.length;
         final StringBuilder stringBuilder = new StringBuilder(length * 3);
 
-        for (int dot : dots) {
-            stringBuilder.append(dot);
+        for (String v : subVersion) {
+            stringBuilder.append(v);
             stringBuilder.append('.');
         }
 
@@ -639,7 +642,7 @@ class Version {
      */
     public
     boolean versionEquals(final Version version) {
-        return Arrays.equals(this.dots, version.dots);
+        return Arrays.equals(this.subVersion, version.subVersion);
     }
 
     public

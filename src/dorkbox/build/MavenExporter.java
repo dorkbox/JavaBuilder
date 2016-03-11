@@ -79,7 +79,7 @@ class MavenExporter<T extends Project<T>> {
     public
     MavenExporter(final MavenInfo info) {
         this.groupId = info.getGroupId();
-        this.projectVersion = info.getVersion().toStringOnlyNumbers();
+        this.projectVersion = info.getVersion().toStringWithoutPrefix();
     }
 
     /**
@@ -813,7 +813,7 @@ class MavenExporter<T extends Project<T>> {
                     space(b,2).append("<dependency>").append(NL);
                     space(b,3).append("<groupId>").append(mavenInfo.getGroupId()).append("</groupId>").append(NL);
                     space(b,3).append("<artifactId>").append(mavenInfo.getArtifactId()).append("</artifactId>").append(NL);
-                    space(b,3).append("<version>").append(mavenInfo.getVersion().toStringOnlyNumbers()).append("</version>").append(NL);
+                    space(b,3).append("<version>").append(mavenInfo.getVersion().toString()).append("</version>").append(NL);
 
                     if (mavenInfo.getScope() != null) {
                         space(b,3).append("<scope>").append(mavenInfo.getScope()).append("</scope>").append(NL);
