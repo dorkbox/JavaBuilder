@@ -19,12 +19,20 @@ public class ProjectJar extends Project<ProjectJar> {
 
     @Override
     public ProjectJar addSrc(String file) {
+        if (!new File(file).canRead()) {
+            throw new RuntimeException("Unable to read specified jar source file: '" + file + "'");
+        }
+
         super.addSrc(file);
         return this;
     }
 
     @Override
     public ProjectJar addSrc(File file) {
+        if (!file.canRead()) {
+            throw new RuntimeException("Unable to read specified jar source file: '" + file + "'");
+        }
+
         super.addSrc(file);
         return this;
     }
