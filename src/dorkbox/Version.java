@@ -133,8 +133,8 @@ class Version {
             try {
                 dots[0] = Integer.parseInt(dotString);
             } catch (Exception e) {
-                throw new NumberFormatException("Provided version '" + version + "' does not have a minor (X.x) assigned or is improperly " +
-                                                "formatted: " + e.getMessage());
+                throw new NumberFormatException("Provided version '" + version + "' does not have a major number assigned or is improperly " +
+                                                "formatted (it must be a number): " + e.getMessage());
             }
         }
         else {
@@ -158,8 +158,22 @@ class Version {
                 try {
                     dots[i] = Integer.parseInt(dotString);
                 } catch (Exception e) {
-                    throw new NumberFormatException("Provided version '" + version + "' does not have a minor (X.x) assigned or is improperly " +
-                                                    "formatted: " + e.getMessage());
+                    if (i == 0) {
+                        throw new NumberFormatException("Provided version '" + version + "' does not have a major(X.x) assigned or is improperly " +
+                                                        "formatted: " + e.getMessage());
+                    }
+                    else if (i == 1) {
+                        throw new NumberFormatException("Provided version '" + version + "' does not have a minor (X.x) assigned or is improperly " +
+                                                        "formatted: " + e.getMessage());
+                    }
+                    else {
+                        // we are past major and minor, so just ignore this (this is because we ONLY care about major/minor internally!).
+                        dots[i] = 0;
+                        BuildLog.title("Version Error")
+                                .println("Invalid number detected for '" + version + "'. Since it wasn't the major or minor version, index '"
+                                         + i + "' was assigned '0' for string '" + dotString + "'.");
+
+                    }
                 }
             }
         }
