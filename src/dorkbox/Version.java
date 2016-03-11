@@ -13,6 +13,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -31,7 +32,7 @@ class Version {
     private String prefix;
     private String[] subVersion;
     private File readme;
-    private File sourceFile;
+    private List<File> sourceFiles = new ArrayList<File>();
     private boolean ignoreSaves = false;
     private final String originalText;
 
@@ -53,7 +54,7 @@ class Version {
 
         prefix = other.prefix;
         readme = other.readme;
-        sourceFile = other.sourceFile;
+        sourceFiles.addAll(other.sourceFiles);
         ignoreSaves = other.ignoreSaves;
         originalText = other.originalText;
 
@@ -196,8 +197,8 @@ class Version {
         try {
             // now we get the location (based on the module info above) for this class file
             final Paths source = Builder.getJavaFile(sourceFile);
-            this.sourceFile = source.getFiles()
-                                    .get(0);
+            this.sourceFiles.add(source.getFiles()
+                                       .get(0));
         } catch (Exception e) {
             BuildLog.println("Error getting sourceFile for class " + sourceFile.getClass());
             e.printStackTrace();
@@ -333,18 +334,22 @@ class Version {
 
             final String validate = validate(readme, null, readmeOrigText, originalVersion.toStringWithoutPrefix());
             if (validate != null) {
+                // null means there was an error!
                 return validate;
             }
         }
 
         // only saves the sourcefile if it was included.
-        if (sourceFile != null) {
-            final String precedingText = "String getVersion() {";
-            final String readmeOrigText = "return \"" + originalVersion.toStringWithoutPrefix() + "\";";
+        if (!sourceFiles.isEmpty()) {
+            for (File sourceFile : sourceFiles) {
+                final String precedingText = "String getVersion() {";
+                final String readmeOrigText = "return \"" + originalVersion.toStringWithoutPrefix() + "\";";
 
-            final String validate = validate(sourceFile, precedingText, readmeOrigText, originalVersion.toStringWithoutPrefix());
-            if (validate != null) {
-                return validate;
+                final String validate = validate(sourceFile, precedingText, readmeOrigText, originalVersion.toStringWithoutPrefix());
+                if (validate != null) {
+                    // null means there was an error!
+                    return validate;
+                }
             }
         }
 
@@ -369,12 +374,14 @@ class Version {
             }
 
             // only saves the sourcefile if it was included.
-            if (sourceFile != null) {
-                final String precedingText = "String getVersion() {";
-                final String readmeOrigText = "return \"" + originalVersion.toStringWithoutPrefix() + "\";";
-                final String readmeNewText = "return \"" + toStringWithoutPrefix() + "\";";
+            if (!sourceFiles.isEmpty()) {
+                for (File sourceFile : sourceFiles) {
+                    final String precedingText = "String getVersion() {";
+                    final String readmeOrigText = "return \"" + originalVersion.toStringWithoutPrefix() + "\";";
+                    final String readmeNewText = "return \"" + toStringWithoutPrefix() + "\";";
 
-                save(sourceFile, precedingText, readmeOrigText, readmeNewText);
+                    save(sourceFile, precedingText, readmeOrigText, readmeNewText);
+                }
             }
 
             final String origText = "Version version = Version.get(\"" + originalVersion.toString() + "\")";
