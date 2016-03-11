@@ -535,7 +535,21 @@ class Version {
     @Override
     public
     String toString() {
-        return originalText;
+        // this is DIFFERENT than toStringWithoutPrefix(), in that this DOES NOT do anything with length == 1.
+        final int length = subVersion.length;
+        final StringBuilder stringBuilder = new StringBuilder(length * 3);
+
+        stringBuilder.append(prefix);
+
+        for (String v : subVersion) {
+            stringBuilder.append(v);
+            stringBuilder.append('.');
+        }
+
+        final int length1 = stringBuilder.length();
+        stringBuilder.delete(length1 - 1, length1);
+
+        return stringBuilder.toString();
     }
 
     public
