@@ -51,4 +51,13 @@ public class ProjectJar extends Project<ProjectJar> {
         super.dist(distLocation);
         return this;
     }
+
+    @Override
+    public
+    ProjectJar outputFile(final String outputFile) {
+        if (!new File(outputFile).canRead()) {
+            throw new RuntimeException("Unable to read specified jar output file: '" + outputFile + "'");
+        }
+        return super.outputFile(outputFile);
+    }
 }
