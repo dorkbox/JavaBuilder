@@ -43,7 +43,15 @@ class OutputFile {
                     return FileUtil.normalize(new File(newName + "." + extension));
                 }
             }
-            else {
+            else if (cleanedName.endsWith(this.version.toString())){
+                // version string is ALREADY appended to the fileName
+                if (extension == null) {
+                    return FileUtil.normalize(new File(cleanedName + Project.JAR_EXTENSION));
+                }
+                else {
+                    return FileUtil.normalize(new File(cleanedName + "." + extension));
+                }
+            } else {
                 // version string is appended to the fileName
                 if (extension == null) {
                     return FileUtil.normalize(new File(cleanedName + "_" + this.version + Project.JAR_EXTENSION));
@@ -55,7 +63,7 @@ class OutputFile {
         }
         else {
             if (extension == null) {
-                return FileUtil.normalize(new File(outputFileName + Project.JAR_EXTENSION));
+                return FileUtil.normalize(new File(cleanedName + Project.JAR_EXTENSION));
             }
             else {
                 return FileUtil.normalize(new File(outputFileName));
