@@ -257,7 +257,8 @@ class Project<T extends Project<T>> {
 
         String lowerCase_outputDir = projectName.toLowerCase();
         this.stagingDir = new File(FileUtil.normalizeAsFile(STAGING + File.separator + lowerCase_outputDir));
-        outputFile(new File(this.stagingDir.getParentFile(), this.name + getExtension()));
+        // must call this method, because it's not overridden by jar type
+        outputFile0(new File(this.stagingDir.getParentFile(), this.name + getExtension()).getAbsolutePath());
     }
 
     /**
@@ -480,6 +481,12 @@ class Project<T extends Project<T>> {
     @SuppressWarnings("unchecked")
     public
     T outputFile(String outputFileName) {
+        // this method is offset, for setting the output file via jar VS via constructor (constructor must always call outputFile0)
+        return outputFile0(outputFileName);
+    }
+
+    private
+    T outputFile0(String outputFileName) {
         // output file is used for hash checking AND for new builds
 
         if (!outputFileName.contains(File.separator)) {
