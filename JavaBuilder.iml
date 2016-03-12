@@ -14,14 +14,17 @@
     </content>
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="jdk" jdkName="1.7" jdkType="JavaSDK" />
+    <orderEntry type="library" name="logging logback" level="application" />
+    <orderEntry type="library" name="logging slf4j-api" level="application" />
+    <orderEntry type="library" name="bouncyCastle bcpg-jdk15on" level="application" />
+    <orderEntry type="library" name="bouncyCastle bcpkix-jdk15on" level="application" />
+    <orderEntry type="library" name="bouncyCastle bcprov-jdk15on" level="application" />
     <orderEntry type="module" module-name="Dorkbox-Util" />
     <orderEntry type="module" module-name="JavaLauncher-Util" />
     <orderEntry type="library" name="dorkbox annotations" level="application" />
     <orderEntry type="library" name="dorkbox cab_parser" level="application" />
     <orderEntry type="library" name="dorkbox input_console" level="application" />
     <orderEntry type="library" name="lzma-java" level="application" />
-    <orderEntry type="library" name="logging logback" level="application" />
-    <orderEntry type="library" name="logging slf4j-api" level="application" />
     <orderEntry type="module-library">
       <library name="Base JavaBuilder Libs">
         <CLASSES>
@@ -45,9 +48,6 @@
         <jarDirectory url="file://$MODULE_DIR$/libs/fast-md5" recursive="false" type="SOURCES" />
       </library>
     </orderEntry>
-    <orderEntry type="library" name="bouncyCastle bcpg-jdk15on" level="application" />
-    <orderEntry type="library" name="bouncyCastle bcpkix-jdk15on" level="application" />
-    <orderEntry type="library" name="bouncyCastle bcprov-jdk15on" level="application" />
     <orderEntry type="module-library" scope="TEST">
       <library name="JUnit4">
         <CLASSES>
