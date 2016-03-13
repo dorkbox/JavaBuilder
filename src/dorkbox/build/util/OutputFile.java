@@ -92,7 +92,7 @@ class OutputFile {
         }
         else {
             // always append _src.zip
-            return FileUtil.normalize(new File(outputFileName + Project.SRC_EXTENSION));
+            return FileUtil.normalize(new File(cleanedName + Project.SRC_EXTENSION));
         }
     }
 
