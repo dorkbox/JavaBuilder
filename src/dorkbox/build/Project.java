@@ -32,7 +32,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.*;
 
-@SuppressWarnings("unused")
 public abstract
 class Project<T extends Project<T>> {
     public static final String JAR_EXTENSION = ".jar";
@@ -43,7 +42,6 @@ class Project<T extends Project<T>> {
     public static final String Java_Pattern = "**" + File.separator + "*.java";
     public static final String Jar_Pattern = "**" + File.separator + "*.jar";
 
-    @SuppressWarnings("rawtypes")
     public static Map<String, Project> deps = new LinkedHashMap<String, Project>();
     protected static Set<String> buildList = new HashSet<String>();
 
@@ -190,7 +188,6 @@ class Project<T extends Project<T>> {
     public static
     Project<?> get(String projectName) {
         if (deps.containsKey(projectName)) {
-            //noinspection UnnecessaryLocalVariable
             Project<?> project = deps.get(projectName);
             // put swt lib into jar!
             return project;
@@ -200,7 +197,6 @@ class Project<T extends Project<T>> {
         }
     }
 
-    @SuppressWarnings("rawtypes")
     public static
     void buildAll() throws Exception {
         // organize the list of items to build, so that our build order is at least SOMEWHAT in order,
@@ -284,7 +280,6 @@ class Project<T extends Project<T>> {
     /**
      * Exports this project to the maven central repository
      */
-    @SuppressWarnings("unchecked")
     public
     MavenExporter mavenExport(final String groupId, final MavenInfo.Scope scope) {
         mavenExport(new MavenExporter<T>(new MavenInfo(groupId, name, this.version, scope)));
@@ -294,7 +289,6 @@ class Project<T extends Project<T>> {
     /**
      * Exports this project to the maven central repository
      */
-    @SuppressWarnings("unchecked")
     public
     T mavenExport(MavenExporter<T> exporter) {
         mavenExporter = exporter;
@@ -304,7 +298,6 @@ class Project<T extends Project<T>> {
     /**
      * Specifies the specific maven info for this project, to configure dependencies
      */
-    @SuppressWarnings("unchecked")
     public
     T mavenInfo(final String groupId) {
         mavenInfo = new MavenInfo(groupId, this.name, this.version, null); // null = Scope.COMPILE
@@ -314,7 +307,6 @@ class Project<T extends Project<T>> {
     /**
      * Specifies the specific maven info for this project, to configure dependencies
      */
-    @SuppressWarnings("unchecked")
     public
     T mavenInfo(final String groupId, final MavenInfo.Scope scope) {
         mavenInfo = new MavenInfo(groupId, this.name, this.version, scope);
@@ -324,7 +316,6 @@ class Project<T extends Project<T>> {
     /**
      * Specifies the specific maven info for this project, to configure dependencies
      */
-    @SuppressWarnings("unchecked")
     public
     T mavenInfo(final String groupId, final String artifactId, final MavenInfo.Scope scope) {
         mavenInfo = new MavenInfo(groupId, artifactId, this.version, scope);
@@ -334,7 +325,6 @@ class Project<T extends Project<T>> {
     /**
      * Specifies the specific maven info for this project, to configure dependencies
      */
-    @SuppressWarnings("unchecked")
     public
     T mavenInfo(final String groupId, final String artifactId, final String version, final MavenInfo.Scope scope) {
         mavenInfo = new MavenInfo(groupId, artifactId, new Version(version), scope);
@@ -377,7 +367,6 @@ class Project<T extends Project<T>> {
      *
      * @return true if we can skip building this project
      */
-    @SuppressWarnings("all")
     protected
     void resolveDependencies(final int targetJavaVersion) throws IOException {
         resolveDeps();
@@ -395,7 +384,6 @@ class Project<T extends Project<T>> {
     }
 
 
-    @SuppressWarnings("unchecked")
     public
     T depends(String projectOrJar) {
         if (projectOrJar == null) {
@@ -422,7 +410,6 @@ class Project<T extends Project<T>> {
     }
 
 
-    @SuppressWarnings("unchecked")
     public
     T depends(Project<?> project) {
         if (project == null) {
@@ -452,14 +439,12 @@ class Project<T extends Project<T>> {
      * - b  <br>
      * - x.bmp
      */
-    @SuppressWarnings("unchecked")
     public
     T extraFiles(Paths filePaths) {
         this.extraFiles.add(filePaths);
         return (T) this;
     }
 
-    @SuppressWarnings("unchecked")
     public
     T extraFiles(File file) {
         this.extraFiles.add(new Paths(file.getParent(), file.getName()));
@@ -478,7 +463,6 @@ class Project<T extends Project<T>> {
      * <p>
      * If no extension is provide, the default is '.jar'
      */
-    @SuppressWarnings("unchecked")
     public
     T outputFile(String outputFileName) {
         // this method is offset, for setting the output file via jar VS via constructor (constructor must always call outputFile0)
@@ -522,7 +506,6 @@ class Project<T extends Project<T>> {
         return this;
     }
 
-    @SuppressWarnings("unchecked")
     public
     T options(BuildOptions buildOptions) {
         this.buildOptions = buildOptions;
@@ -535,7 +518,6 @@ class Project<T extends Project<T>> {
      * This call needs to be (at least) before dependencies are added, otherwise the order of licenses might be in the incorrect order.
      * Preferably, this should be the very first call.
      */
-    @SuppressWarnings("unchecked")
     public
     T license(License license) {
         if (!calledLicenseBefore) {
@@ -555,7 +537,6 @@ class Project<T extends Project<T>> {
      * This call needs to be (at least) before dependencies are added, otherwise the order of licenses might be in the incorrect order.
      * Preferably, this should be the very first call.
      */
-    @SuppressWarnings("unchecked")
     public
     T license(List<License> licenses) {
         if (!calledLicenseBefore) {
@@ -718,7 +699,6 @@ class Project<T extends Project<T>> {
 
             byte[] hashBytes = MD5.getHash(file);
 
-            //noinspection UnnecessaryLocalVariable
             String fileChecksums = Base64Fast.encodeToString(hashBytes, false);
             return fileChecksums;
         }
@@ -758,13 +738,11 @@ class Project<T extends Project<T>> {
             byte[] hashBytes = new byte[md5_digest.getDigestSize()];
             md5_digest.doFinal(hashBytes, 0);
 
-            //noinspection UnnecessaryLocalVariable
             String fileChecksums = Base64Fast.encodeToString(hashBytes, false);
             return fileChecksums;
         }
     }
 
-    @SuppressWarnings("unchecked")
     public
     T version(Version version) {
         this.version = version;
@@ -821,7 +799,6 @@ class Project<T extends Project<T>> {
     /**
      * Description used for the build process
      */
-    @SuppressWarnings("unchecked")
     public
     T description(String description) {
         this.description = description;
@@ -832,7 +809,6 @@ class Project<T extends Project<T>> {
      * Sets this project to be temporary, meaning that the decision to build this does NOT depend on the output files from this project
      * existing, meaning that this project will ALWAYS build if the parent, non-temp project needs it to (ie: source code changes)
      */
-    @SuppressWarnings("unchecked")
     public
     T temporary() {
         temporary = true;
@@ -854,7 +830,6 @@ class Project<T extends Project<T>> {
         return result;
     }
 
-    @SuppressWarnings("Duplicates")
     @Override
     public
     boolean equals(Object obj) {
@@ -881,5 +856,8 @@ class Project<T extends Project<T>> {
 
     public
     void uploadToMaven() throws IOException {
+        if (buildOptions.compiler.saveBuild) {
+            // only if we save the build. Test builds don't save, and we shouldn't upload them to maven
+        }
     }
 }

@@ -31,6 +31,11 @@ class BuildOptions {
         public boolean forceRebuild = false;
 
         /**
+         * Do we want to save the build hashes? (used to determine if a rebuild is necessary)
+         */
+        public boolean saveBuild = true;
+
+        /**
          * enables PACK200+LZMA+ENCRYPTION on jar contents. Since this is
          * REALLY SLOW (creating and running), we don't always want to do this.
          */
@@ -67,7 +72,6 @@ class BuildOptions {
          */
         public boolean enableCompilerTrace = false;
 
-
         /**
          * Provide the location of the rt.jar libraries for 'cross compiling' to a different java target.
          * <p/>
@@ -83,7 +87,6 @@ class BuildOptions {
              * Please note that the binary release is GLPv2 + Classpath Exception, giving us permission to use it to compile binaries.
              * If the file ends in .lzma.pack, the system will automatically unpack/un-lzma the file.
              */
-            @SuppressWarnings("MethodMayBeStatic")
             public
             String getCrossCompileLibraryLocation(int targetVersion) {
                 return Builder.path("libs", "jdkRuntimes", "openJdk" + targetVersion + "_rt.jar");
