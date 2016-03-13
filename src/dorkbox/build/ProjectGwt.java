@@ -377,6 +377,12 @@ class ProjectGwt extends Project<ProjectGwt> {
      */
     @Override
     void saveChecksums() throws IOException {
+        // by default, we save the build. When building a 'test' build, we opt to NOT save the build hashes, so that a 'normal' build
+        // will then compile.
+        if (!buildOptions.compiler.saveBuild) {
+            return;
+        }
+
         super.saveChecksums();
 
         // hash/save the output files (if there are any)

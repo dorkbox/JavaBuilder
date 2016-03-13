@@ -678,6 +678,12 @@ class Project<T extends Project<T>> {
      * Saves the checksums for a given path
      */
     void saveChecksums() throws IOException {
+        // by default, we save the build. When building a 'test' build, we opt to NOT save the build hashes, so that a 'normal' build
+        // will then compile.
+        if (!buildOptions.compiler.saveBuild) {
+            return;
+        }
+
         // hash/save the sources *and check-summed files* files
         String hashedContents = generateChecksums(this.checksumPaths);
         Builder.settings.save(this.name, hashedContents);
