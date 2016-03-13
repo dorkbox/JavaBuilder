@@ -107,9 +107,11 @@ class Project<T extends Project<T>> {
                     public
                     void run() {
                         try {
-                            BuildLog.println("Saving build system checksums.");
+                            BuildLog.start();
+                            BuildLog.println("Saving build file checksums.");
                             String hashedContents = generateChecksums(paths);
                             Builder.settings.save("BUILD", hashedContents);
+                            BuildLog.finish();
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
