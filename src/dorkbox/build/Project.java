@@ -768,7 +768,7 @@ class Project<T extends Project<T>> {
             }
         }
 
-        if (!skippedBuild && !keepOldVersion && !((T)this instanceof ProjectJar)) {
+        if (!skippedBuild && !keepOldVersion && !(this instanceof ProjectJar)) {
             // before we create the jar (and sources if necessary), we delete any of the old versions that might be in the target
             // directory.
             if (this.version != null) {
@@ -784,8 +784,12 @@ class Project<T extends Project<T>> {
                 final File originalJar = this.outputFile.getOriginal();
                 final File originalSource = this.outputFile.getSourceOriginal();
 
-                Builder.delete(originalJar);
-                Builder.delete(originalSource);
+                if (!this.outputFile.get().equals(originalJar) &&
+                    !this.outputFile.getSource().equals(originalSource)) {
+                    
+                    Builder.delete(originalJar);
+                    Builder.delete(originalSource);
+                }
             }
         }
 
