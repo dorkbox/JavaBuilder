@@ -346,6 +346,7 @@ class ProjectJava extends Project<ProjectJava> {
 
                         FileUtil.delete(tempProject.stagingDir);
                         FileUtil.mkdir(tempProject.stagingDir);
+                        tempProject.shouldBuild = true; // always build temp projects
                         tempProject.build(crossCompileClass.targetJavaVersion);
 
                         // now have to save out the source files (that are now converted to .class files)
