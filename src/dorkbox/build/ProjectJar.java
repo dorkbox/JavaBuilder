@@ -1,6 +1,7 @@
 package dorkbox.build;
 
 import dorkbox.Version;
+import dorkbox.build.util.BuildLog;
 
 import java.io.File;
 import java.io.IOException;
@@ -20,7 +21,8 @@ public class ProjectJar extends Project<ProjectJar> {
     @Override
     public ProjectJar addSrc(String file) {
         if (!new File(file).canRead()) {
-            throw new RuntimeException("Unable to read specified jar source file: '" + file + "'");
+            BuildLog.title("Error")
+                    .println("Unable to read specified jar source file: '" + file + "'");
         }
 
         super.addSrc(file);
@@ -30,7 +32,8 @@ public class ProjectJar extends Project<ProjectJar> {
     @Override
     public ProjectJar addSrc(File file) {
         if (!file.canRead()) {
-            throw new RuntimeException("Unable to read specified jar source file: '" + file + "'");
+            BuildLog.title("Error")
+                    .println("Unable to read specified jar source file: '" + file + "'");
         }
 
         super.addSrc(file);
@@ -64,7 +67,8 @@ public class ProjectJar extends Project<ProjectJar> {
     public
     ProjectJar outputFile(final String outputFile) {
         if (!new File(outputFile).canRead()) {
-            throw new RuntimeException("Unable to read specified jar output file: '" + outputFile + "'");
+            BuildLog.title("Error")
+                    .println("Unable to read specified jar output file: '" + outputFile + "'");
         }
         return super.outputFile(outputFile);
     }
