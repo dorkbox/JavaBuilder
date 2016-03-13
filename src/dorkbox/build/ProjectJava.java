@@ -51,7 +51,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-@SuppressWarnings("unused")
 public
 class ProjectJava extends Project<ProjectJava> {
 
@@ -190,7 +189,6 @@ class ProjectJava extends Project<ProjectJava> {
      *
      * @return true if this project was built, false otherwise
      */
-    @SuppressWarnings("AccessStaticViaInstance")
     public
     boolean build(final int targetJavaVersion) throws IOException {
         // save off the target version we build
@@ -440,7 +438,6 @@ class ProjectJava extends Project<ProjectJava> {
     /**
      * Compiles into class files.
      */
-    @SuppressWarnings("AccessStaticViaInstance")
     private synchronized
     void runCompile(final int targetJavaVersion) throws IOException {
         // if you get messages, such as
@@ -730,10 +727,10 @@ class ProjectJava extends Project<ProjectJava> {
         return this;
     }
 
-    @SuppressWarnings("unchecked")
     public
     void uploadToMaven() throws IOException {
-        if (!skippedBuild) {
+        if (buildOptions.compiler.saveBuild && // only if we save the build. Test builds don't save, and we shouldn't upload them to maven
+            !skippedBuild) {
             for (Project project : fullDependencyList) {
                 // dep can be a jar as well (don't upload dependency jars)
                 if (project instanceof ProjectJava) {
@@ -811,6 +808,12 @@ class ProjectJava extends Project<ProjectJava> {
      */
     @Override
     void saveChecksums() throws IOException {
+        // by default, we save the build. When building a 'test' build, we opt to NOT save the build hashes, so that a 'normal' build
+        // will then compile.
+        if (!buildOptions.compiler.saveBuild) {
+            return;
+        }
+
         super.saveChecksums();
 
         // when we verify checksums, we verify the ORIGINAL (if there is version info) -- and when we SAVE checksums, we save the NEW version
