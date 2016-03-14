@@ -53,7 +53,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-@SuppressWarnings("ALL")
 public
 class Builder {
     // UNICODE is from: https://en.wikipedia.org/wiki/List_of_Unicode_characters#Box_Drawing
@@ -218,7 +217,7 @@ class Builder {
 
     private static
     String getRuntime(long startTime) {
-        String time = Double.toString((System.currentTimeMillis() - startTime) / 1000D);
+        String time = Double.toString((System.currentTimeMillis() - startTime) / 1000.0D);
         int index = time.indexOf('.');
         if (index > -1 && index < time.length() - 2) {
             return time.substring(0, index + 2);
