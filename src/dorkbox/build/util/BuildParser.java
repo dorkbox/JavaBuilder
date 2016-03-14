@@ -38,7 +38,6 @@ import java.util.Iterator;
 import java.util.List;
 
 public class BuildParser {
-    @SuppressWarnings("unchecked")
     public static HashMap<String, HashMap<String, Object>> parse(SimpleArgs args) {
         HashMap<String, HashMap<String, Object>> data = new HashMap<String, HashMap<String, Object>>();
 
@@ -61,8 +60,8 @@ public class BuildParser {
 
 
         // replace $dir$ with the parent dir, for use in parameters
-        final File parentDir = file.getParentFile();
-
+        final String parentDir = file.getParentFile()
+                                     .getAbsolutePath();
 
         BufferedReader fileReader = null;
         try {
@@ -77,9 +76,10 @@ public class BuildParser {
                     break;
                 }
                 line = line.trim();
+                // get the 'name' entry
                 if (line.regionMatches(true, 0, name, 0, name.length())) {
                     if (currentEntry != null) {
-                        HashMap<String, Object> parsed = parseYaml(parentDir, new StringReader(buffer.toString()));
+                        HashMap<String, Object> parsed = parseYaml(parentDir, file, new StringReader(buffer.toString()));
                         data.put(currentEntry, parsed);
                         buffer.delete(0, buffer.length());
                     }
@@ -91,11 +91,11 @@ public class BuildParser {
             }
 
             // parse the last entry
-            HashMap<String, Object> parsed = parseYaml(parentDir, new StringReader(buffer.toString()));
+            HashMap<String, Object> parsed = parseYaml(parentDir, file, new StringReader(buffer.toString()));
 
             Object object = parsed.get("source");
             // always add these to as the default.
-            Paths sourcePaths = new Paths(parentDir.getAbsolutePath(), "**/*.java");
+            Paths sourcePaths = new Paths(parentDir, "**/*.java");
 
             if (object == null) {
                 object = new ArrayList<String>();
@@ -116,7 +116,7 @@ public class BuildParser {
 
             object = parsed.get("classpath");
             // always use these as the default. don't want the runtimes on our path
-            Paths classPaths = new Paths(parentDir.getParentFile().getAbsolutePath() + File.separator + "libs", "**/*.jar", "!jdkRuntimes");
+            Paths classPaths = new Paths(new File(parentDir).getAbsolutePath() + File.separator + "libs", "**/*.jar", "!jdkRuntimes");
 
             if (object == null) {
                 object = new ArrayList<String>();
@@ -148,19 +148,19 @@ public class BuildParser {
     /**
      * Parse the yaml for the specific reader
      */
-    @SuppressWarnings("unchecked")
-    private static HashMap<String, Object> parseYaml(final File parentFile, Reader fileReader) throws IOException {
+    private static
+    HashMap<String, Object> parseYaml(final String parentDirectory, final File file, final Reader fileReader) throws IOException {
         HashMap<String, Object> data = null;
         YamlReader yamlReader = new YamlReader(fileReader) {
-            @SuppressWarnings("rawtypes")
             @Override
-            protected Object readValue (Class type, Class elementType, Class defaultType) throws YamlException, ParserException,
-                TokenizerException {
+            protected
+            Object readValue(Class type, Class elementType, Class defaultType) throws YamlException, ParserException, TokenizerException {
 
                 Object value = super.readValue(type, elementType, defaultType);
+
                 // replace $dir$ with the parent dir, for use in parameters
                 if (value instanceof String) {
-                    value = ((String)value).replaceAll("\\$dir\\$", parentFile.getAbsolutePath());
+                    value = ((String) value).replaceAll("\\$dir\\$", parentDirectory);
                 }
 
                 return value;
@@ -170,13 +170,14 @@ public class BuildParser {
         try {
             data = yamlReader.read(HashMap.class);
             yamlReader.close();
+
             if (data == null) {
                 return new HashMap<String, Object>(0);
             } else {
                 return data;
             }
         } catch (YamlException ex) {
-            throw new IOException("Error reading YAML file: " + parentFile, ex);
+            throw new IOException("Error reading YAML file: " + file.getAbsolutePath(), ex);
         }
     }
 
@@ -187,7 +188,6 @@ public class BuildParser {
             if (object instanceof String) {
                 checkPath(paths, (String) object);
             } else if (object instanceof Collection) {
-                @SuppressWarnings("rawtypes")
                 Collection col = (Collection) object;
                 for (Object c : col) {
                     checkPath(paths, (String) c);
@@ -208,7 +208,6 @@ public class BuildParser {
             if (object instanceof String) {
                 deps.add((String)object);
             } else if (object instanceof Collection) {
-                @SuppressWarnings("rawtypes")
                 Collection col = (Collection) object;
                 for (Object c : col) {
                     deps.add((String)c);
