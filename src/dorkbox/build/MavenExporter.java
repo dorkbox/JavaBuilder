@@ -45,7 +45,9 @@ import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 
 /**
- * Creates pom files and exports the project to sonatype.org OSSRH
+ * Creates pom files and exports the project to sonatype.org OSSRH.
+ *
+ * we use https://repo1.maven.org/maven2/com/ning/async-http-client/1.8.16/
  */
 public
 class MavenExporter<T extends Project<T>> {
