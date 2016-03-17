@@ -38,6 +38,8 @@ class BuildLog {
     private static StringBuilder cachedSpacer;
     private static int cachedSpacerWidth = -1;
 
+    private static boolean lastActionWasPrintln = true;
+
     public static synchronized
     BuildLog start() {
         if (suppressCount == 0) {
@@ -90,6 +92,14 @@ class BuildLog {
 
     public static synchronized
     BuildLog title(String title) {
+        // always set the title
+        titleBuilder = null;
+
+        if (!lastActionWasPrintln) {
+            printer.println();
+            lastActionWasPrintln = true;
+        }
+
         prepTitle(title, true);
         return LOG;
     }
@@ -172,12 +182,12 @@ class BuildLog {
         if (title == null) {
             if (titleBuilder == null) {
                 titleBuilder = new StringBuilder(1024);
+            }
+
+            if (newLine) {
                 titleBuilder.append(cachedSpacer)
                             .append(TITLE_MESSAGE_DELIMITER)
                             .append(spacer1);
-            }
-            else if (!newLine) {
-                titleBuilder = new StringBuilder(1024);
             }
 
             return titleBuilder;
@@ -223,6 +233,8 @@ class BuildLog {
     public static synchronized
     BuildLog print(Object... message) {
         print(false, message);
+        // the first print will print the title, the following will NOT.
+        titleBuilder = null;
         return LOG;
     }
 
@@ -242,7 +254,13 @@ class BuildLog {
         }
 
         // only makes it if necessary
-        StringBuilder msg = prepTitle(null, newLine);
+        StringBuilder msg;
+        if (titleBuilder == null) {
+            msg = prepTitle(null, newLine);
+        }
+        else {
+            msg = titleBuilder;
+        }
 
         if (message != null && message.length > 0 && message[0] != null) {
             String titleMessageDelimiter = TITLE_MESSAGE_DELIMITER;
@@ -274,9 +292,11 @@ class BuildLog {
         if (newLine) {
             printer.println(msg.toString());
             titleBuilder = null;
+            lastActionWasPrintln = true;
         }
         else {
             printer.print(msg.toString());
+            lastActionWasPrintln = false;
         }
     }
 }
