@@ -15,6 +15,11 @@
  */
 package dorkbox.build;
 
+import dorkbox.BuildOptions;
+import dorkbox.Builder;
+import dorkbox.util.properties.PropertiesProvider;
+
+import java.io.File;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashSet;
@@ -38,11 +43,18 @@ public class SimpleArgs {
         for (int i = 0; i < args.length; i++) {
             String arg = args[i];
             String lowerCase = arg.toLowerCase(Locale.US);
-            this.argsAsSet.add(lowerCase);
 
             if (lowerCase.startsWith("date")) {
                 String string = arg.split("=")[1];
                 this.buildDate = new Date(Long.parseLong(string));
+            }
+            else if (lowerCase.startsWith("settings")) {
+                String string = arg.split("=")[1];
+                BuildOptions.settings = string;
+                Builder.settings = new PropertiesProvider(new File(BuildOptions.settings));
+            }
+            else {
+                this.argsAsSet.add(lowerCase);
             }
         }
     }
