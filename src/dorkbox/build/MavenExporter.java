@@ -302,12 +302,25 @@ class MavenExporter<T extends Project<T>> {
 
             hasErrors = sendHttp(request);
 
+            if (hasErrors.contains("Access denied on repository ID=")) {
+                // we have to delete this repo and RETRY.
+                final String str = "Access denied on repository ID='";
+
+                final int beginIndex = hasErrors.indexOf(str) + str.length();
+                final int endIndex = hasErrors.indexOf("'", beginIndex + 1);
+                repo = hasErrors.substring(beginIndex, endIndex);
+
+                BuildLog.title("ERROR").println("Error uploading POM/JAR: '" + hasErrors + "'");
+                BuildLog.println("Please login and verify errors for repo '" + repo + "'.");
+            }
+
             final int repositoryIndex = hasErrors.lastIndexOf(repositoryId);
             final int profileIndex = hasErrors.lastIndexOf(profileId);
 
             try {
                 repo = hasErrors.substring(repositoryIndex + repositoryId.length() + 3, hasErrors.length() - 2);
                 profile = hasErrors.substring(profileIndex + profileId.length() + 3, repositoryIndex - 3);
+                hasErrors = "";
                 break;
             } catch (Exception e) {
                 BuildLog.println("Error uploading POM/JAR: '" + hasErrors + "', retrying...");
@@ -315,15 +328,11 @@ class MavenExporter<T extends Project<T>> {
             }
         }
 
-        if (retryCount == 0) {
+        if (retryCount == 0 || exception != null) {
             BuildLog.println();
             BuildLog.println("Error uploading POM/JAR: '" + hasErrors + "'");
             throw new RuntimeException("Unable to upload POM/JAR. Please login and verify errors.", exception);
         }
-
-
-
-
 
 
 
@@ -366,24 +375,6 @@ class MavenExporter<T extends Project<T>> {
         deleteSignatureTurds(authInfo, repo, groupID_asPath, project.name, projectVersion, docsAscFile);
 
 
-        // give sonatype time to catch-up - we sometimes go too fast
-        try {
-            Thread.sleep(2000L);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-
-        // Now tell the repo we are finished (and the build will verify everything)
-        BuildLog.title("Closing Repo").println();
-        hasErrors = closeRepo(authInfo, profile, repo, nameAndVersion);
-
-        // give sonatype time to catch-up - we sometimes go too fast
-        try {
-            Thread.sleep(4000L);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-
         if (!hasErrors.isEmpty()) {
             BuildLog.title("Errors!").println("'" + hasErrors + "'");
             // DROP THE REPO (in case of errors)
@@ -404,124 +395,119 @@ class MavenExporter<T extends Project<T>> {
             // authorization error. BUMP THE VERSION to solve this problem
             //
             //
-            BuildLog.print("Releasing ");
 
+            // CLOSE the repo
 
-            // CLOSE THE REPO
+            //  this will also verify everything
+            BuildLog.title("Closing Repo").print(".");
+            closeRepo(authInfo, profile, repo, nameAndVersion);
+            hasErrors = "";
+
+            // now we have to make sure that the repo ACTUALLY is closed.
             retryCount = MavenExporter.retryCount;
             while (retryCount-- >= 0) {
-                // we have to WAIT until it's ready!
-                // sleep for xx seconds (initially) and also for retries
-                try {
-                    BuildLog.print(".");
-                    Thread.sleep(4000L);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
+                // get the status of the repo
+                String act = activityForRepo(authInfo, repo);
 
-                hasErrors = activityForRepo(authInfo, repo);
-                if (hasErrors.contains("repositoryCloseFailed")) {
-                    BuildLog.println();
-                    BuildLog.println("Error for repo '" + repo + "' during close!'", hasErrors);
-                    throw new RuntimeException("Error while closing repo! Please log-in manually and correct the problem.");
-                }
-                else if (hasErrors.contains("<stagingActivity>\n    <name>close</name>")) {
+                // act MUST contain this in order for this to proceed! (otherwise it didn't really close!)
+                if (act.contains("<stagingActivity>\n    <name>close</name>\n") && act.contains("<name>repositoryClosed</name>")) {
                     // sometimes we get error 500, or something else -- so we need to retry. Only pass if we have something that
                     // KINDOF passes as valid XML
-                    BuildLog.print(" Closed ");
+                    BuildLog.print(" Closed");
                     break;
+                }
+                else if (act.contains("repositoryCloseFailed")) {
+                    hasErrors = act;
+                } else {
+                    BuildLog.print(".");
+                    try {
+                        Thread.sleep(2000L);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+//                    hasErrors = "";
+//                    closeRepo(authInfo, profile, repo, nameAndVersion);
+                    // sometimes it takes a while for the system to verify and say that the repo has been closed.
                 }
             }
 
             if (retryCount == 0) {
                 BuildLog.println();
+
+                if (!hasErrors.isEmpty()) {
+                    BuildLog.println("Error for repo '" + repo + "' during close!'", hasErrors);
+                }
+
                 throw new RuntimeException("Error closing repo! Please log-in manually and correct the problem.");
             }
 
 
+            BuildLog.title("Releasing Repo").print(".");
+
             // PROMOTE THE REPO
+
+            // if we go too quickly, promoting will get this error:  {"errors":[{"id":"*","msg":"Unhandled: Repository: comdorkbox-1024 has invalid state: open"}]}
+            // or:   {"errors":[{"id":"*","msg":"Unhandled: Repository: comdorkbox-1292 has invalid state: released"}]}
+            // or will get a "already transitioning" error.
+            hasErrors = promoteRepo(authInfo, profile, repo, nameAndVersion);
+
 
             retryCount = MavenExporter.retryCount;
             while (retryCount-- >= 0) {
-                // we have to WAIT until it's ready!
-                // sleep for xx seconds (initially) and also for retries
-                try {
-                    BuildLog.print(".");
-                    Thread.sleep(4000L);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-
-                // if we go too quickly, promoting will get this error:  {"errors":[{"id":"*","msg":"Unhandled: Repository: comdorkbox-1024 has invalid state: open"}]}
-                // or will get a "already transitioning" error.
-                hasErrors = promoteRepo(authInfo, profile, repo, nameAndVersion);
                 if (!hasErrors.isEmpty()) {
-                    //noinspection StatementWithEmptyBody
-                    if (hasErrors.contains("has invalid state: open") || hasErrors.contains("is already transitioning")) {
-                        // WHOOPS. went too fast. retry
-                    } else {
-                        if (retryCount == 0) {
-                            BuildLog.println("Unknown error during promotion (no more retries available)!", hasErrors);
-                        }
-                        else {
-                            BuildLog.println("Unknown error during promotion!", hasErrors);
-                        }
+                    if (retryCount == 0) {
+                        BuildLog.println("Unknown error during promotion (no more retries available)!", hasErrors);
+                    }
+                    else {
+                        BuildLog.println("Unknown error during promotion!", hasErrors);
                     }
                 }
                 else {
-                    BuildLog.println(" Released");
-                    BuildLog.title("Access URL")
-                            .println("https://oss.sonatype.org/content/repositories/releases/" + groupID_asPath + "/" + project.name + "/" +
-                                     projectVersion + "/");
+                    // have to verify that the URL exists
+                    final String URL = "https://oss.sonatype.org/content/repositories/releases/" + groupID_asPath + "/" + project.name + "/" + projectVersion + "/";
 
-                    // NOW we drop the repo (since it was a success!
-                    hasErrors = "Keeping repo on server";
-                    if (!keepOnServer) {
-                        BuildLog.println(" Success, dropping repo.");
-                        try {
-                            Thread.sleep(4000L);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
+                    if (hasRepoReleased(URL)) {
+                        BuildLog.print(" Released");
+
+                        BuildLog.title("Access URL")
+                                .println(URL);
+
+                        // NOW we drop the repo (since it was a success!
+                        hasErrors = "Keeping repo on server";
+                        if (!keepOnServer) {
+                            BuildLog.println(" Success, dropping repo.");
+                            hasErrors = dropRepo(authInfo, profile, repo, nameAndVersion);
                         }
-                        hasErrors = dropRepo(authInfo, profile, repo, nameAndVersion);
-                    }
-                    else {
-                        BuildLog.println(" Keeping repo anyways!");
+                        else {
+                            BuildLog.println(" Keeping repo anyways!");
+                        }
+
+                        if (!hasErrors.isEmpty()) {
+                            BuildLog.println("'" + hasErrors + "'");
+                        }
+                        break;
                     }
 
-                    if (!hasErrors.isEmpty()) {
-                        BuildLog.println("'" + hasErrors + "'");
+                    BuildLog.print(".");
+                    try {
+                        Thread.sleep(2000L);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
                     }
-                    break;
+
+                    // sometimes it takes a while for the system to show that the repo has been released.
                 }
             }
 
             if (retryCount == 0) {
                 BuildLog.println();
                 BuildLog.println("Error for repo '" + repo + "' during promotion to release! '" + hasErrors + "'");
-                throw new RuntimeException("Error promoting to release! Please log-in manually and correct the problem.");
+                throw new RuntimeException("Error promoting to release! Please log-in manually and correct the problem for repo '" + repo
+                 +                           "'.");
             }
         }
 
         BuildLog.finish();
-    }
-
-
-    /**
-     * Gets the activity information for a repo. If there is a failure during verification/finish -- this will provide what it was.
-     * @throws IOException
-     */
-    private static
-    String activityForRepo(final String authInfo, final String repo) throws IOException {
-
-        RequestBuilder builder = new RequestBuilder("GET");
-        Request request = builder.setUrl("https://oss.sonatype.org/service/local/staging/repository/" + repo + "/activity")
-                                 .addHeader("Content-Type", "application/json")
-                                 .addHeader("Authorization", "Basic " + authInfo)
-
-                                 .build();
-
-        return sendHttp(request);
     }
 
 
@@ -544,6 +530,38 @@ class MavenExporter<T extends Project<T>> {
 //
 //        return sendHttpRequest(request);
 //    }
+
+    /**
+     * Gets the activity information for a repo. If there is a failure during verification/finish -- this will provide what it was.
+     * @throws IOException
+     */
+    private static
+    String activityForRepo(final String authInfo, final String repo) throws IOException {
+
+        RequestBuilder builder = new RequestBuilder("GET");
+        Request request = builder.setUrl("https://oss.sonatype.org/service/local/staging/repository/" + repo + "/activity")
+                                 .addHeader("Content-Type", "application/json")
+                                 .addHeader("Authorization", "Basic " + authInfo)
+
+                                 .build();
+
+        return sendHttp(request);
+    }
+
+    /**
+     * Checks to see if the repo has actually released. If it has NOT, this url will be a 404.
+     * @throws IOException
+     */
+    private static
+    boolean hasRepoReleased(String url) throws IOException {
+
+        RequestBuilder builder = new RequestBuilder("GET");
+        Request request = builder.setUrl(url)
+                                 .build();
+
+        final String response = sendHttp(request);
+        return !response.contains("<title>404 - Path");
+    }
 
     /**
      * Closes the repo and (the server) will verify everything is correct.
