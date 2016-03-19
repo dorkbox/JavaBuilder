@@ -60,9 +60,10 @@ class Builder {
     public static final String BUILD_MODE = "build";
 
     /**
-     * Location where settings are stored
+     * Location where settings are stored. Can be specified on CLI by settings=settings.ini. Filename must not have an '=' in it, and
+     * must be a whole word (no spaces)
      */
-    public static final PropertiesProvider settings = new PropertiesProvider(new File("settings.ini"));
+    public static PropertiesProvider settings = new PropertiesProvider(new File(BuildOptions.settings));
     public static final boolean isJar;
 
     public static final TimeZone defaultTimeZone;
@@ -227,12 +228,31 @@ class Builder {
     }
 
     /**
+     * @return the location of the jdk runtimes
+     *
+     * @throws IOException
+     */
+    public static
+    File getJdkDir() {
+        // this will ALWAYS be a dir
+        final File javaFileSourceDir = Builder.getJavaFileSourceDir(Builder.class, Build.get(Builder.class));
+
+        File parent = javaFileSourceDir.getParentFile();
+        if (!new File(parent, "libs").isDirectory()) {
+            parent = parent.getParentFile();
+        }
+
+        File jdk = new File(parent, "libs");
+        return FileUtil.normalize(new File(jdk, "jdkRuntimes"));
+    }
+
+    /**
      * check to see if our jdk files have been decompressed (necessary for cross target builds)
      */
     private static
     void prepareXcompile() throws IOException {
-        String jdkDist = FileUtil.normalizeAsFile(Builder.path("libs", "jdkRuntimes"));
-        List<File> jdkFiles = FileUtil.parseDir(jdkDist);
+        final File jdk = getJdkDir();
+        List<File> jdkFiles = FileUtil.parseDir(jdk);
         boolean first = true;
 
         for (File f : jdkFiles) {
@@ -247,6 +267,7 @@ class Builder {
                                     .substring(0, nameLength - suffix.length());
                 File file = new File(fixedName);
 
+                // Don't always need to decompress the jdk files. This checks if the extracted version exists
                 if (!file.canRead() || file.length() == 0) {
                     if (first) {
                         first = false;
@@ -275,9 +296,9 @@ class Builder {
         }
 
         if (!first) {
+            BuildLog.println("******************************");
             BuildLog.println("Finished Preparing environment");
             BuildLog.println("******************************");
-            BuildLog.println();
             BuildLog.println();
         }
     }
@@ -396,22 +417,22 @@ class Builder {
      * Gets the java file (from class file) when running from an IDE.
      */
     public static
-    File getJavaFileSourceDir(final Class<?> clazz, File rootFile) throws IOException {
+    File getJavaFileSourceDir(final Class<?> clazz, File rootFile) {
         return getJavaFileSourceDir(clazz.getCanonicalName(), rootFile);
     }
 
     /**
-     * Gets the java file (from class file cannonical name) when running from an IDE.
+     * Gets the java file (from class file canonical name) when running from an IDE.
      */
     public static
-    File getJavaFileSourceDir(final String classCannonicalName, File rootFile) throws IOException {
+    File getJavaFileSourceDir(final String classCanonicalName, File rootFile) {
         String rootPath = rootFile.getAbsolutePath();
 
         // our dorkbox util library is reused everywhere, and it is important to ALWAYS pull fresh. So we grab from the source
         final boolean isDir = rootFile.isDirectory();
 
         if (!isDir && rootPath.endsWith(".jar")) {
-            String fileName = classCannonicalName;
+            String fileName = classCanonicalName;
             String convertJava = fileName.replace('.', File.separatorChar) + ".java";
 
             for (Entry<String, File> module : moduleCache.entrySet()) {

@@ -15,8 +15,15 @@
  */
 package dorkbox;
 
+import java.io.File;
+
 public
 class BuildOptions {
+
+    /**
+     * File that will contain all of the settings and where the hashes are saved by the builder
+     */
+    public static String settings = "settings.ini";
 
     public Compiler compiler = new Compiler();
 
@@ -89,7 +96,8 @@ class BuildOptions {
              */
             public
             String getCrossCompileLibraryLocation(int targetVersion) {
-                return Builder.path("libs", "jdkRuntimes", "openJdk" + targetVersion + "_rt.jar");
+                final File jdkDir = Builder.getJdkDir();
+                return new File(jdkDir, "openJdk" + targetVersion + "_rt.jar").getAbsolutePath();
             }
         }
     }
