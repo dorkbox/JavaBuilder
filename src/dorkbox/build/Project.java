@@ -22,6 +22,7 @@ import dorkbox.Builder;
 import dorkbox.Version;
 import dorkbox.build.util.BuildLog;
 import dorkbox.build.util.OutputFile;
+import dorkbox.build.util.ShutdownHook;
 import dorkbox.license.License;
 import dorkbox.util.Base64Fast;
 import dorkbox.util.FileUtil;
@@ -32,6 +33,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.*;
 
+@SuppressWarnings({"unchecked", "unused"})
 public abstract
 class Project<T extends Project<T>> {
     public static final String JAR_EXTENSION = ".jar";
@@ -47,23 +49,7 @@ class Project<T extends Project<T>> {
 
     private static boolean forceRebuild = false;
     private static boolean alreadyChecked = false;
-    private static Comparator<Project> dependencyComparator = new Comparator<Project>() {
-        @Override
-        public
-        int compare(Project o1, Project o2) {
-            // empty projects are first
-            int size = o1.dependencies.size();
-            int size1 = o2.dependencies.size();
-
-            int compare =(size < size1) ? -1 : ((size == size1) ? 0 : 1);
-            if (compare == 0) {
-                return o1.name.compareTo(o2.name);
-            }
-            else {
-                return compare;
-            }
-        }
-    };
+    private static Comparator<Project> dependencyComparator = new ProjectComparator();
 
     // used to suppress certain messages when building deps
     protected boolean isBuildingDependencies = false;
@@ -102,21 +88,7 @@ class Project<T extends Project<T>> {
                 }
 
                 // we only want to save the project checksums ON EXIT (so version modifications/save() can be applied)!
-                shutdownHook = new Thread(new Runnable() {
-                    @Override
-                    public
-                    void run() {
-                        try {
-                            BuildLog.start();
-                            BuildLog.println("Saving build file checksums.");
-                            String hashedContents = generateChecksums(paths);
-                            Builder.settings.save("BUILD", hashedContents);
-                            BuildLog.finish();
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                });
+                shutdownHook = new Thread(new ShutdownHook(paths));
 
                 Runtime.getRuntime().addShutdownHook(shutdownHook);
             }
@@ -144,10 +116,10 @@ class Project<T extends Project<T>> {
 
     protected Version version;
 
-    public File stagingDir;
+    File stagingDir;
 
     // if true, we do not delete the older versions during a build
-    public boolean keepOldVersion;
+    boolean keepOldVersion;
 
     public OutputFile outputFile;
 
@@ -161,7 +133,7 @@ class Project<T extends Project<T>> {
     protected List<Project<?>> dependencies = new ArrayList<Project<?>>();
 
     /** ALL related dependencies for this project (ie: recursively searched) */
-    protected List<Project<?>> fullDependencyList = null;
+    List<Project<?>> fullDependencyList = null;
 
     private transient Paths checksumPaths = new Paths();
     protected List<License> licenses = new ArrayList<License>();
@@ -169,21 +141,21 @@ class Project<T extends Project<T>> {
 
     private ArrayList<String> unresolvedDependencies = new ArrayList<String>();
 
-    protected MavenExporter<T> mavenExporter;
+    MavenExporter<T> mavenExporter;
     public MavenInfo mavenInfo;
 
     /** true if we had to build this project */
-    protected boolean shouldBuild = false;
+    boolean shouldBuild = false;
 
     /** true if we skipped building this project */
-    protected boolean skippedBuild = false;
+    boolean skippedBuild = false;
 
     /**
      * Temporary projects are always built, but not always exported to maven (this is controlled by the parent, non-temp project
      * recursively)
      */
     public boolean temporary = false;
-    public boolean overrideTemporary = false;
+    boolean overrideTemporary = false;
 
     public String description;
 
@@ -245,7 +217,6 @@ class Project<T extends Project<T>> {
     void remove(String outputDir) {
         deps.remove(outputDir);
     }
-
 
 
     protected
@@ -366,11 +337,8 @@ class Project<T extends Project<T>> {
     /**
      * Checks to see if we already built this project. Also, will automatically build this projects
      * dependencies (if they haven't already been built).
-     *
-     * @return true if we can skip building this project
      */
-    protected
-    void resolveDependencies(final int targetJavaVersion) throws IOException {
+    void resolveDependencies() throws IOException {
         resolveDeps();
 
         if (fullDependencyList == null) {
@@ -405,8 +373,6 @@ class Project<T extends Project<T>> {
         else {
             this.unresolvedDependencies.add(projectOrJar);
         }
-
-
 
         return (T) this;
     }
@@ -514,6 +480,13 @@ class Project<T extends Project<T>> {
         return (T) this;
     }
 
+    public
+    BuildOptions options() {
+        if (this.buildOptions == null) {
+            this.buildOptions = new BuildOptions();
+        }
+        return this.buildOptions;
+    }
 
     private boolean calledLicenseBefore = false;
     /**
@@ -627,6 +600,7 @@ class Project<T extends Project<T>> {
     }
 
 
+    @SuppressWarnings("WeakerAccess")
     public
     void copyMainFiles(File targetLocation) throws IOException {
         if (this.outputFile != null) {
@@ -653,6 +627,7 @@ class Project<T extends Project<T>> {
     /**
      * Add a path to be checksum'd.
      */
+    @SuppressWarnings("WeakerAccess")
     public final
     void checksum(Paths path) {
         this.checksumPaths.add(path);
@@ -707,8 +682,7 @@ class Project<T extends Project<T>> {
 
             byte[] hashBytes = MD5.getHash(file);
 
-            String fileChecksums = Base64Fast.encodeToString(hashBytes, false);
-            return fileChecksums;
+            return Base64Fast.encodeToString(hashBytes, false);
         }
     }
 
@@ -746,8 +720,7 @@ class Project<T extends Project<T>> {
             byte[] hashBytes = new byte[md5_digest.getDigestSize()];
             md5_digest.doFinal(hashBytes, 0);
 
-            String fileChecksums = Base64Fast.encodeToString(hashBytes, false);
-            return fileChecksums;
+            return Base64Fast.encodeToString(hashBytes, false);
         }
     }
 
@@ -768,7 +741,7 @@ class Project<T extends Project<T>> {
             }
         }
 
-        if (!skippedBuild && !keepOldVersion && !(this instanceof ProjectJar)) {
+        if (!skippedBuild && !keepOldVersion && !(getClass().getSimpleName().equals(ProjectJar.class.getSimpleName()))) {
             // before we create the jar (and sources if necessary), we delete any of the old versions that might be in the target
             // directory.
             if (this.version != null) {
@@ -794,8 +767,15 @@ class Project<T extends Project<T>> {
         }
 
         if (stagingDir.exists()) {
-            BuildLog.println("Deleting staging location" + this.stagingDir);
+            BuildLog.println("Deleting staging location: " + this.stagingDir);
             FileUtil.delete(this.stagingDir);
+
+            final File[] files = this.stagingDir.listFiles();
+            if (files == null || files.length == 0) {
+                // we delete the entire staging dir, not just the one for ourselves, only if it's empty
+                BuildLog.println("Deleting staging location" + this.stagingDir.getParentFile());
+                FileUtil.delete(this.stagingDir.getParentFile());
+            }
         }
     }
 
@@ -872,4 +852,5 @@ class Project<T extends Project<T>> {
             // only if we save the build. Test builds don't save, and we shouldn't upload them to maven
         }
     }
+
 }

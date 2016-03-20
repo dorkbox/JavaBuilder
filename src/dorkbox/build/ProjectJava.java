@@ -195,7 +195,7 @@ class ProjectJava extends Project<ProjectJava> {
         this.targetJavaVersion = targetJavaVersion;
 
         // check dependencies for this project
-        resolveDependencies(targetJavaVersion);
+        resolveDependencies();
 
         // we want to make sure that we build IF one of our dependencies needs to build too
         for (Project<?> project : fullDependencyList) {
