@@ -28,6 +28,7 @@ import dorkbox.build.util.classloader.ClassByteIterator;
 import dorkbox.build.util.jar.Pack200Util;
 import dorkbox.util.FileUtil;
 import dorkbox.util.LZMA;
+import dorkbox.util.OS;
 import dorkbox.util.Sys;
 import dorkbox.util.properties.PropertiesProvider;
 
@@ -221,21 +222,31 @@ class Builder {
 
     /**
      * @return the location of the jdk runtimes
-     *
-     * @throws IOException
      */
-    public static
+    static
     File getJdkDir() {
         // this will ALWAYS be a dir
-        final File javaFileSourceDir = Builder.getJavaFileSourceDir(Builder.class, Build.get(Builder.class));
+        final File runtLocation = Build.get();
 
-        File parent = javaFileSourceDir.getParentFile();
-        if (!new File(parent, "libs").isDirectory()) {
-            parent = parent.getParentFile();
+        if (Builder.isJar) {
+            File parent = runtLocation.getParentFile();
+            if (!new File(parent, "libs").isDirectory()) {
+                parent = parent.getParentFile();
+            }
+
+            File jdk = new File(parent, "libs");
+            return FileUtil.normalize(new File(jdk, "jdkRuntimes"));
         }
+        else {
+            final File javaFileSourceDir = Builder.getJavaFileSourceDir(Builder.class, runtLocation);
+            File parent = javaFileSourceDir.getParentFile();
+            if (!new File(parent, "libs").isDirectory()) {
+                parent = parent.getParentFile();
+            }
 
-        File jdk = new File(parent, "libs");
-        return FileUtil.normalize(new File(jdk, "jdkRuntimes"));
+            File jdk = new File(parent, "libs");
+            return FileUtil.normalize(new File(jdk, "jdkRuntimes"));
+        }
     }
 
     /**
@@ -457,6 +468,10 @@ class Builder {
                     return dir.getAbsoluteFile();
                 }
             }
+        }
+
+        if (rootPath.endsWith(".java")) {
+            return rootFile.getParentFile();
         }
 
         return null;
@@ -840,47 +855,104 @@ class Builder {
     // loads the build.oak file information
     private
     void compileBuildInstructions(SimpleArgs args) throws Exception {
+        HashMap<String, ArrayList<String>> data = BuildParser.parse(args);
+
+        if (data == null) {
+            throw new Exception();
+        }
+
+        // data elements are always a list
+        File buildFile = new File(data.get("buildFile").get(0));
+
         ByteClassloader bytesClassloader = new ByteClassloader(Thread.currentThread()
                                                                      .getContextClassLoader());
-        HashMap<String, HashMap<String, Object>> data = BuildParser.parse(args);
 
-        // each entry is a build, that can have dependencies.
-        for (Entry<String, HashMap<String, Object>> entry : data.entrySet()) {
-            String projectName = entry.getKey();
-            HashMap<String, Object> projectData = entry.getValue();
+        // the build file just sets up the build files and the classpath (to build those build files)
 
-            // will always have libs jars (minus runtime jars)
-            Paths classPaths = BuildParser.getPathsFromMap(projectData, "classpath");
+        Paths classPaths = new Paths();
+        Paths sources = new Paths();
 
-            // BY DEFAULT, will use build/**/*.java path
-            Paths sourcePaths = BuildParser.getPathsFromMap(projectData, "source");
-
-            ProjectJava project = ProjectJava.create(projectName)
-                                             .classPath(classPaths)
-                                             .compilerClassloader(bytesClassloader)
-                                             .sourcePath(sourcePaths);
+        final ArrayList<String> classpaths_source = data.get("classpath");
+        final ArrayList<String> sources_source = data.get("source");
 
 
-            List<String> dependencies = BuildParser.getStringsFromMap(projectData, "depends");
-            for (String dep : dependencies) {
-                project.depends(dep);
+        ArrayList<String> implicit = new ArrayList<String>();
+
+        for (String classpath : classpaths_source) {
+            File file = new File(FileUtil.normalizeAsFile(classpath));
+            implicit.add(file.getAbsolutePath());
+
+            if (file.canRead() || file.isDirectory()) {
+                if (file.isFile()) {
+                    classPaths.add(file.getParent(), file.getName());
+                } else {
+                    // it's a directory, so we should add everything in it.
+                    classPaths.glob(file.getAbsolutePath(), "**/*.jar", "!jdkRuntimes", "!*source*");
+                    classPaths.glob(file.getAbsolutePath(), "**/*.class");
+                }
             }
         }
+
+        // ALWAYS add ourself to the classpath path!
+        classPaths.addFile(Build.get().getAbsolutePath());
+
+        if (!implicit.isEmpty()) {
+            implicit.add(0, "Classpaths");
+            BuildLog.println(implicit.toArray(new String[0]));
+        }
+        else {
+            BuildLog.title("WARNING").println("No classpath specified!");
+            return;
+        }
+
+
+        implicit = new ArrayList<String>();
+        for (String source : sources_source) {
+            File file = new File(FileUtil.normalizeAsFile(source));
+            implicit.add(file.getAbsolutePath());
+
+            if (file.canRead() || file.isDirectory()) {
+                if (file.isFile()) {
+                    sources.add(file.getParent(), file.getName());
+                }
+                else {
+                    // it's a directory, so we should add everything in it.
+                    sources.glob(file.getAbsolutePath(), "**/*.java");
+                }
+            }
+            else {
+                // it's a pattern or something, so we should add everything in it.
+                sources.glob(buildFile.getParent(), source);
+            }
+        }
+
+        if (!implicit.isEmpty()) {
+            implicit.add(0, "Sources");
+            BuildLog.println(implicit.toArray(new String[0]));
+        }
+        else {
+            BuildLog.title("WARNING").println("No sources specified!");
+            return;
+        }
+
+        ProjectJava project = ProjectJava.create("Builder")
+                                         .classPath(classPaths)
+                                         .compilerClassloader(bytesClassloader)
+                                         .sourcePath(sources);
 
         // only if we have data, should we build
         if (!data.isEmpty()) {
             try {
-                BuildLog.disable();
-                BuildOptions buildOptions = new BuildOptions();
-                buildOptions.compiler.forceRebuild = true;
+//                BuildLog.disable();
 
-                // this automatically takes care of build dependency ordering
-                Project.buildAll();
+                project.options().compiler.forceRebuild = true;
+                project.build(OS.javaVersion);
+
                 Project.reset();
-                BuildLog.enable();
             } catch (Exception e) {
-                BuildLog.enable();
                 throw e;
+            } finally {
+//                BuildLog.enable();
             }
 
             this.classloader = bytesClassloader;
