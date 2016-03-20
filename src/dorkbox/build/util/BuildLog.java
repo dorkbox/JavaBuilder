@@ -133,7 +133,7 @@ class BuildLog {
 
     private static
     void titleEnd() {
-        boolean atBeginning = TITLE_WIDTH - 2 == STOCK_TITLE_WIDTH;
+        boolean atBeginning = TITLE_WIDTH == STOCK_TITLE_WIDTH;
         String sep = TITLE_SEPERATOR;
 
         StringBuilder spacerTitle = new StringBuilder(TITLE_WIDTH);

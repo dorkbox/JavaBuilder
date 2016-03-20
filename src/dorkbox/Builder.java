@@ -68,10 +68,10 @@ class Builder {
 
     public static final TimeZone defaultTimeZone;
     private static final ConcurrentHashMap<String, File> moduleCache = new ConcurrentHashMap<String, File>();
-    private static final long startDate = System.currentTimeMillis();
     private static final File tempDir;
 
-    public static long buildDate = startDate;
+    // Used to specify when the "build" happens (the date to set the files to) and NOT to keep track of how long it takes to build!
+    public static long buildDate = System.nanoTime();
     public static int offset;
 
     static {
@@ -187,16 +187,21 @@ class Builder {
                                       .toString()
                                       .replace("UTC", defaultTimeZone.getID());
 
-            if (BuildLog.getNestedCount() == 0 || BuildLog.TITLE_WIDTH != BuildLog.STOCK_TITLE_WIDTH) {
-                log.title(title)
-                   .println(args, localDateString, "Completed in: " + getRuntime(builder.startTime) + " seconds.");
-            }
-            else {
+            if (BuildLog.getNestedCount() > 0) {
                 log.title(title)
                    .println(args,
                             localDateString,
-                            "Completed in: " + getRuntime(Builder.startDate) + " seconds.",
-                            "Date code: " + Builder.buildDate);
+                            "Sub-Project completed in: " + Sys.getTimePrettyFull(System.nanoTime() - builder.startTime));
+            }
+            else {
+                // this is when the ENTIRE thing is done building
+                log.title(title)
+                   .println(args,
+                            localDateString,
+                            "Completed in: " + Sys.getTimePrettyFull(System.nanoTime() - builder.startTime),
+                            "Build Date code: " + Builder.buildDate);
+
+                BuildLog.finish();
             }
         } catch (Exception e1) {
             e = e1;
@@ -207,24 +212,11 @@ class Builder {
             BuildLog.finish();
         }
 
-        BuildLog.finish();
-
         // make sure to rethrow the errors
         if (e != null) {
             System.err.println(""); // add a small space
             throw e;
         }
-    }
-
-    private static
-    String getRuntime(long startTime) {
-        String time = Double.toString((System.currentTimeMillis() - startTime) / 1000.0D);
-        int index = time.indexOf('.');
-        if (index > -1 && index < time.length() - 2) {
-            return time.substring(0, index + 2);
-        }
-
-        return time;
     }
 
     /**
@@ -763,7 +755,7 @@ class Builder {
         strings.add(1, "Ignoring:");
 
         BuildLog.title("Deleting")
-                .println(strings.toArray(new String[strings.size()]));
+                .println(strings.toArray());
 
         return FileUtil.delete(target, filesToIgnore);
     }
@@ -836,7 +828,8 @@ class Builder {
         FileUtil.copyDirectory(source, target, dirNamesToIgnore);
     }
 
-    private final long startTime = System.currentTimeMillis();
+    // This is used to keep track of how long individual builds take. This can also be nested as many times as needed.
+    private final long startTime = System.nanoTime();
     private ByteClassloader classloader = null;
 
     private
@@ -997,6 +990,8 @@ class Builder {
                 ioException.setStackTrace(new StackTraceElement[0]);
                 throw ioException;
             }
+
+            BuildLog.finish();
         }
 
 
