@@ -15,11 +15,13 @@
  */
 package dorkbox.build.util.classloader;
 
+import java.io.File;
+
 class ClassInfo {
 
     byte[] bytes;
     Class<?> clazz;
-    String sourceRootLocation;
+    File sourceRootLocation;
 
     ClassInfo() {
     }
