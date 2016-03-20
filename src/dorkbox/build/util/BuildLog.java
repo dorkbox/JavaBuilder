@@ -106,7 +106,7 @@ class BuildLog {
 
     private static synchronized
     void titleStart() {
-        boolean atBeginning = TITLE_WIDTH == STOCK_TITLE_WIDTH;
+        boolean atBeginning = TITLE_WIDTH <= STOCK_TITLE_WIDTH;
 
         String sep = TITLE_SEPERATOR;
         TITLE_WIDTH += 2;
@@ -118,14 +118,13 @@ class BuildLog {
 
         if (atBeginning) {
             spacerTitle.append(sep);
-            spacerTitle.append(sep);
-            spacerTitle.append('╮');
         }
         else {
             spacerTitle.append('┴');
-            spacerTitle.append(sep);
-            spacerTitle.append('╮');
         }
+
+        spacerTitle.append(sep);
+        spacerTitle.append('╮');
 
         printer.println(spacerTitle.toString());
 
@@ -133,7 +132,7 @@ class BuildLog {
 
     private static
     void titleEnd() {
-        boolean atBeginning = TITLE_WIDTH == STOCK_TITLE_WIDTH;
+        boolean atBeginning = TITLE_WIDTH <= STOCK_TITLE_WIDTH;
         String sep = TITLE_SEPERATOR;
 
         StringBuilder spacerTitle = new StringBuilder(TITLE_WIDTH);
@@ -143,14 +142,13 @@ class BuildLog {
 
         if (atBeginning) {
             spacerTitle.append(sep);
-            spacerTitle.append(sep);
-            spacerTitle.append('╯');
         }
         else {
             spacerTitle.append('┬');
-            spacerTitle.append(sep);
-            spacerTitle.append('╯');
         }
+
+        spacerTitle.append(sep);
+        spacerTitle.append('╯');
 
         printer.println(spacerTitle.toString());
 
