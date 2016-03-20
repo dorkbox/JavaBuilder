@@ -21,8 +21,8 @@ class Build {
 
 
     static {
-        File oak = get();
-        if (oak != null) {
+        File runLocation = get();
+        if (runLocation != null) {
             // we want to look for the libraries, because they are OFTEN going to be in the incorrect path.
             // this is only necessary if they aren't correctly loaded.
             try {
@@ -30,13 +30,15 @@ class Build {
             } catch (Exception e) {
                 // whoops. can't find it on the path
 
-                File libDir = new File(oak.getParentFile(), "libs");
+                File parent = runLocation.getParentFile();
+                File libDir = new File(parent, "libs");
+
                 if (!libDir.isDirectory()) {
-                    libDir = new File(oak.getParentFile().getParentFile(), "libs");
+                    libDir = new File(parent.getParentFile(), "libs");
                 }
 
                 if (!libDir.isDirectory()) {
-                    throw new RuntimeException("Unable to find the libs directory for execution: " + oak);
+                    throw new RuntimeException("Unable to find the libs directory for execution: " + runLocation);
                 }
 
                 Class<?>[] parameters = new Class[] {URL.class};
@@ -49,19 +51,26 @@ class Build {
 
                     // add lib dir jars
                     for (File f : libDir.listFiles()) {
-                        if (!f.isDirectory() && f.canRead() && f.getName().endsWith(".jar")) {
+                        final String name = f.getName();
+                        if (!f.isDirectory() && f.canRead() && name.endsWith(".jar") && !name.contains("source") && !name.contains("src")) {
+                            // System.err.println("adding url " + f.getAbsolutePath());
                             method.invoke(sysloader, new Object[] {f.toURI().toURL()});
                         }
                     }
 
-                    // now have to add fastMD5 sum jars
+                    // now have to add fastMD5 sum jars (they are in a different location)
                     libDir = new File(libDir, "fast-md5");
                     for (File f : libDir.listFiles()) {
-                        if (!f.isDirectory() && f.canRead() && f.getName().endsWith(".jar")) {
-//                            System.err.println("adding url " + f.getAbsolutePath());
+                        final String name = f.getName();
+
+                        if (!f.isDirectory() && f.canRead() && name.endsWith(".jar") && !name.contains("source") && !name.contains("src")) {
+                            // System.err.println("adding url " + f.getAbsolutePath());
                             method.invoke(sysloader, new Object[] {f.toURI().toURL()});
                         }
                     }
+
+                    // try to load the library again to make sure the libs loaded
+                    Class.forName("com.esotericsoftware.wildcard.Paths");
                 } catch (Throwable t) {
                     t.printStackTrace();
                     throw new RuntimeException("Unable to load the libs directory for execution: " + libDir);
