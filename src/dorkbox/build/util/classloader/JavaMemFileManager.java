@@ -24,6 +24,7 @@ import javax.tools.SimpleJavaFileObject;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.StandardLocation;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
@@ -34,37 +35,27 @@ public class JavaMemFileManager extends ForwardingJavaFileManager<StandardJavaFi
 
     static class ClassMemFileObject extends SimpleJavaFileObject {
         ByteArrayOutputStream os = new ByteArrayOutputStream();
-        private String location;
+        private File location;
 
         ClassMemFileObject(String className, String location) {
             super(URI.create("mem:///" + className + Kind.CLASS.extension), Kind.CLASS);
 
-            // have to trim off subclasses/anon-class info from name.
-            int length = className.indexOf('$');
-            if (length < 0) {
-                length = className.length();
+//            System.err.println(className + " : " + location);
+
+            // the location SHOULD be the location on disk WHERE to find the bytes for this class.
+            int locLength = className.lastIndexOf('.');
+            if (locLength > 0) {
+                location = className.substring(0, locLength+1).replaceAll("\\.", File.separator) + location;
             }
 
-            // the location WILL have an extension (.java), since we are compiling that. usually.
-            int locLength = location.lastIndexOf('.');
-            if (locLength < 0) {
-                locLength = location.length();
-            }
-
-            try {
-                String loc = location.substring(0, locLength - length);
-                this.location = loc;
-            } catch (Exception e) {
-                System.err.println("Error parsing location for class '" + className + "'  location '" + location + "'");
-                throw new RuntimeException(e);
-            }
+            this.location = new File(location);
         }
 
         byte[] getBytes() {
             return this.os.toByteArray();
         }
 
-        String getLocation() {
+        File getLocation() {
             return this.location;
         }
 

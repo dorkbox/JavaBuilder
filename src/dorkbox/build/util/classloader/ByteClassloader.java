@@ -34,7 +34,7 @@ public class ByteClassloader extends ClassLoader {
         super(classloader);
     }
 
-    public final synchronized void saveBytes(String className, String locationSourceWasFrom, byte[] bytes) {
+    public final synchronized void saveBytes(String className, File locationSourceWasFrom, byte[] bytes) {
         // this defines our class, and saves it in our cache -- so that findClass() will work
         if (this.info != null && !this.info.containsKey(className)) {
             ClassInfo info = new ClassInfo();
@@ -71,7 +71,7 @@ public class ByteClassloader extends ClassLoader {
                 ProtectionDomain domain = null;
                 try {
                     domain = new ProtectionDomain(
-                                    new CodeSource(new File(info.sourceRootLocation).toURI().toURL(), (Certificate[]) null),
+                                    new CodeSource(info.sourceRootLocation.toURI().toURL(), (Certificate[]) null),
                                     null);
                 } catch (MalformedURLException e) {
                     e.printStackTrace();
