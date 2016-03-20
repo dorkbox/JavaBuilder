@@ -15,12 +15,7 @@
  */
 package dorkbox.build.util.classloader;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.net.URI;
-import java.util.HashMap;
-import java.util.Map.Entry;
+import com.esotericsoftware.wildcard.Paths;
 
 import javax.tools.FileObject;
 import javax.tools.ForwardingJavaFileManager;
@@ -28,8 +23,12 @@ import javax.tools.JavaFileObject;
 import javax.tools.SimpleJavaFileObject;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.StandardLocation;
-
-import com.esotericsoftware.wildcard.Paths;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.URI;
+import java.util.HashMap;
+import java.util.Map.Entry;
 
 public class JavaMemFileManager extends ForwardingJavaFileManager<StandardJavaFileManager> {
 
@@ -52,8 +51,13 @@ public class JavaMemFileManager extends ForwardingJavaFileManager<StandardJavaFi
                 locLength = location.length();
             }
 
-            String loc = location.substring(0, locLength - length);
-            this.location = loc;
+            try {
+                String loc = location.substring(0, locLength - length);
+                this.location = loc;
+            } catch (Exception e) {
+                System.err.println("Error parsing location for class '" + className + "'  location '" + location + "'");
+                throw new RuntimeException(e);
+            }
         }
 
         byte[] getBytes() {
