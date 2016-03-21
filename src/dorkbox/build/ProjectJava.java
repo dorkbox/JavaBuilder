@@ -408,13 +408,14 @@ class ProjectJava extends Project<ProjectJava> {
             runCompile(targetJavaVersion);
             BuildLog.println("Compile success");
 
-            if (this.jarable != null) {
-                this.jarable.buildJar();
-            }
-
             if (!temporary && this.version != null) {
                 // only save the version info + files if we are NOT temporary
+                // update the version BEFORE creating the jar!
                 this.version.save();
+            }
+
+            if (this.jarable != null) {
+                this.jarable.buildJar();
             }
 
             // calculate the hash of all the files in the source path
