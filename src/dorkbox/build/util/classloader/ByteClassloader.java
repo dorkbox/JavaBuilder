@@ -21,32 +21,53 @@ import java.security.CodeSource;
 import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class ByteClassloader extends ClassLoader {
+public
+class ByteClassloader extends ClassLoader {
 
+    private final List<File> sources;
     private Map<String, ClassInfo> info = new ConcurrentHashMap<String, ClassInfo>();
 
 
-    public ByteClassloader(ClassLoader classloader) {
-        super(classloader);
+    public
+    ByteClassloader(final List<File> sources) {
+        super(Thread.currentThread()
+                    .getContextClassLoader());
+        this.sources = sources;
     }
 
-    public final synchronized void saveBytes(String className, File locationSourceWasFrom, byte[] bytes) {
+    final synchronized
+    void saveBytes(String className, String locationSourceWasFrom, byte[] bytes) {
         // this defines our class, and saves it in our cache -- so that findClass() will work
         if (this.info != null && !this.info.containsKey(className)) {
             ClassInfo info = new ClassInfo();
             info.bytes = bytes;
-            info.sourceRootLocation = locationSourceWasFrom;
+
+            for (File source : sources) {
+                // oh god... this is horrid, but I don't know another way to reliably get the ACTUAL path, since "locationSourceWasFrom"
+                // is not the full path, just the package+filename
+                if (source.getPath()
+                          .endsWith(locationSourceWasFrom)) {
+                    info.sourceRootLocation = source;
+                }
+            }
+
+            if (info.sourceRootLocation == null) {
+                info.sourceRootLocation = new File(locationSourceWasFrom);
+            }
+
             this.info.put(className, info);
         }
     }
 
     // this will check PARENT first, then check us.
     @Override
-    public Class<?> findClass(String name) throws ClassNotFoundException {
+    public
+    Class<?> findClass(String name) throws ClassNotFoundException {
         if (this.info != null) {
             ClassInfo info = this.info.get(name);
 
@@ -70,9 +91,8 @@ public class ByteClassloader extends ClassLoader {
 
                 ProtectionDomain domain = null;
                 try {
-                    domain = new ProtectionDomain(
-                                    new CodeSource(info.sourceRootLocation.toURI().toURL(), (Certificate[]) null),
-                                    null);
+                    domain = new ProtectionDomain(new CodeSource(info.sourceRootLocation.toURI()
+                                                                                        .toURL(), (Certificate[]) null), null);
                 } catch (MalformedURLException e) {
                     e.printStackTrace();
                 }
@@ -96,6 +116,7 @@ public class ByteClassloader extends ClassLoader {
     }
 
     Iterator<Entry<String, ClassInfo>> getIterator() {
-        return this.info.entrySet().iterator();
+        return this.info.entrySet()
+                        .iterator();
     }
 }
