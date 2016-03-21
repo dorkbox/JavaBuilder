@@ -19,48 +19,54 @@ import dorkbox.license.LicenseType;
 public class LicenseLibs {
 
     public static final License
+    JavaParser = new License("JavaParser", LicenseType.APACHE)
+                          .u("https://github.com/javaparser/javaparser")
+                          .c("Copyright 2007-2010, Júlio Vilmar Gesser")
+                          .c("Copyright 2011, 2013-2015, The JavaParser Team");
+
+    public static final License
     BouncyCastle = new License("BouncyCastle", LicenseType.MIT)
-                             .u("http://www.bouncycastle.org")
-                             .c("Copyright 2000-2009, The Legion Of The Bouncy Castle");
+                            .u("http://www.bouncycastle.org")
+                            .c("Copyright 2000-2009, The Legion Of The Bouncy Castle");
 
     public static final License
     FastMD5 = new License("FastMD5", LicenseType.LGPLv3)
-                        .u("http://www.twmacinta.com/myjava/fast_md5.php")
-                        .c("Copyright 1996, Santeri Paavolainen, Helsinki Finland")
-                        .c("Many changes Copyright 2002 - 2010 Timothy W Macinta")
-                        .n("Originally written by Santeri Paavolainen, Helsinki Finland 1996");
+                       .u("http://www.twmacinta.com/myjava/fast_md5.php")
+                       .c("Copyright 1996, Santeri Paavolainen, Helsinki Finland")
+                       .c("Many changes Copyright 2002 - 2010 Timothy W Macinta")
+                       .n("Originally written by Santeri Paavolainen, Helsinki Finland 1996");
 
     public static final License
     JavaTar = new License("JavaTar", LicenseType.PUBLIC)
-                        .u("http://www.trustice.com/java/tar")
-                        .c("Timothy Gerard Endres, time@gjt.org");
+                       .u("http://www.trustice.com/java/tar")
+                       .c("Timothy Gerard Endres, time@gjt.org");
 
     public static final License
     LzmaJava = new License("LZMA-Java", LicenseType.APACHE)
-                         .u("http://jponge.github.com/lzma-java")
-                         .c("http://www.7-zip.org/sdk.html")
-                         .c("Copyright 2014 Igor Pavlov")
-                         .a("Julien Ponge (julien.ponge@gmail.com)");
+                        .u("http://jponge.github.com/lzma-java")
+                        .c("http://www.7-zip.org/sdk.html")
+                        .c("Copyright 2014 Igor Pavlov")
+                        .a("Julien Ponge (julien.ponge@gmail.com)");
 
     public static final License
     OpenJDK = new License("OpenJDK", LicenseType.GPLv2_CP)
-                         .u("http://openjdk.java.net")
-                         .u("https://github.com/alexkasko/openjdk-unofficial-builds")
-                         .c("Copyright 2007, Sun Microsystems, Inc")
-                         .n("http://www.gnu.org/software/classpath/license.html")
-                         .n("  When GNU Classpath is used unmodified as the core class library for a virtual machine,")
-                         .n("  compiler for the java language, or for a program written in the java programming language")
-                         .n("  it does not affect the licensing for distributing those programs directly.");
+                       .u("http://openjdk.java.net")
+                       .u("https://github.com/alexkasko/openjdk-unofficial-builds")
+                       .c("Copyright 2007, Sun Microsystems, Inc")
+                       .n("http://www.gnu.org/software/classpath/license.html")
+                       .n("  When GNU Classpath is used unmodified as the core class library for a virtual machine,")
+                       .n("  compiler for the java language, or for a program written in the java programming language")
+                       .n("  it does not affect the licensing for distributing those programs directly.");
 
     public static final License
     SLF4J = new License("SLF4J", LicenseType.MIT)
-                      .u("http://www.slf4j.org/")
-                      .c("Copyright 2004-2008, QOS.ch");
+                     .u("http://www.slf4j.org/")
+                     .c("Copyright 2004-2008, QOS.ch");
 
     public static final License
     WildCard = new License("Wildcard", LicenseType.BSD3)
-                         .u("https://github.com/EsotericSoftware/wildcard")
-                         .c("Copyright 2008, Nathan Sweet");
+                        .u("https://github.com/EsotericSoftware/wildcard")
+                        .c("Copyright 2008, Nathan Sweet");
 
     public static final License
     YamlBeans = new License("YamlBeans", LicenseType.BSD3)
