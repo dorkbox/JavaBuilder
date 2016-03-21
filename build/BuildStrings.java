@@ -25,7 +25,7 @@ public class BuildStrings {
 
     public static class ProjectPath {
         public static final String Resources = Builder.path("..", "..", "resources");
-        public static final String GitHub = Builder.path("..", "..", "github_projects");
+        public static final String GitHub = Builder.path("..", "..",  "github_projects");
     }
 
     static String path(String... path) {

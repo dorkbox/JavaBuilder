@@ -19,6 +19,18 @@ import dorkbox.license.LicenseType;
 // these are licenese's that are have code embedded into the various projects
 // @formatter:off
 public class Licenses {
+     public static class Annotations {
+        public static final License
+        Annotations = new License("Dorkbox Annotations", LicenseType.APACHE)
+                               .u("https://github.com/dorkbox")
+                               .c("Copyright 2014, dorkbox, llc");
+
+        public static final License
+        AnnotationDetector = new License("AnnotationDetector", LicenseType.APACHE)
+                                      .u("https://github.com/rmuller/infomas-asl")
+                                      .c("Copyright 2011 - 2014, XIAM Solutions B.V. (http://www.xiam.nl)");
+    }
+
     public static class JavaBuilder {
         public static final License
         JavaBuilder = new License("Dorkbox JavaBuilder", LicenseType.APACHE)
