@@ -862,13 +862,6 @@ class Builder {
         }
 
         // data elements are always a list
-        File buildFile = new File(data.get("buildFile").get(0));
-
-        ByteClassloader bytesClassloader = new ByteClassloader(Thread.currentThread()
-                                                                     .getContextClassLoader());
-
-        // the build file just sets up the build files and the classpath (to build those build files)
-
         Paths classPaths = new Paths();
         Paths sources = new Paths();
 
@@ -922,7 +915,7 @@ class Builder {
             }
             else {
                 // it's a pattern or something, so we should add everything in it.
-                sources.glob(buildFile.getParent(), source);
+                sources.glob(new File("blah").getParent(), source);
             }
         }
 
@@ -935,6 +928,8 @@ class Builder {
             return;
         }
 
+        ByteClassloader bytesClassloader = new ByteClassloader(sources.getFiles());
+
         ProjectJava project = ProjectJava.create("Builder")
                                          .classPath(classPaths)
                                          .compilerClassloader(bytesClassloader)
@@ -942,8 +937,11 @@ class Builder {
 
         // only if we have data, should we build
         if (!data.isEmpty()) {
+            boolean isDebug = args.has("-debug");
             try {
-//                BuildLog.disable();
+                if (!isDebug) {
+                    BuildLog.disable();
+                }
 
                 project.options().compiler.forceRebuild = true;
                 project.build(OS.javaVersion);
@@ -952,7 +950,9 @@ class Builder {
             } catch (Exception e) {
                 throw e;
             } finally {
-//                BuildLog.enable();
+                if (!isDebug) {
+                    BuildLog.enable();
+                }
             }
 
             this.classloader = bytesClassloader;
