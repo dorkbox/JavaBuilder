@@ -55,7 +55,7 @@ class Project<T extends Project<T>> {
     protected boolean isBuildingDependencies = false;
 
     public static List<File> builderFiles = new ArrayList<File>();
-    private static Thread shutdownHook;
+    public static Thread shutdownHook;
 
     static {
         // check to see if our deploy code has changed. if yes, then we have to rebuild everything since

@@ -216,6 +216,10 @@ class Builder {
         // make sure to rethrow the errors
         if (e != null) {
             System.err.println(""); // add a small space
+
+            // remove the "save build checksums" hook, since there was a problem
+            Runtime.getRuntime().removeShutdownHook(Project.shutdownHook);
+
             throw e;
         }
     }
