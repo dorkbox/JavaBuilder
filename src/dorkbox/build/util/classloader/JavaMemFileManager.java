@@ -35,12 +35,10 @@ public class JavaMemFileManager extends ForwardingJavaFileManager<StandardJavaFi
 
     static class ClassMemFileObject extends SimpleJavaFileObject {
         ByteArrayOutputStream os = new ByteArrayOutputStream();
-        private File location;
+        private String location;
 
         ClassMemFileObject(String className, String location) {
             super(URI.create("mem:///" + className + Kind.CLASS.extension), Kind.CLASS);
-
-//            System.err.println(className + " : " + location);
 
             // the location SHOULD be the location on disk WHERE to find the bytes for this class.
             int locLength = className.lastIndexOf('.');
@@ -48,14 +46,15 @@ public class JavaMemFileManager extends ForwardingJavaFileManager<StandardJavaFi
                 location = className.substring(0, locLength+1).replaceAll("\\.", File.separator) + location;
             }
 
-            this.location = new File(location);
+//            System.err.println(className + " : " + location);
+            this.location = location;
         }
 
         byte[] getBytes() {
             return this.os.toByteArray();
         }
 
-        File getLocation() {
+        String getLocation() {
             return this.location;
         }
 
