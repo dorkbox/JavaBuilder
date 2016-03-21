@@ -41,15 +41,36 @@ public class BuildParser {
         final HashMap<String, ArrayList<String>> data = new HashMap<String, ArrayList<String>>();
 
         File buildFile = new File("build.oak");
-        if (args.has("-file") || args.has("-f")) {
+        boolean specified = args.has("-file") || args.has("-f");
+        if (specified) {
             buildFile = new File(args.getNext());
         }
 
         buildFile = FileUtil.normalize(buildFile);
         if (!buildFile.canRead()) {
-            BuildLog.title("Build location").println("Build instructions not found", buildFile.getAbsolutePath());
-            BuildLog.println("You can specify the location via '-f <name>' or '-file <name>'");
-            return null;
+            // autodetect
+            if (!specified) {
+                specified = true;
+                // are we in root/lib dir?
+                File dist = new File(buildFile.getParentFile(), "build");
+                if (dist.isDirectory()) {
+                    buildFile = new File(dist, "build.oak");
+                    specified = false;
+                }
+                else {
+                    dist = new File(buildFile.getParentFile(), "../build");
+                    if (dist.isDirectory()) {
+                        buildFile = new File(dist, "build.oak");
+                        specified = false;
+                    }
+                }
+            }
+
+            if (specified) {
+                BuildLog.title("Build location").println("Build instructions not found", buildFile.getAbsolutePath());
+                BuildLog.println("You can specify the location via '-f <name>' or '-file <name>'");
+                return null;
+            }
         }
 
         BuildLog.title("Build location").println("Compiling build instructions", buildFile.getAbsolutePath());
