@@ -49,7 +49,7 @@ public class JavaBuilder {
     public static final File readme = new File(root, "README.md");
 
     // Version will increment/update only if the project needed to build. This is current, not the new one that will be used to build
-    public static Version version = Version.get("v2.23").sourceFile(name, src, dorkbox.Build.class);
+    public static Version version = Version.get("v2.24").sourceFile(name, src, dorkbox.Build.class);
 
     public static List<License> license = License.list(Licenses.JavaBuilder.JavaBuilder,
                                                        Licenses.JavaBuilder.Scar,

@@ -9,22 +9,21 @@ safely be assumed that you already know Java. Additionally, because it's running
 (instead of interpreting or parsing lengthy config files) and because it uses the FastMD5 project
 for dependency checking and build verification, it's *wicked fast*.
 
-Why use XML, Groovy, Scala, JavaScript, or some other language to build your project? Just use Java!
+#####  Why use XML, Groovy, Scala, JavaScript, or some other language to build your project? 
 
 - This is for cross-platform use, specifically - linux 32/64, mac 32/64, and windows 32/64. Java 6+
-
-- This also permits the use of cross-compiling projects or even specific *classes* in a project (for example, when a project is compiled 
-to java6, but has code specific to java7+)
+- Ability to reproduce builds *exactly* the same (provided the same 'builddate') as a remote build
+- This also permits the use of **cross-compiling** *projects* or even specific *classes* in a project (for example, when a project is compiled to java6, but has a single file that is code specific to java7+)
 
 For example:
 
- - See Build.java
+ - See [Build.java](https://github.com/dorkbox/JavaBuilder/blob/master/src/dorkbox/Build.java)
  
 For a real world example:
 
  - See the build code in the "build" directory, which is the build code used to build itself.    
    - If you want to compile it yourself, copy the entire contents of the libs directory into the dist directory.  
-   - Then (from the project root), java -jar dist/JavaBuilder.jar build javabuilder dist  
+   - Then (from the project root), java -jar dist/JavaBuilder_v1.23.jar build JavaBuilder dist
   
    
 An example of program log output is available here: https://github.com/dorkbox/JavaBuilder/wiki  
