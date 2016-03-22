@@ -120,7 +120,7 @@ class Build {
      */
     public static
     String getVersion() {
-        return "2.26";
+        return "2.27";
     }
 
     public static
