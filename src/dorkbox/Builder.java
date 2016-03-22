@@ -210,7 +210,7 @@ class Builder {
             log.title("ERROR")
                .println(e.getMessage());
 
-            BuildLog.finish();
+            BuildLog.finish_force();
         }
 
         // make sure to rethrow the errors
@@ -218,7 +218,10 @@ class Builder {
             System.err.println(""); // add a small space
 
             // remove the "save build checksums" hook, since there was a problem
-            Runtime.getRuntime().removeShutdownHook(Project.shutdownHook);
+            if (Project.shutdownHook != null) {
+                Runtime.getRuntime().removeShutdownHook(Project.shutdownHook);
+                Project.shutdownHook = null;
+            }
 
             throw e;
         }

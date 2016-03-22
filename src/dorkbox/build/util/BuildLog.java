@@ -40,6 +40,10 @@ class BuildLog {
 
     private static boolean lastActionWasPrintln = true;
 
+    /**
+     * Starts a new section in the log
+     * @return
+     */
     public static synchronized
     BuildLog start() {
         if (suppressCount == 0) {
@@ -49,12 +53,41 @@ class BuildLog {
         return LOG;
     }
 
+    /**
+     * Closes this section of the log
+     */
     public static synchronized
     BuildLog finish() {
         if (suppressCount == 0) {
             nestedCount--;
             titleEnd();
         }
+        titleBuilder = null;
+        return LOG;
+    }
+
+    /**
+     * Forces the "end" of this, so that there is no trailing "opening" for further log elements
+     */
+    public static synchronized
+    BuildLog finish_force() {
+        if (suppressCount == 0) {
+            nestedCount--;
+
+            String sep = TITLE_SEPERATOR;
+            StringBuilder spacerTitle = new StringBuilder(TITLE_WIDTH);
+            for (int i = 2; i < TITLE_WIDTH; i++) {
+                spacerTitle.append(sep);
+            }
+
+            spacerTitle.append(sep);
+            spacerTitle.append(sep);
+            spacerTitle.append('╯');
+
+            printer.println(spacerTitle.toString());
+            TITLE_WIDTH -= 2;
+        }
+
         titleBuilder = null;
         return LOG;
     }

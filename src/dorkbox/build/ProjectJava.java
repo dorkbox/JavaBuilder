@@ -44,6 +44,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -530,6 +531,9 @@ class ProjectJava extends Project<ProjectJava> {
         DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<JavaFileObject>();
         JavaFileManager fileManager = compiler.getStandardFileManager(null, null, null);
 
+        PrintStream error = System.err;
+        PrintStream out = System.out;
+        final StringBuilder errorsDuringCompile = new StringBuilder();
         try {
             Iterable<? extends JavaFileObject> javaFileObjectsFromFiles;
             if (this.bytesClassloader == null) {
@@ -541,11 +545,44 @@ class ProjectJava extends Project<ProjectJava> {
                 javaFileObjectsFromFiles = ((JavaMemFileManager) fileManager).getSourceFiles();
             }
 
+            // redirect OUT/ERR
+            PrintStream nullErrorStream = new PrintStream(new OutputStream() {
+                @Override
+                public
+                void write(int b) throws IOException {
+                    errorsDuringCompile.append((char)b);
+                }
+            });
+
+            System.setErr(nullErrorStream);
+            System.setOut(nullErrorStream);
+
             compiler.getTask(null, fileManager, diagnostics, args, null, javaFileObjectsFromFiles).call();
         } finally {
-            fileManager.close();
+            try {
+                fileManager.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            System.setErr(error);
+            System.setOut(out);
         }
 
+        if (errorsDuringCompile.length() > 0) {
+            int length = errorsDuringCompile.length() - 1;
+            if (errorsDuringCompile.charAt(length) == '\n') {
+                errorsDuringCompile.deleteCharAt(length);
+                length = errorsDuringCompile.length() - 1;
+
+                if (errorsDuringCompile.charAt(length) == '\r') {
+                    errorsDuringCompile.deleteCharAt(length);
+                }
+            }
+            RuntimeException runtimeException = new RuntimeException("Compilation error: " + errorsDuringCompile.toString());
+            runtimeException.setStackTrace(new StackTraceElement[0]);
+            throw runtimeException;
+        }
 
         boolean hasError = false;
         for (Diagnostic<? extends JavaFileObject> diagnostic : diagnostics.getDiagnostics()) {
