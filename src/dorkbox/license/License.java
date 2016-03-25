@@ -15,13 +15,26 @@
  */
 package dorkbox.license;
 
-import dorkbox.Builder;
 import dorkbox.Build;
+import dorkbox.Builder;
 import dorkbox.build.Project;
 
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.charset.Charset;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
@@ -145,8 +158,15 @@ class License implements Comparable<License> {
                 }
             }
             if (l.copyrights != null) {
-                for (String s : l.copyrights) {
-                    b.append(SPACER).append(s).append(NL);
+                if (l.type == LicenseType.CUSTOM) {
+                    for (String s : l.copyrights) {
+                        b.append(fixSpace(s, SPACER, 1)).append(NL);
+                    }
+                }
+                else {
+                    for (String s : l.copyrights) {
+                        b.append(SPACER).append(s).append(NL);
+                    }
                 }
             }
             if (l.authors != null) {
@@ -231,7 +251,7 @@ class License implements Comparable<License> {
             throw new IllegalArgumentException("targetLocation cannot be null.");
         }
 
-        // copy over full text licenses
+        // copy over full text licenses, but NOT custom (it doesn't exist!)
         List<LicenseWrapper> licenseWrappers = License.getActualLicensesAsBytes(licenses);
         for (LicenseWrapper entry : licenseWrappers) {
             byte[] bytes = entry.bytes;
@@ -341,6 +361,11 @@ class License implements Comparable<License> {
             String baseName = stringBuilder.toString();
 
             for (LicenseType lt : types) {
+                if (lt == LicenseType.CUSTOM) {
+                    // there is nothing to get for the custom type
+                    continue;
+                }
+
                 String pathname = baseName + lt.getExtension();
                 File f = new File(pathname);
                 if (f.length() > maxLicenseFileSize) {
@@ -362,6 +387,11 @@ class License implements Comparable<License> {
 
             HashMap<String, LicenseType> licenseNames = new HashMap<String, LicenseType>(types.size());
             for (LicenseType l : types) {
+                if (l == LicenseType.CUSTOM) {
+                    // there is nothing to get for the custom type
+                    continue;
+                }
+
                 licenseNames.put(nameAsFile + "LICENSE." + l.getExtension(), l);
             }
 
@@ -383,7 +413,7 @@ class License implements Comparable<License> {
             zipInputStream.close();
         }
         else {
-            throw new IOException("Don't know what this is, but - KAPOW_ON_getActualLicensesAsBytes");
+            throw new IOException("Don't know what '" + rootFile + "' is!! KAPOW_ON_getActualLicensesAsBytes");
         }
 
         Collections.sort(licenseList);
@@ -395,8 +425,8 @@ class License implements Comparable<License> {
     public LicenseType type;
 
     public List<String> urls;
-    private List<String> copyrights;
-    private List<String> authors;
+    public List<String> copyrights;
+    public List<String> authors;
     private List<String> notes;
 
     public
@@ -418,7 +448,7 @@ class License implements Comparable<License> {
     }
 
     /**
-     * COPYRIGHT
+     * COPYRIGHT, or License info if CUSTOM type
      **/
     public
     License c(String copyright) {
@@ -518,4 +548,22 @@ class License implements Comparable<License> {
     String toString() {
         return this.name;
     }
+
+    /**
+     * fixes new lines that may appear in the text
+     * @param text text to format
+     * @param spacer how big will the space in front of each line be?
+     */
+    public static
+    String fixSpace(String text, final String spacerSize, final int spacer) {
+        text = text.trim();
+
+        String space = "";
+        for (int i = 0; i < spacer; i++) {
+            space += spacerSize;
+        }
+
+        return space + text.replaceAll("\n", "\n" + space);
+    }
+
 }

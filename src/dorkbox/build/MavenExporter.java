@@ -24,6 +24,7 @@ import dorkbox.Build;
 import dorkbox.Builder;
 import dorkbox.build.util.BuildLog;
 import dorkbox.license.License;
+import dorkbox.license.LicenseType;
 import dorkbox.util.Base64Fast;
 import dorkbox.util.OS;
 import dorkbox.util.Sys;
@@ -60,6 +61,7 @@ class MavenExporter<T extends Project<T>> {
     private static final String profileId = "profileId";
 
     private static final int retryCount = 30;
+    public static final String SPACER = "    ";
 
     private String groupId;
     private String projectVersion;
@@ -769,7 +771,25 @@ class MavenExporter<T extends Project<T>> {
 
                 space(b,3).append("<comments>").append(license.name).append("</comments>").append(NL);
                 space(b,3).append("<name>").append(license.type.getDescription()).append("</name>").append(NL);
-                space(b,3).append("<url>").append(license.type.getUrl()).append("</url>").append(NL);
+                final String url = license.type.getUrl();
+                if (url != null && !url.isEmpty()) {
+                    space(b, 3).append("<url>").append(url).append("</url>").append(NL);
+                }
+
+                if (license.type.equals(LicenseType.CUSTOM)) {
+                    final List<String> copyrights = license.copyrights;
+
+                    if (copyrights.size() > 1) {
+                        space(b, 3).append("<comments>").append(NL);
+                        for (String copyright : copyrights) {
+                            space(b, 4).append(License.fixSpace(copyright, SPACER, 4)).append(NL).append(NL);
+                        }
+                        space(b, 3).append("</comments>").append(NL);
+                    }
+                    else {
+                        space(b, 3).append("<comments>").append(License.fixSpace(license.copyrights.get(0), SPACER, 3)).append("</comments>").append(NL);
+                    }
+                }
 
                 space(b,2).append("</license>").append(NL);
             }
@@ -856,7 +876,7 @@ class MavenExporter<T extends Project<T>> {
     private static
     StringBuilder space(final StringBuilder b, final int spacer) {
         for (int i = 0; i < spacer; i++) {
-            b.append("    ");
+            b.append(SPACER);
         }
         return b;
     }
@@ -924,27 +944,3 @@ class MavenExporter<T extends Project<T>> {
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
