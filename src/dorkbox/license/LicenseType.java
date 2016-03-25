@@ -29,6 +29,7 @@ public enum LicenseType {
     MPL2("MPLv2.0", "Mozilla Public License 2.0", "http://opensource.org/licenses/MPL-2.0"),
     OFL("OFLv1.1", "SIL Open Font License", "http://opensource.org/licenses/OFL-1.1"),
     PUBLIC("Public", "Public Domain", ""),  // not quite the same as CC0 (CC0 is better)
+    CUSTOM("DOESNT_EXIST", "", ""),  // Custom license that doesn't fit with any of the above
     ;
 
     private final String name;
