@@ -463,7 +463,18 @@ class MavenExporter<T extends Project<T>> {
                         BuildLog.println("Unknown error during promotion (no more retries available)!", hasErrors);
                     }
                     else {
-                        BuildLog.println("Unknown error during promotion!", hasErrors);
+                        BuildLog.print(".");
+                        try {
+                            Thread.sleep(2000L);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+
+                        if (!hasErrors.contains("has invalid state: open")) {
+                            BuildLog.println("Unknown error during promotion, retrying!", hasErrors);
+                        }
+
+                        hasErrors = promoteRepo(authInfo, profile, repo, nameAndVersion);
                     }
                 }
                 else {
@@ -767,16 +778,22 @@ class MavenExporter<T extends Project<T>> {
         if (licenses != null) {
             space(b,1).append("<licenses>").append(NL);
             for (License license : licenses) {
+                final boolean isCustomLicense = license.type.equals(LicenseType.CUSTOM);
+
                 space(b,2).append("<license>").append(NL);
 
-                space(b,3).append("<comments>").append(license.name).append("</comments>").append(NL);
+                if (!isCustomLicense) {
+                    space(b,3).append("<comments>").append(license.name).append("</comments>").append(NL);
+                }
+
                 space(b,3).append("<name>").append(license.type.getDescription()).append("</name>").append(NL);
+
                 final String url = license.type.getUrl();
                 if (url != null && !url.isEmpty()) {
                     space(b, 3).append("<url>").append(url).append("</url>").append(NL);
                 }
 
-                if (license.type.equals(LicenseType.CUSTOM)) {
+                if (isCustomLicense) {
                     final List<String> copyrights = license.copyrights;
 
                     if (copyrights.size() > 1) {
