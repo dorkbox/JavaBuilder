@@ -186,7 +186,7 @@ class ProjectJava extends Project<ProjectJava> {
     /**
      * Specifies the version to compile to?
      * <p/>
-     * IE: compile for 1.6 on JDK 1.8. When compiling for a different version, you jave that version's 1.6 rt.jar
+     * IE: compile for 1.6 on JDK 1.8. When compiling for a different version, you have that version's 1.6 rt.jar
      *
      * @return true if this project was built, false otherwise
      */
@@ -200,15 +200,25 @@ class ProjectJava extends Project<ProjectJava> {
 
         // we want to make sure that we build IF one of our dependencies needs to build too
         for (Project<?> project : fullDependencyList) {
-            // dep can be a jar as well (don't have to build a jar)
-            if (!(project instanceof ProjectJar)) {
-                // if one of our dependencies has to build, so do we
+            if (!shouldBuild && !(project instanceof ProjectJar)) {
+                // if one of our dependencies has to build, so do we (don't keep checking if we have to build)
+                // also, we DO NOT check jar versions/etc here (that happens later)
 
-                // if false, this means that the source files ARE NOT THE SAME (they have not changed)
+                // if true, this means that the files ARE the same and they have not changed
                 final boolean b = project.verifyChecksums();
                 shouldBuild |= !b;
             }
         }
+
+        // has our dependencies or their versions changed at all?
+        final ArrayList<String> depWithVersionInfo = new ArrayList<String>();
+        for (Project<?> project : fullDependencyList) {
+            // version can be null, which is OK for our tests here
+            depWithVersionInfo.add(project.name + ":" + project.version);
+        }
+        final String origDepsWithVersion = Builder.settings.get(this.name + ":deps", String.class);
+        shouldBuild |= !depWithVersionInfo.toString().equals(origDepsWithVersion);
+
 
         shouldBuild |= !verifyChecksums();
 
@@ -421,6 +431,9 @@ class ProjectJava extends Project<ProjectJava> {
 
             // calculate the hash of all the files in the source path
             saveChecksums();
+
+            // save our dependencies and their version info
+            Builder.settings.save(this.name + ":deps", depWithVersionInfo.toString());
 
             if (crossCompatBuiltFile != null) {
                 FileUtil.delete(crossCompatBuiltFile);
@@ -812,7 +825,7 @@ class ProjectJava extends Project<ProjectJava> {
 
         if (originalOutputFile.canRead()) {
             String jarChecksum = generateChecksum(originalOutputFile);
-            String checkContents = Builder.settings.get(originalOutputFile.getAbsolutePath(), String.class);
+            String checkContents = Builder.settings.get(this.name + ":" + originalOutputFile.getAbsolutePath(), String.class);
 
             boolean outputFileGood = jarChecksum != null && jarChecksum.equals(checkContents);
 
@@ -825,7 +838,7 @@ class ProjectJava extends Project<ProjectJava> {
 
                     // now check the src.zip file (if there was one).
                     jarChecksum = generateChecksum(originalOutputFileSource);
-                    checkContents = Builder.settings.get(originalOutputFileSource.getAbsolutePath(), String.class);
+                    checkContents = Builder.settings.get(this.name + ":" + originalOutputFileSource.getAbsolutePath(), String.class);
 
                     return jarChecksum != null && jarChecksum.equals(checkContents);
                 }
@@ -843,7 +856,8 @@ class ProjectJava extends Project<ProjectJava> {
 
 
     /**
-     * Saves the checksums for a given path
+     * Saves the checksums for a given path - PER PROJECT (otherwise updating a jar in one place, and saving it's checksum, will verify
+     * it everywhere else)
      */
     @Override
     void saveChecksums() throws IOException {
@@ -861,7 +875,7 @@ class ProjectJava extends Project<ProjectJava> {
         // hash/save the jar file (if there was one)
         if (currentOutputFile.exists()) {
             String fileChecksum = generateChecksum(currentOutputFile);
-            Builder.settings.save(currentOutputFile.getAbsolutePath(), fileChecksum);
+            Builder.settings.save(this.name + ":" + currentOutputFile.getAbsolutePath(), fileChecksum);
 
             if (this.jarable != null && this.jarable.includeSourceAsSeparate) {
                 final File currentOutputFileSource = this.outputFile.getSource();
@@ -869,7 +883,7 @@ class ProjectJava extends Project<ProjectJava> {
                 // now check the src.zip file (if there was one).
                 fileChecksum = generateChecksum(currentOutputFileSource);
 
-                Builder.settings.save(currentOutputFileSource.getAbsolutePath(), fileChecksum);
+                Builder.settings.save(this.name + ":" + currentOutputFileSource.getAbsolutePath(), fileChecksum);
             }
         }
     }

@@ -25,6 +25,7 @@ public class ProjectJar extends Project<ProjectJar> {
                     .println("Unable to read specified jar source file: '" + file + "'");
         }
 
+        this.checksumPaths.addFile(file);
         super.addSrc(file);
         return this;
     }
@@ -36,6 +37,7 @@ public class ProjectJar extends Project<ProjectJar> {
                     .println("Unable to read specified jar source file: '" + file + "'");
         }
 
+        this.checksumPaths.addFile(file.getAbsolutePath());
         super.addSrc(file);
         return this;
     }
@@ -70,6 +72,8 @@ public class ProjectJar extends Project<ProjectJar> {
             BuildLog.title("Error")
                     .println("Unable to read specified jar output file: '" + outputFile + "'");
         }
+
+        this.checksumPaths.addFile(outputFile);
         return super.outputFile(outputFile);
     }
 }

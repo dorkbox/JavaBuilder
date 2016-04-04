@@ -135,7 +135,7 @@ class Project<T extends Project<T>> {
     /** ALL related dependencies for this project (ie: recursively searched) */
     List<Project<?>> fullDependencyList = null;
 
-    private transient Paths checksumPaths = new Paths();
+    transient Paths checksumPaths = new Paths();
     protected List<License> licenses = new ArrayList<License>();
     protected BuildOptions buildOptions;
 
