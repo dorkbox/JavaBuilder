@@ -40,4 +40,4 @@ Note: This project was inspired (and some parts heavily modified) by the excelle
 
 <h2>License</h2>
 
-This project is distributed under the terms of the Apache v2.0 License. See file "LICENSE" for further references.
+This project is © 2012 dorkbox llc, and is distributed under the terms of the Apache v2.0 License. See file "LICENSE" for further references.
