@@ -54,9 +54,6 @@ public
 class MavenExporter<T extends Project<T>> {
     private static final String NL = OS.LINE_SEPARATOR;
 
-//    private static final boolean testBuild = true;
-    private static final boolean testBuild = false;
-
     private static final String repositoryId = "repositoryId";
     private static final String profileId = "profileId";
 
@@ -127,12 +124,6 @@ class MavenExporter<T extends Project<T>> {
     public
     void export(final int targetJavaVersion) throws IOException {
         BuildLog.start();
-
-        if (testBuild) {
-            BuildLog.title("MAVEN").println("Testing build. Not actually exporting to maven.");
-            BuildLog.finish();
-            return;
-        }
 
         // make sure we have internet!
         URL maven = new URL("http://www.maven.org/");
@@ -253,6 +244,13 @@ class MavenExporter<T extends Project<T>> {
             CryptoPGP.signGpgCompatible(new FileInputStream(signPrivateKey), signUserId, signPassword, docsFile);
         } catch (PGPException e) {
             throw new RuntimeException("Unable to PGP sign files.", e);
+        }
+
+
+        if (!project.shouldSaveBuild) {
+            BuildLog.title("MAVEN").println("Not saving build and not exporting to maven.");
+            BuildLog.finish();
+            return;
         }
 
 
@@ -518,7 +516,7 @@ class MavenExporter<T extends Project<T>> {
                 BuildLog.println();
                 BuildLog.println("Error for repo '" + repo + "' during promotion to release! '" + hasErrors + "'");
                 throw new RuntimeException("Error promoting to release! Please log-in manually and correct the problem for repo '" + repo
-                 +                           "'.");
+                                           + "'.");
             }
         }
 
@@ -870,7 +868,7 @@ class MavenExporter<T extends Project<T>> {
                     space(b,2).append("<dependency>").append(NL);
                     space(b,3).append("<groupId>").append(mavenInfo.getGroupId()).append("</groupId>").append(NL);
                     space(b,3).append("<artifactId>").append(mavenInfo.getArtifactId()).append("</artifactId>").append(NL);
-                    space(b,3).append("<version>").append(mavenInfo.getVersion().toString()).append("</version>").append(NL);
+                    space(b,3).append("<version>").append(mavenInfo.getVersion().toStringWithoutPrefix()).append("</version>").append(NL);
 
                     if (mavenInfo.getScope() != null) {
                         space(b,3).append("<scope>").append(mavenInfo.getScope()).append("</scope>").append(NL);
