@@ -54,6 +54,9 @@ class Project<T extends Project<T>> {
     // used to suppress certain messages when building deps
     protected boolean isBuildingDependencies = false;
 
+    // most of the time, we save the build. Sometimes we don't want to save the build (ie: when running a test, for example)
+    protected boolean shouldSaveBuild = true;
+
     public static List<File> builderFiles = new ArrayList<File>();
     public static Thread shutdownHook;
 

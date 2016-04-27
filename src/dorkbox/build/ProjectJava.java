@@ -781,9 +781,14 @@ class ProjectJava extends Project<ProjectJava> {
 
     public
     void uploadToMaven() throws IOException {
-        if (buildOptions.compiler.saveBuild && // only if we save the build. Test builds don't save, and we shouldn't upload them to maven
-            !skippedBuild) {
+        // only if we save the build. Test builds don't save, and we shouldn't upload them to maven
+        final boolean save = buildOptions.compiler.saveBuild;
+        shouldSaveBuild = save;
+
+        if (!skippedBuild) {
             for (Project project : fullDependencyList) {
+                project.shouldSaveBuild = save;
+
                 // dep can be a jar as well (don't upload dependency jars)
                 if (project instanceof ProjectJava) {
                     project.uploadToMaven();

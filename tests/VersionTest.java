@@ -31,5 +31,9 @@ class VersionTest {
 
         assertTrue(2 == new Version("1.2.3.6.45").getMinor());
         assertTrue("1.2.3.6.45".equals(new Version("1.2.3.6.45").toString()));
+
+
+        assertTrue(new Version("v1.2").toString().equals("v1.2"));
+        assertTrue(new Version("v1.2").toStringWithoutPrefix().equals("1.2"));
     }
 }
