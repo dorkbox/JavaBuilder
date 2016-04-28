@@ -51,7 +51,7 @@ import java.util.concurrent.ExecutionException;
  * we use https://repo1.maven.org/maven2/com/ning/async-http-client/1.8.16/
  */
 public
-class MavenExporter<T extends Project<T>> {
+class MavenExporter {
     private static final String NL = OS.LINE_SEPARATOR;
 
     private static final String repositoryId = "repositoryId";
@@ -69,7 +69,7 @@ class MavenExporter<T extends Project<T>> {
 
     private String propertyFile;
     private boolean keepOnServer = false;
-    private T project;
+    private ProjectJava project;
 
     static {
         // set the user-agent for NING. This is so it is clear who/what uploaded to sonatype
@@ -101,12 +101,12 @@ class MavenExporter<T extends Project<T>> {
         return this;
     }
 
-    void setProject(T project) {
+    void setProject(ProjectJava project) {
         this.project = project;
     }
 
     public
-    T credentials(final String propertyFile) {
+    ProjectJava credentials(final String propertyFile) {
         this.propertyFile = propertyFile;
 
         return project;
@@ -122,7 +122,9 @@ class MavenExporter<T extends Project<T>> {
      */
     @SuppressWarnings("AccessStaticViaInstance")
     public
-    void export(final int targetJavaVersion) throws IOException {
+    void export() throws IOException {
+        final int targetJavaVersion = project.targetJavaVersion;
+
         BuildLog.start();
 
         // make sure we have internet!
@@ -875,6 +877,9 @@ class MavenExporter<T extends Project<T>> {
                     }
 //                    space(b,3).append("<type>").append("pom").append("</type>").append(NL); // since it's a JAR, we ignore this.
                     space(b,2).append("</dependency>").append(NL);
+                } else {
+                    throw new IllegalArgumentException("Dependencies specified for project '" + p.name + "', but no maven info specified " +
+                                                       "(it is required for export to maven)");
                 }
             }
 
