@@ -144,7 +144,7 @@ class Project<T extends Project<T>> {
 
     private ArrayList<String> unresolvedDependencies = new ArrayList<String>();
 
-    MavenExporter<T> mavenExporter;
+    MavenExporter mavenExporter;
     public MavenInfo mavenInfo;
 
     /** true if we had to build this project */
@@ -258,7 +258,7 @@ class Project<T extends Project<T>> {
      */
     public
     MavenExporter mavenExport(final String groupId, final MavenInfo.Scope scope) {
-        mavenExport(new MavenExporter<T>(new MavenInfo(groupId, name, this.version, scope)));
+        mavenExport(new MavenExporter(new MavenInfo(groupId, name, this.version, scope)));
         return mavenExporter;
     }
 
@@ -266,7 +266,7 @@ class Project<T extends Project<T>> {
      * Exports this project to the maven central repository
      */
     public
-    T mavenExport(MavenExporter<T> exporter) {
+    T mavenExport(MavenExporter exporter) {
         mavenExporter = exporter;
         return (T)this;
     }

@@ -67,9 +67,8 @@ class ProjectJava extends Project<ProjectJava> {
     private boolean suppressSunWarnings = false;
     private final List<CrossCompileClass> crossCompileClasses = new ArrayList<CrossCompileClass>(4);
 
-    private File readme = null;
-
-    private Integer targetJavaVersion = null;
+    Integer targetJavaVersion = null;
+    private boolean isUploaded = false;
 
     public static
     ProjectJava create(String projectName) {
@@ -797,9 +796,13 @@ class ProjectJava extends Project<ProjectJava> {
 
             if (this.mavenExporter != null) {
                 this.mavenExporter.setProject(this);
-                this.mavenExporter.export(this.targetJavaVersion);
 
-                mavenExporter = null; // make sure we can only upload once.
+                if (!isUploaded) {
+                    // mark that we have been uploaded already, so we can only do it once per project
+                    isUploaded = true;
+
+                    this.mavenExporter.export();
+                }
             }
         }
     }
