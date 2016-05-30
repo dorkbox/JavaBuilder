@@ -15,8 +15,25 @@
  */
 package dorkbox.build;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import org.bouncycastle.crypto.digests.MD5Digest;
+
 import com.esotericsoftware.wildcard.Paths;
 import com.twmacinta.util.MD5;
+
 import dorkbox.BuildOptions;
 import dorkbox.Builder;
 import dorkbox.Version;
@@ -27,11 +44,7 @@ import dorkbox.license.License;
 import dorkbox.util.Base64Fast;
 import dorkbox.util.FileUtil;
 import dorkbox.util.OS;
-import org.bouncycastle.crypto.digests.MD5Digest;
-
-import java.io.File;
-import java.io.IOException;
-import java.util.*;
+import dorkbox.util.OsType;
 
 @SuppressWarnings({"unchecked", "unused"})
 public abstract
@@ -454,27 +467,55 @@ class Project<T extends Project<T>> {
     }
 
     public
-    Project<T> addSrc(String file) {
+    T addSrc(String file) {
         this.sources.add(new File(FileUtil.normalizeAsFile(file)));
-        return this;
+        return (T) this;
     }
 
     public
-    Project<T> addSrc(File file) {
+    T addSrc(File file) {
         this.sources.add(file);
-        return this;
+        return (T) this;
     }
 
     public
-    Project<T> dist(String distLocation) {
+    T dist(String distLocation) {
         this.distLocation = FileUtil.normalizeAsFile(distLocation);
-        return this;
+        return (T) this;
     }
 
     public
-    Project<T> dist(File distLocation) {
+    T dist(File distLocation) {
         this.distLocation = FileUtil.normalize(distLocation).getAbsolutePath();
-        return this;
+        return (T) this;
+    }
+
+    private final Map<OsType, String> natives = new HashMap<OsType, String>();
+
+    public
+    String getNative(OsType osType) {
+        final String s = natives.get(osType);
+        if (s == null) {
+            BuildLog.title("Warning")
+                    .println("Unable to get native file for " + osType + ". It does not exist.");
+        }
+
+        return s;
+    }
+
+    public
+    T addNative(final OsType osType, final String nativeFile) {
+        if (!new File(nativeFile).canRead()) {
+            BuildLog.title("Error")
+                    .println("Unable to read specified native file: '" + nativeFile + "'");
+        }
+
+        if (natives.put(osType, nativeFile) != null) {
+            BuildLog.title("Warning")
+                    .println("Specified native file has already been added: '" + nativeFile + "'");
+        }
+
+        return (T) this;
     }
 
     public
@@ -786,9 +827,9 @@ class Project<T extends Project<T>> {
      * Will keep the old files. Meaning that if you have SuperCool-v1.4, and release SuperCool-v1.5; the v1.4 release will not be deleted.
      */
     public
-    Project<?> keepOldVersion() {
+    T keepOldVersion() {
         keepOldVersion = true;
-        return this;
+        return (T) this;
     }
 
     /**
@@ -797,6 +838,17 @@ class Project<T extends Project<T>> {
     public
     T description(String description) {
         this.description = description;
+        return (T) this;
+    }
+
+    /**
+     * Description used for the build process
+     */
+    public
+    T description(License license) {
+        if (!license.notes.isEmpty()) {
+            this.description = license.notes.get(0);
+        }
         return (T) this;
     }
 
