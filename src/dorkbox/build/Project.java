@@ -846,9 +846,7 @@ class Project<T extends Project<T>> {
      */
     public
     T description(License license) {
-        if (!license.notes.isEmpty()) {
-            this.description = license.notes.get(0);
-        }
+        this.description = license.notes.get(0);
         return (T) this;
     }
 
