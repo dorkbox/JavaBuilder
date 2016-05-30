@@ -15,10 +15,6 @@
  */
 package dorkbox.license;
 
-import dorkbox.Build;
-import dorkbox.Builder;
-import dorkbox.build.Project;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -38,6 +34,10 @@ import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
+
+import dorkbox.Build;
+import dorkbox.Builder;
+import dorkbox.build.Project;
 
 public
 class License implements Comparable<License> {
@@ -427,7 +427,7 @@ class License implements Comparable<License> {
     public List<String> urls;
     public List<String> copyrights;
     public List<String> authors;
-    private List<String> notes;
+    public List<String> notes;
 
     public
     License(String licenseName, LicenseType licenseType) {
