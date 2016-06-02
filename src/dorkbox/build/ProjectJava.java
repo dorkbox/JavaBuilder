@@ -15,30 +15,6 @@
  */
 package dorkbox.build;
 
-import com.esotericsoftware.wildcard.Paths;
-import com.esotericsoftware.yamlbeans.YamlConfig;
-import com.esotericsoftware.yamlbeans.YamlException;
-import com.esotericsoftware.yamlbeans.YamlWriter;
-import com.esotericsoftware.yamlbeans.scalar.ScalarSerializer;
-import dorkbox.Builder;
-import dorkbox.Version;
-import dorkbox.build.util.BuildLog;
-import dorkbox.build.util.CrossCompileClass;
-import dorkbox.build.util.DependencyWalker;
-import dorkbox.build.util.classloader.ByteClassloader;
-import dorkbox.build.util.classloader.JavaMemFileManager;
-import dorkbox.license.License;
-import dorkbox.license.LicenseType;
-import dorkbox.util.FileUtil;
-import dorkbox.util.OS;
-
-import javax.tools.Diagnostic;
-import javax.tools.DiagnosticCollector;
-import javax.tools.JavaCompiler;
-import javax.tools.JavaFileManager;
-import javax.tools.JavaFileObject;
-import javax.tools.StandardJavaFileManager;
-import javax.tools.ToolProvider;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileWriter;
@@ -51,6 +27,32 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import javax.tools.Diagnostic;
+import javax.tools.DiagnosticCollector;
+import javax.tools.JavaCompiler;
+import javax.tools.JavaFileManager;
+import javax.tools.JavaFileObject;
+import javax.tools.StandardJavaFileManager;
+import javax.tools.ToolProvider;
+
+import com.esotericsoftware.wildcard.Paths;
+import com.esotericsoftware.yamlbeans.YamlConfig;
+import com.esotericsoftware.yamlbeans.YamlException;
+import com.esotericsoftware.yamlbeans.YamlWriter;
+import com.esotericsoftware.yamlbeans.scalar.ScalarSerializer;
+
+import dorkbox.Builder;
+import dorkbox.Version;
+import dorkbox.build.util.BuildLog;
+import dorkbox.build.util.CrossCompileClass;
+import dorkbox.build.util.DependencyWalker;
+import dorkbox.build.util.classloader.ByteClassloader;
+import dorkbox.build.util.classloader.JavaMemFileManager;
+import dorkbox.license.License;
+import dorkbox.license.LicenseType;
+import dorkbox.util.FileUtil;
+import dorkbox.util.OS;
 
 public
 class ProjectJava extends Project<ProjectJava> {
