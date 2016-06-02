@@ -21,7 +21,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -44,7 +43,6 @@ import dorkbox.license.License;
 import dorkbox.util.Base64Fast;
 import dorkbox.util.FileUtil;
 import dorkbox.util.OS;
-import dorkbox.util.OsType;
 
 @SuppressWarnings({"unchecked", "unused"})
 public abstract
@@ -369,7 +367,9 @@ class Project<T extends Project<T>> {
         }
     }
 
-
+    /**
+     * requires output file to exist for build to succeed
+     */
     public
     T depends(String projectOrJar) {
         if (projectOrJar == null) {
@@ -394,6 +394,9 @@ class Project<T extends Project<T>> {
     }
 
 
+    /**
+     * requires output file to exist for build to succeed
+     */
     public
     T depends(Project<?> project) {
         if (project == null) {
@@ -404,6 +407,14 @@ class Project<T extends Project<T>> {
         this.dependencies.add(project);
 
         return (T) this;
+    }
+
+    /**
+     * @return a list of all projects that are recursive dependencies of this project. ONLY VALID AFTER A BUILD
+     */
+    public
+    List<Project<?>> getFullDependencyList() {
+        return fullDependencyList;
     }
 
     /**
@@ -433,6 +444,14 @@ class Project<T extends Project<T>> {
     T extraFiles(File file) {
         this.extraFiles.add(new Paths(file.getParent(), file.getName()));
         return (T) this;
+    }
+
+    /**
+     * @return all of the extra files for this project
+     */
+    public
+    Paths extraFiles() {
+        return this.extraFiles;
     }
 
     public
@@ -487,34 +506,6 @@ class Project<T extends Project<T>> {
     public
     T dist(File distLocation) {
         this.distLocation = FileUtil.normalize(distLocation).getAbsolutePath();
-        return (T) this;
-    }
-
-    private final Map<OsType, String> natives = new HashMap<OsType, String>();
-
-    public
-    String getNative(OsType osType) {
-        final String s = natives.get(osType);
-        if (s == null) {
-            BuildLog.title("Warning")
-                    .println("Unable to get native file for " + osType + ". It does not exist.");
-        }
-
-        return s;
-    }
-
-    public
-    T addNative(final OsType osType, final String nativeFile) {
-        if (!new File(nativeFile).canRead()) {
-            BuildLog.title("Error")
-                    .println("Unable to read specified native file: '" + nativeFile + "'");
-        }
-
-        if (natives.put(osType, nativeFile) != null) {
-            BuildLog.title("Warning")
-                    .println("Specified native file has already been added: '" + nativeFile + "'");
-        }
-
         return (T) this;
     }
 
