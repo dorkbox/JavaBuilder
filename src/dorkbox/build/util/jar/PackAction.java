@@ -20,7 +20,6 @@ public enum PackAction {
     // if you add/change this, MAKE SURE you also check in Launcher and Bootstrap!!
     // search for '// From PackAction' in all files to find the instances used!
     //
-    // ALSO: the LGPL bit is 0, which means - NOTHING IS IN THE EXTRA DATA FIELD!
 
     // By default, everything will be pack200+compressed
     Store     (1 << 31), // MAX_INT  just store this file. Nothing will be done to it.
@@ -29,7 +28,7 @@ public enum PackAction {
 
 
     // The following affect the file load action
-    Pack      (1 << 0), // 1  pack200  - everything (jar, etc) that can be pack200, IS pack200. We can detect this, so no
+    Pack      (1 << 0), // 1  pack200  - everything (jar, etc) that can be pack200, IS pack200.
     Lzma      (1 << 1), // 2  we only use LZMA, since it offers better compression than gzip
     Encrypt   (1 << 2), // 4  aes encryption
 
