@@ -1,14 +1,15 @@
 package dorkbox.build;
 
+import java.io.File;
+import java.io.IOException;
+
 import com.esotericsoftware.wildcard.Paths;
+
 import dorkbox.build.util.BuildLog;
 import dorkbox.build.util.PreJarAction;
 import dorkbox.build.util.jar.JarOptions;
 import dorkbox.build.util.jar.JarSigner;
 import dorkbox.build.util.jar.JarUtil;
-
-import java.io.File;
-import java.io.IOException;
 
 public
 class Jarable {
@@ -28,7 +29,7 @@ class Jarable {
     private String sigName;
 
 
-    private Class<?> mainClass;
+    private String mainClass;
     private transient PreJarAction preJarAction;
     private Paths newClassPath;
 
@@ -105,7 +106,16 @@ class Jarable {
      */
     public
     Jarable mainClass(Class<?> clazz) {
-        this.mainClass = clazz;
+        this.mainClass = clazz.getCanonicalName();
+        return this;
+    }
+
+    /**
+     * Specify the main class.
+     */
+    public
+    Jarable mainClass(String className) {
+        this.mainClass = className;
         return this;
     }
 
@@ -132,7 +142,7 @@ class Jarable {
 
 
         if (this.mainClass != null) {
-            jarOptions.mainClass = this.mainClass.getCanonicalName();
+            jarOptions.mainClass = this.mainClass;
             jarOptions.classpath = this.projectJava.classPaths;
         }
         if (this.includeSource) {
