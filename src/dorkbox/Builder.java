@@ -15,23 +15,6 @@
  */
 package dorkbox;
 
-import com.esotericsoftware.wildcard.Paths;
-import dorkbox.annotation.AnnotationDefaults;
-import dorkbox.annotation.AnnotationDetector;
-import dorkbox.build.Project;
-import dorkbox.build.ProjectJava;
-import dorkbox.build.SimpleArgs;
-import dorkbox.build.util.BuildLog;
-import dorkbox.build.util.BuildParser;
-import dorkbox.build.util.classloader.ByteClassloader;
-import dorkbox.build.util.classloader.ClassByteIterator;
-import dorkbox.build.util.jar.Pack200Util;
-import dorkbox.util.FileUtil;
-import dorkbox.util.LZMA;
-import dorkbox.util.OS;
-import dorkbox.util.Sys;
-import dorkbox.util.properties.PropertiesProvider;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -54,6 +37,24 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
+import com.esotericsoftware.wildcard.Paths;
+
+import dorkbox.annotation.AnnotationDefaults;
+import dorkbox.annotation.AnnotationDetector;
+import dorkbox.build.Project;
+import dorkbox.build.ProjectJava;
+import dorkbox.build.SimpleArgs;
+import dorkbox.build.util.BuildLog;
+import dorkbox.build.util.BuildParser;
+import dorkbox.build.util.classloader.ByteClassloader;
+import dorkbox.build.util.classloader.ClassByteIterator;
+import dorkbox.build.util.jar.Pack200Util;
+import dorkbox.util.FileUtil;
+import dorkbox.util.LZMA;
+import dorkbox.util.OS;
+import dorkbox.util.Sys;
+import dorkbox.util.properties.PropertiesProvider;
+
 public
 class Builder {
     // UNICODE is from: https://en.wikipedia.org/wiki/List_of_Unicode_characters#Box_Drawing
@@ -71,8 +72,8 @@ class Builder {
     private static final ConcurrentHashMap<String, File> moduleCache = new ConcurrentHashMap<String, File>();
     private static final File tempDir;
 
-    // Used to specify when the "build" happens (the date to set the files to) and NOT to keep track of how long it takes to build!
-    public static long buildDate = System.nanoTime();
+    // Used to specify when the "build" happens in UTC (the date to set the files to) and NOT to keep track of how long it takes to build!
+    public static long buildDateUTC = System.currentTimeMillis();
     public static int offset;
 
     static {
@@ -150,7 +151,7 @@ class Builder {
 
         Date buildDate = args.getBuildDate();
         if (buildDate != null) {
-            Builder.buildDate = buildDate.getTime();
+            Builder.buildDateUTC = buildDate.getTime();
 
             Calendar c = Calendar.getInstance(defaultTimeZone);
             c.setTime(buildDate);
@@ -200,7 +201,7 @@ class Builder {
                    .println(args,
                             localDateString,
                             "Completed in: " + Sys.getTimePrettyFull(System.nanoTime() - builder.startTime),
-                            "Build Date code: " + Builder.buildDate);
+                            "Build Date code: " + Builder.buildDateUTC);
 
                 BuildLog.finish();
             }

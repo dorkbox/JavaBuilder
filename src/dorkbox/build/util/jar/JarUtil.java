@@ -15,22 +15,59 @@
  */
 package dorkbox.build.util.jar;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.RandomAccessFile;
+import java.io.Writer;
+import java.security.MessageDigest;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.Enumeration;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.jar.Attributes;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
+import java.util.jar.JarInputStream;
+import java.util.jar.JarOutputStream;
+import java.util.jar.Manifest;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
+import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
+
+import org.bouncycastle.crypto.digests.SHA512Digest;
+
 import com.esotericsoftware.wildcard.Paths;
 import com.ice.tar.TarEntry;
 import com.ice.tar.TarInputStream;
+
 import dorkbox.BuildOptions;
 import dorkbox.Builder;
 import dorkbox.build.util.BuildLog;
 import dorkbox.license.License;
-import dorkbox.util.*;
-import org.bouncycastle.crypto.digests.SHA512Digest;
-
-import java.io.*;
-import java.security.MessageDigest;
-import java.util.*;
-import java.util.Map.Entry;
-import java.util.jar.*;
-import java.util.zip.*;
+import dorkbox.util.Base64Fast;
+import dorkbox.util.FileUtil;
+import dorkbox.util.LZMA;
+import dorkbox.util.OS;
+import dorkbox.util.Sys;
 
 @SuppressWarnings("unused")
 public
@@ -480,10 +517,10 @@ class JarUtil {
             ///////////////////////////////////////////////
             if (manifest != null) {
                 Attributes attributes = manifest.getMainAttributes();
-                attributes.putValue("Build-Date", new Date(Builder.buildDate).toString() + " (" + Long.toString(Builder.buildDate) + ")");
+                attributes.putValue("Build-Date", new Date(Builder.buildDateUTC).toString() + " (" + Long.toString(Builder.buildDateUTC) + ")");
 
                 JarEntry jarEntry = new JarEntry(JarFile.MANIFEST_NAME);
-                jarEntry.setTime(Builder.buildDate);
+                jarEntry.setTime(Builder.buildDateUTC);
                 output.putNextEntry(jarEntry);
 
                 manifest.write(output);
@@ -552,7 +589,7 @@ class JarUtil {
 
                 for (String dirName : strings) {
                     JarEntry jarEntry = new JarEntry(dirName);
-                    jarEntry.setTime(Builder.buildDate); // hidden when view a jar, but it's always there
+                    jarEntry.setTime(Builder.buildDateUTC); // hidden when view a jar, but it's always there
                     output.putNextEntry(jarEntry);
                     output.closeEntry();
                 }
@@ -985,7 +1022,7 @@ class JarUtil {
         // MANIFEST MUST BE FIRST
         Manifest manifest = jarFile.getManifest();
         JarEntry jarEntry = new JarEntry(JarFile.MANIFEST_NAME);
-        jarEntry.setTime(Builder.buildDate);
+        jarEntry.setTime(Builder.buildDateUTC);
         jarOutputStream.putNextEntry(jarEntry);
         manifest.write(jarOutputStream);
         jarOutputStream.closeEntry();
@@ -1001,7 +1038,7 @@ class JarUtil {
             }
 
             if (name.startsWith(metaInfName) && !metaEntry.isDirectory()) {
-                metaEntry.setTime(Builder.buildDate);
+                metaEntry.setTime(Builder.buildDateUTC);
                 JarUtil.writeZipEntry(metaEntry, jarFile, jarOutputStream);
             }
             else {
@@ -1014,8 +1051,7 @@ class JarUtil {
         // now add our TIMESTAMP.
         // It will ALWAYS calculate the timestamp from the BUILD SYSTEM, not the
         // LOCAL/REMOTE SYSTEM (which can exist with incorrect/different clocks)
-        long timeStamp = Builder.buildDate;
-        jarEntry = new JarEntry(metaInfName + "___" + Long.toString(timeStamp));
+        jarEntry = new JarEntry(metaInfName + "___" + Long.toString(Builder.buildDateUTC));
         jarOutputStream.putNextEntry(jarEntry);
         jarOutputStream.closeEntry();
 
@@ -1047,7 +1083,7 @@ class JarUtil {
         byteArrayOutputStream.writeTo(outputStream);
         Sys.close(outputStream);
 
-        return timeStamp;
+        return Builder.buildDateUTC;
     }
 
     /**
