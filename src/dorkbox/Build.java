@@ -10,6 +10,8 @@ import java.net.URLDecoder;
 import java.security.CodeSource;
 import java.security.ProtectionDomain;
 
+import dorkbox.util.OS;
+
 
 @SuppressWarnings("resource")
 public
@@ -21,6 +23,27 @@ class Build {
 
 
     static {
+        try {
+            // we have to add javaFX to the classpath (they are not included on the classpath by default), otherwise we
+            // can't compile javaFX binaries. This was fixed in Java 1.8.
+            if (OS.javaVersion == 7) {
+
+                Class<?>[] parameters = new Class[] {URL.class};
+                Class<URLClassLoader> sysclass = URLClassLoader.class;
+                URLClassLoader sysloader = (URLClassLoader) ClassLoader.getSystemClassLoader();
+
+                Method method = sysclass.getDeclaredMethod("addURL", parameters);
+                method.setAccessible(true);
+
+                File javaFxLib = new File(System.getProperty("java.home") + File.separator + "lib" + File.separator + "jfxrt.jar");
+                method.invoke(sysloader, new Object[] {javaFxLib.toURI().toURL()});
+                //System.err.println("adding url " + javaFxLib.getAbsolutePath());
+            }
+        } catch (Exception ignored) {
+            System.err.println("CRITICAL:: Can't load javaFX to the classpath URLS");
+        }
+
+
         File runLocation = get();
         if (runLocation != null) {
             // we want to look for the libraries, because they are OFTEN going to be in the incorrect path.
