@@ -15,23 +15,6 @@
  */
 package dorkbox.build;
 
-import ch.qos.logback.classic.Level;
-import com.ning.http.client.*;
-import com.ning.http.client.providers.jdk.JDKAsyncHttpProvider;
-import com.ning.http.multipart.FilePart;
-import com.ning.http.multipart.StringPart;
-import dorkbox.Build;
-import dorkbox.Builder;
-import dorkbox.build.util.BuildLog;
-import dorkbox.license.License;
-import dorkbox.license.LicenseType;
-import dorkbox.util.Base64Fast;
-import dorkbox.util.OS;
-import dorkbox.util.Sys;
-import dorkbox.util.crypto.CryptoPGP;
-import org.bouncycastle.openpgp.PGPException;
-import org.slf4j.LoggerFactory;
-
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -44,6 +27,34 @@ import java.net.URL;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
+
+import org.bouncycastle.openpgp.PGPException;
+import org.slf4j.LoggerFactory;
+
+import com.ning.http.client.AsyncHandler;
+import com.ning.http.client.AsyncHttpClient;
+import com.ning.http.client.AsyncHttpClientConfig;
+import com.ning.http.client.HttpResponseBodyPart;
+import com.ning.http.client.HttpResponseHeaders;
+import com.ning.http.client.HttpResponseStatus;
+import com.ning.http.client.ListenableFuture;
+import com.ning.http.client.Request;
+import com.ning.http.client.RequestBuilder;
+import com.ning.http.client.Response;
+import com.ning.http.client.providers.jdk.JDKAsyncHttpProvider;
+import com.ning.http.multipart.FilePart;
+import com.ning.http.multipart.StringPart;
+
+import ch.qos.logback.classic.Level;
+import dorkbox.Build;
+import dorkbox.Builder;
+import dorkbox.build.util.BuildLog;
+import dorkbox.license.License;
+import dorkbox.license.LicenseType;
+import dorkbox.util.Base64Fast;
+import dorkbox.util.IO;
+import dorkbox.util.OS;
+import dorkbox.util.crypto.CryptoPGP;
 
 /**
  * Creates pom files and exports the project to sonatype.org OSSRH.
@@ -117,8 +128,6 @@ class MavenExporter {
      *
      * There is a limit of roughly 1024MB on any single file uploaded to OSSRH. Your uploads will fail with a broken pipe exception
      * when you hit this limit. Contact us directly if you need to upload larger components.
-     *
-     * @throws IOException
      */
     @SuppressWarnings("AccessStaticViaInstance")
     public
@@ -136,7 +145,7 @@ class MavenExporter {
             hasInternet = true;
         } catch (Exception ignored) {
         } finally {
-            Sys.closeQuietly(in);
+            IO.closeQuietly(in);
         }
 
 
@@ -168,7 +177,7 @@ class MavenExporter {
             inStream = new FileInputStream(new File(propertyFile));
             properties.load(inStream);
         } finally {
-            Sys.close(inStream);
+            IO.close(inStream);
         }
 
         String signPrivateKey = properties.getProperty("signaturePrivateKey");
@@ -548,7 +557,6 @@ class MavenExporter {
 
     /**
      * Gets the activity information for a repo. If there is a failure during verification/finish -- this will provide what it was.
-     * @throws IOException
      */
     private static
     String activityForRepo(final String authInfo, final String repo) throws IOException {
@@ -565,7 +573,6 @@ class MavenExporter {
 
     /**
      * Checks to see if the repo has actually released. If it has NOT, this url will be a 404.
-     * @throws IOException
      */
     private static
     boolean hasRepoReleased(String url) throws IOException {
@@ -580,7 +587,6 @@ class MavenExporter {
 
     /**
      * Closes the repo and (the server) will verify everything is correct.
-     * @throws IOException
      */
     private static
     String closeRepo(final String authInfo, final String profile, final String repo, final String nameAndVersion) throws IOException {
@@ -600,7 +606,6 @@ class MavenExporter {
 
     /**
      * Promotes (ie: release) the repo. Make sure to drop when done
-     * @throws IOException
      */
     private static
     String promoteRepo(final String authInfo, final String profile, final String repo, final String nameAndVersion) throws IOException {
@@ -619,7 +624,6 @@ class MavenExporter {
 
     /**
      * Drops the repo
-     * @throws IOException
      */
     private static
     String dropRepo(final String authInfo, final String profile, final String repo, final String nameAndVersion) throws IOException {
@@ -640,7 +644,6 @@ class MavenExporter {
     /**
      * Deletes the extra .asc.md5 and .asc.sh1 'turds' that show-up when you upload the signature file. And yes, 'turds' is from sonatype
      * themselves. See: https://issues.sonatype.org/browse/NEXUS-4906
-     * @throws IOException
      */
     private static
     void deleteSignatureTurds(final String authInfo, final String repo, final String groupId_asPath, final String name,
@@ -668,7 +671,6 @@ class MavenExporter {
 
     /**
      * Sends the HTTP request and returns the response
-     * @throws IOException
      */
     private static
     String sendHttp(final Request request) throws IOException {
@@ -914,7 +916,6 @@ class MavenExporter {
         private final String version;
         private final String description;
 
-        public
         Uploader(final String name,
                  final String uploadURL,
                  final String repo,
@@ -932,12 +933,10 @@ class MavenExporter {
             this.description = description;
         }
 
-        public
         String upload(final File file, final String extension) throws IOException {
             return upload(file, extension, null);
         }
 
-        public
         String upload(final File file, final String extension, String classification) throws IOException {
 
             final RequestBuilder builder = new RequestBuilder("POST");

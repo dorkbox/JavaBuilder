@@ -24,6 +24,7 @@ import java.util.jar.Manifest;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
+import dorkbox.util.IO;
 import dorkbox.util.Sys;
 
 /**
@@ -53,7 +54,8 @@ public class SafeJarInputStream extends JarInputStream {
         } else {
             manifestBytes = null;
         }
-        Sys.close(zipInputStream);
+
+        IO.close(zipInputStream);
         inputStream.reset();
 
         return new SafeJarInputStream(inputStream, true, manifestBytes);

@@ -15,15 +15,6 @@
  */
 package dorkbox.build.util;
 
-import com.esotericsoftware.yamlbeans.YamlException;
-import com.esotericsoftware.yamlbeans.YamlReader;
-import com.esotericsoftware.yamlbeans.parser.Parser;
-import com.esotericsoftware.yamlbeans.tokenizer.Tokenizer;
-import dorkbox.build.SimpleArgs;
-import dorkbox.util.FileUtil;
-import dorkbox.util.OS;
-import dorkbox.util.Sys;
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -34,6 +25,16 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
+
+import com.esotericsoftware.yamlbeans.YamlException;
+import com.esotericsoftware.yamlbeans.YamlReader;
+import com.esotericsoftware.yamlbeans.parser.Parser;
+import com.esotericsoftware.yamlbeans.tokenizer.Tokenizer;
+
+import dorkbox.build.SimpleArgs;
+import dorkbox.util.FileUtil;
+import dorkbox.util.IO;
+import dorkbox.util.OS;
 
 public class BuildParser {
 
@@ -143,7 +144,7 @@ public class BuildParser {
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
-            Sys.close(fileReader);
+            IO.close(fileReader);
         }
 
         return null;
