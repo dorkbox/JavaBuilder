@@ -15,17 +15,6 @@
  */
 package dorkbox.build.util.jar;
 
-import dorkbox.util.Base64Fast;
-import dorkbox.util.OS;
-import dorkbox.util.Sys;
-import org.bouncycastle.asn1.ASN1InputStream;
-import org.bouncycastle.asn1.ASN1Primitive;
-import org.bouncycastle.asn1.ASN1Sequence;
-import org.bouncycastle.asn1.ASN1TaggedObject;
-import org.bouncycastle.asn1.DERSequence;
-import org.bouncycastle.asn1.cms.ContentInfo;
-import org.bouncycastle.asn1.cms.SignedData;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
@@ -45,6 +34,18 @@ import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
+
+import org.bouncycastle.asn1.ASN1InputStream;
+import org.bouncycastle.asn1.ASN1Primitive;
+import org.bouncycastle.asn1.ASN1Sequence;
+import org.bouncycastle.asn1.ASN1TaggedObject;
+import org.bouncycastle.asn1.DERSequence;
+import org.bouncycastle.asn1.cms.ContentInfo;
+import org.bouncycastle.asn1.cms.SignedData;
+
+import dorkbox.util.Base64Fast;
+import dorkbox.util.IO;
+import dorkbox.util.OS;
 
 public class JarSignatureUtil {
     /**
@@ -85,7 +86,7 @@ public class JarSignatureUtil {
                 // attributes.putValue("Name", name); NOT NECESSARY!
                 InputStream inputStream = jarFile.getInputStream(jarEntry);
                 attributes.putValue(digestName, JarUtil.updateDigest(inputStream, messageDigest));
-                Sys.close(inputStream);
+                IO.close(inputStream);
 
                 entries.put(name, attributes);
             }
@@ -128,7 +129,7 @@ public class JarSignatureUtil {
         } catch (IOException ignored) {
         } catch (CertificateException ignored) {}
         finally {
-            Sys.close(sigStream);
+            IO.close(sigStream);
         }
         return null;
     }
@@ -184,8 +185,8 @@ public class JarSignatureUtil {
             }
         } catch (IOException e) {} catch (CertificateException e) {}
         finally {
-            Sys.close(newSigStream);
-            Sys.close(oldSigStream);
+            IO.close(newSigStream);
+            IO.close(oldSigStream);
         }
 
         return false;

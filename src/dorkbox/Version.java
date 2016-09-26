@@ -1,11 +1,5 @@
 package dorkbox;
 
-import com.esotericsoftware.wildcard.Paths;
-import dorkbox.build.util.BuildLog;
-import dorkbox.util.FileUtil;
-import dorkbox.util.OS;
-import dorkbox.util.Sys;
-
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -16,6 +10,13 @@ import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+
+import com.esotericsoftware.wildcard.Paths;
+
+import dorkbox.build.util.BuildLog;
+import dorkbox.util.FileUtil;
+import dorkbox.util.IO;
+import dorkbox.util.OS;
 
 /**
  * Utility class to deal with getting version strings, and incrementing version numbers.
@@ -481,7 +482,7 @@ class Version {
                 // make sure there is a new line at the end of the file (so it's easier to read)
                 output.write(OS.LINE_SEPARATOR);
             } finally {
-                Sys.close(output);
+                IO.close(output);
             }
         } catch (IOException e) {
             throw new RuntimeException("Unable to write file.", e);
@@ -661,7 +662,6 @@ class Version {
     /**
      * @return true if this version number equals the specified version number
      */
-    public
     boolean versionEquals(final Version version) {
         return Arrays.equals(this.subVersion, version.subVersion);
     }

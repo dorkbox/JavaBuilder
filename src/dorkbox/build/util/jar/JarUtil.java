@@ -65,9 +65,9 @@ import dorkbox.build.util.BuildLog;
 import dorkbox.license.License;
 import dorkbox.util.Base64Fast;
 import dorkbox.util.FileUtil;
+import dorkbox.util.IO;
 import dorkbox.util.LZMA;
 import dorkbox.util.OS;
-import dorkbox.util.Sys;
 
 @SuppressWarnings("unused")
 public
@@ -165,7 +165,7 @@ class JarUtil {
                 Manifest manifest = new Manifest();
                 InputStream inputStream = jarFile.getInputStream(je);
                 manifest.read(inputStream);
-                Sys.close(inputStream);
+                IO.close(inputStream);
 
                 return manifest;
 
@@ -196,8 +196,8 @@ class JarUtil {
         if (!entry.isDirectory()) {
             InputStream is = zipInputFile.getInputStream(entry);
 
-            Sys.copyStream(is, zipOutputStream);
-            Sys.close(is);
+            IO.copyStream(is, zipOutputStream);
+            IO.close(is);
             zipOutputStream.flush();
         }
 
@@ -220,7 +220,7 @@ class JarUtil {
         zipOutputStream.putNextEntry(newEntry);
 
         if (!entry.isDirectory()) {
-            Sys.copyStream(zipInputStream, zipOutputStream);
+            IO.copyStream(zipInputStream, zipOutputStream);
             zipOutputStream.flush();
         }
 
@@ -238,7 +238,7 @@ class JarUtil {
         while ((read = inputStream.read(buffer)) > 0) {
             digest.update(buffer, 0, read);
         }
-        Sys.close(inputStream);
+        IO.close(inputStream);
 
         byte[] digestBytes = digest.digest();
 
@@ -316,7 +316,7 @@ class JarUtil {
 
         // finish the stream that we have been writing to
         jarOutputStream.finish();
-        Sys.close(jarOutputStream);
+        IO.close(jarOutputStream);
 
         jar.close();
 
@@ -376,9 +376,9 @@ class JarUtil {
 
         // finish the stream that we have been writing to
         jarOutputStream.finish();
-        Sys.close(jarOutputStream);
-        Sys.close(jarInputStream);
-        Sys.close(inputStream);
+        IO.close(jarOutputStream);
+        IO.close(jarInputStream);
+        IO.close(inputStream);
 
         // return the regular stream if we didn't strip anything!
         // convert the output stream to an input stream
@@ -662,8 +662,8 @@ class JarUtil {
                     if (JarUtil.isZipFile(cf.file)) {
                         //noinspection NumericCastThatLosesPrecision
                         ByteArrayOutputStream outputStream = new ByteArrayOutputStream((int) file.length());
-                        Sys.copyStream(input, outputStream);
-                        Sys.close(input);
+                        IO.copyStream(input, outputStream);
+                        IO.close(input);
 
                         // will not do anything if there was a manifest in the target jar
                         if (makeJar) {
@@ -683,8 +683,8 @@ class JarUtil {
                         }
                     }
 
-                    Sys.copyStream(input, output);
-                    Sys.close(input);
+                    IO.copyStream(input, output);
+                    IO.close(input);
                     output.closeEntry();
                 }
             }
@@ -759,7 +759,7 @@ class JarUtil {
             }
         } finally {
             output.finish();
-            Sys.close(output);
+            IO.close(output);
         }
         ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(zipOutputStream.toByteArray());
 
@@ -771,8 +771,8 @@ class JarUtil {
 
         FileOutputStream fileOutputStream = new FileOutputStream(options.outputFile);
 
-        Sys.copyStream(byteArrayInputStream, fileOutputStream);
-        Sys.close(fileOutputStream);
+        IO.copyStream(byteArrayInputStream, fileOutputStream);
+        IO.close(fileOutputStream);
     }
 
     private static
@@ -806,8 +806,8 @@ class JarUtil {
 
             // else just copy the file over
             input = new BufferedInputStream(new FileInputStream(file));
-            Sys.copyStream(input, output);
-            Sys.close(input);
+            IO.copyStream(input, output);
+            IO.close(input);
             output.closeEntry();
         }
     }
@@ -843,8 +843,8 @@ class JarUtil {
 
         // finish the stream that we have been writing to
         jarOutputStream.finish();
-        Sys.close(jarOutputStream);
-        Sys.close(jarInputStream);
+        IO.close(jarOutputStream);
+        IO.close(jarInputStream);
 
         return byteArrayOutputStream;
     }
@@ -939,13 +939,13 @@ class JarUtil {
                 output.putNextEntry(jarEntry);
 
                 input = new BufferedInputStream(new FileInputStream(file));
-                Sys.copyStream(input, output);
-                Sys.close(input);
+                IO.copyStream(input, output);
+                IO.close(input);
                 output.closeEntry();
             }
         } finally {
             output.finish();
-            Sys.close(output);
+            IO.close(output);
         }
     }
 
@@ -997,13 +997,13 @@ class JarUtil {
 
         // finish the stream that we have been writing to
         jarOutputStream.finish();
-        Sys.close(jarOutputStream);
+        IO.close(jarOutputStream);
 
         jarFile.close();
 
         OutputStream outputStream = new FileOutputStream(jarName, false);
         byteArrayOutputStream.writeTo(outputStream);
-        Sys.close(outputStream);
+        IO.close(outputStream);
     }
 
     /**
@@ -1075,13 +1075,13 @@ class JarUtil {
 
         // finish the stream that we have been writing to
         jarOutputStream.finish();
-        Sys.close(jarOutputStream);
+        IO.close(jarOutputStream);
 
         jarFile.close();
 
         OutputStream outputStream = new FileOutputStream(jarName, false);
         byteArrayOutputStream.writeTo(outputStream);
-        Sys.close(outputStream);
+        IO.close(outputStream);
 
         return Builder.buildDateUTC;
     }
@@ -1136,11 +1136,11 @@ class JarUtil {
 
         // finish the stream that we have been writing to
         jarOutputStream.finish();
-        Sys.close(jarOutputStream);
+        IO.close(jarOutputStream);
 
         OutputStream outputStream = new FileOutputStream(jarName, false);
         byteArrayOutputStream.writeTo(outputStream);
-        Sys.close(outputStream);
+        IO.close(outputStream);
     }
 
 
@@ -1153,7 +1153,7 @@ class JarUtil {
         FileOutputStream outFile = new FileOutputStream(iniFile);
         outStream.writeTo(outFile);
         outFile.flush();
-        Sys.close(outFile);
+        IO.close(outFile);
     }
 
     /**
@@ -1172,7 +1172,7 @@ class JarUtil {
 
         ByteArrayOutputStream outputStreamCopy = new ByteArrayOutputStream();
         if (inputStream != null) {
-            Sys.copyStream(inputStream, outputStreamCopy);
+            IO.copyStream(inputStream, outputStreamCopy);
         }
         ByteArrayInputStream inputStreamCopy = new ByteArrayInputStream(outputStreamCopy.toByteArray());
 
@@ -1195,7 +1195,7 @@ class JarUtil {
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
-            Sys.close(input);
+            IO.close(input);
         }
 
         // now we write the args.
@@ -1222,7 +1222,7 @@ class JarUtil {
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
-            Sys.close(output);
+            IO.close(output);
         }
 
         inputStreamCopy = new ByteArrayInputStream(outputStreamCopy.toByteArray());
@@ -1235,15 +1235,15 @@ class JarUtil {
             entry2.setExtra(entry.getExtra());
             jarOutputStream.putNextEntry(entry2);
 
-            Sys.copyStream(inputStreamCopy, outputStream);
+            IO.copyStream(inputStreamCopy, outputStream);
             jarOutputStream.closeEntry();
-            Sys.close(inputStreamCopy);
+            IO.close(inputStreamCopy);
         }
         else {
-            Sys.copyStream(inputStreamCopy, outputStream);
+            IO.copyStream(inputStreamCopy, outputStream);
             outputStream.flush();
-            Sys.close(outputStream);
-            Sys.close(inputStreamCopy);
+            IO.close(outputStream);
+            IO.close(inputStreamCopy);
         }
     }
 
@@ -1364,19 +1364,19 @@ class JarUtil {
                 }
 
                 jarOutputStream.putNextEntry(entry);
-                Sys.copyStream(task.inputStream, jarOutputStream);
+                IO.copyStream(task.inputStream, jarOutputStream);
                 jarOutputStream.closeEntry();
-                Sys.close(task.inputStream);
+                IO.close(task.inputStream);
             }
         }
 
         // finish the stream that we have been writing to
         jarOutputStream.finish();
-        Sys.close(jarOutputStream);
+        IO.close(jarOutputStream);
 
         OutputStream outputStream = new FileOutputStream(jarName, false);
         byteArrayOutputStream.writeTo(outputStream);
-        Sys.close(outputStream);
+        IO.close(outputStream);
         jarFile.close();
     }
 
@@ -1463,8 +1463,8 @@ class JarUtil {
                     ByteArrayOutputStream baos = new ByteArrayOutputStream(8192);
                     InputStream is = jarFile.getInputStream(entry);
 
-                    Sys.copyStream(is, baos);
-                    Sys.close(is);
+                    IO.copyStream(is, baos);
+                    IO.close(is);
 
                     // read the bytes into a buffer.
                     byte[] entryAsBytes = baos.toByteArray();
@@ -1491,7 +1491,7 @@ class JarUtil {
 
                         jarOutputStream.putNextEntry(destEntry);
 
-                        Sys.copyStream(task.inputStream, jarOutputStream);
+                        IO.copyStream(task.inputStream, jarOutputStream);
                         jarOutputStream.flush();
                         jarOutputStream.closeEntry();
                     }
@@ -1500,7 +1500,7 @@ class JarUtil {
         }
 
         jarOutputStream.finish();
-        Sys.close(jarOutputStream);
+        IO.close(jarOutputStream);
 
         jarFile.close();
 
@@ -1542,7 +1542,7 @@ class JarUtil {
                     }
                     jarOutputStream.putNextEntry(destEntry);
 
-                    Sys.copyStream(newInputStream, jarOutputStream);
+                    IO.copyStream(newInputStream, jarOutputStream);
                     jarOutputStream.flush();
                     jarOutputStream.closeEntry();
                 }
@@ -1577,7 +1577,7 @@ class JarUtil {
                             }
                             jarOutputStream.putNextEntry(destEntry);
 
-                            Sys.copyStream(newInputStream, jarOutputStream);
+                            IO.copyStream(newInputStream, jarOutputStream);
                             jarOutputStream.flush();
                             jarOutputStream.closeEntry();
                         }
@@ -1607,8 +1607,8 @@ class JarUtil {
                 } catch (Exception e) {
                     System.err.println("Unable to extract contents of compressed file!");
                 }
-                Sys.close(newInputStream);
-                Sys.close(gzipInputStream);
+                IO.close(newInputStream);
+                IO.close(gzipInputStream);
             }
             else {
                 // input stream can be fileInputStream (if it was a file)
@@ -1641,7 +1641,7 @@ class JarUtil {
                     } catch (Exception e) {
                         System.err.println("Unable to extract contents of compressed file!");
                     }
-                    Sys.close(zipInputStream);
+                    IO.close(zipInputStream);
                 }
                 else {
                     System.err.println("Unable to extract contents of compressed file!");
@@ -1670,7 +1670,7 @@ class JarUtil {
         // use the programmatic safePack200 and safeUnpack200 so the jar will be consistent between pack/unpack cycles.
         if (repack.canDo(PackAction.LoadLibray)) {
             ByteArrayOutputStream baos = new ByteArrayOutputStream(8192);
-            Sys.copyStream(inputStream, baos);
+            IO.copyStream(inputStream, baos);
 
             // we make it NOT pack, and since we ARE NOT modifying the input stream, it's safe to read it directly
             byte[] unpackBuffer = baos.toByteArray();
@@ -1692,7 +1692,7 @@ class JarUtil {
         if (repack.canDo(PackAction.Lzma)) {
             ByteArrayOutputStream packedOutputStream = new ByteArrayOutputStream(length); // will be size or smaller.
             LZMA.encode(length, inputStream, packedOutputStream);
-            Sys.close(inputStream);
+            IO.close(inputStream);
 
             // convert the output stream to an input stream
             inputStream = new ByteArrayInputStream(packedOutputStream.toByteArray());

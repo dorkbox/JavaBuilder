@@ -33,6 +33,7 @@ import java.util.jar.Pack200;
 import java.util.jar.Pack200.Packer;
 import java.util.jar.Pack200.Unpacker;
 
+import dorkbox.util.IO;
 import dorkbox.util.OS;
 import dorkbox.util.Sys;
 
@@ -46,10 +47,11 @@ import dorkbox.util.Sys;
 // java-pack + java+unpack + CL-pack + CL-unpack = java-pack + CL-unpack
 
 
+@SuppressWarnings({"unused", "WeakerAccess"})
 public class Pack200Util {
     private static String javaBinLocation;
 
-    public static byte[] PACK200_HEADER = { -54, -2, -48, 13 };
+    public static byte[] PACK200_HEADER = {(byte) -54, (byte) -2, (byte) -48, (byte) 13};
 
     public static final Map<String, String> packOptions = new HashMap<String, String>(3);
     static {
@@ -105,6 +107,7 @@ public class Pack200Util {
     /**
      * @return true if the file is a pack200 stream
      */
+    @SuppressWarnings("Duplicates")
     public static boolean isPack200Stream(ByteArrayInputStream input) {
         boolean isZip = true;
         int length = PACK200_HEADER.length;
@@ -113,6 +116,7 @@ public class Pack200Util {
             input.mark(length+1);
 
             for (int i = 0; i < length; i++) {
+                //noinspection NumericCastThatLosesPrecision
                 byte read = (byte) input.read();
                 if (read != PACK200_HEADER[i]) {
                     isZip = false;
@@ -127,7 +131,6 @@ public class Pack200Util {
     }
 
     /**
-     * @param inputStream
      * @return true if the file can (or rather should) be packed.
      */
     public static boolean canPack200(Repack repack, InputStream inputStream ) {
@@ -151,6 +154,7 @@ public class Pack200Util {
     }
 
 
+    @SuppressWarnings("ResultOfMethodCallIgnored")
     public static class CommandLine {
         public static ByteArrayOutputStream pack200(InputStream inputStream) throws IOException {
 
@@ -161,7 +165,7 @@ public class Pack200Util {
             dest.delete();
 
             FileOutputStream fileOutputStream = new FileOutputStream(source);
-            Sys.copyStream(inputStream, fileOutputStream);
+            IO.copyStream(inputStream, fileOutputStream);
             fileOutputStream.close();
 
             String unpackName = "pack200";
@@ -175,7 +179,7 @@ public class Pack200Util {
             FileInputStream fileInputStream = new FileInputStream(dest);
 
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream(fileInputStream.available());
-            Sys.copyStream(fileInputStream, outputStream);
+            IO.copyStream(fileInputStream, outputStream);
 
             source.delete();
             dest.delete();
@@ -191,7 +195,7 @@ public class Pack200Util {
             dest.delete();
 
             FileOutputStream fileOutputStream = new FileOutputStream(source);
-            Sys.copyStream(inputStream, fileOutputStream);
+            IO.copyStream(inputStream, fileOutputStream);
             fileOutputStream.close();
 
             String unpackName = "unpack200";
@@ -204,7 +208,7 @@ public class Pack200Util {
             FileInputStream fileInputStream = new FileInputStream(dest);
 
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream(fileInputStream.available());
-            Sys.copyStream(fileInputStream, outputStream);
+            IO.copyStream(fileInputStream, outputStream);
 
             source.delete();
             dest.delete();
@@ -227,7 +231,7 @@ public class Pack200Util {
                     } catch (Exception e) {
                         try {
                             Thread.sleep(200);
-                        } catch (InterruptedException e1) {
+                        } catch (InterruptedException ignored) {
                         }
                     }
                 }
@@ -257,8 +261,8 @@ public class Pack200Util {
 
             if (!(inputStream instanceof ByteArrayInputStream)) {
                 ByteArrayOutputStream baos = new ByteArrayOutputStream(inputStream.available());
-                Sys.copyStream(inputStream, baos);
-                Sys.close(inputStream);
+                IO.copyStream(inputStream, baos);
+                IO.close(inputStream);
                 inputStream = new ByteArrayInputStream(baos.toByteArray());
             }
 
@@ -303,8 +307,8 @@ public class Pack200Util {
             System.setErr(error);
 
             outputPackStream.flush();
-            Sys.close(outputPackStream);
-            Sys.close(jarInputStream);
+            IO.close(outputPackStream);
+            IO.close(jarInputStream);
 
             return outputPackStream;
         }
@@ -326,8 +330,8 @@ public class Pack200Util {
 
             if (!(inputStream instanceof ByteArrayInputStream)) {
                 ByteArrayOutputStream baos = new ByteArrayOutputStream(inputStream.available());
-                Sys.copyStream(inputStream, baos);
-                Sys.close(inputStream);
+                IO.copyStream(inputStream, baos);
+                IO.close(inputStream);
                 inputStream = new ByteArrayInputStream(baos.toByteArray());
             }
 
@@ -367,10 +371,10 @@ public class Pack200Util {
             // Call the packer
             packer.pack(jarInputStream, outputPackStream);
             System.setErr(error);
-            Sys.close(jarInputStream);
+            IO.close(jarInputStream);
 
             outputPackStream.flush();
-            Sys.close(outputPackStream);
+            IO.close(outputPackStream);
 
             return outputPackStream;
         }
@@ -392,8 +396,8 @@ public class Pack200Util {
             // check to make sure that WE ARE INDEED a PACK200 archive!
             if (!isPack200Stream(inputStream)) {
                 ByteArrayOutputStream baos = new ByteArrayOutputStream(inputStream.available());
-                Sys.copyStream(inputStream, baos);
-                Sys.close(inputStream);
+                IO.copyStream(inputStream, baos);
+                IO.close(inputStream);
 
                 return baos;
             }
@@ -424,11 +428,11 @@ public class Pack200Util {
             unpacker.unpack(inputStream, unpackJarOutputStream); // auto-closes the INPUT stream!
 
             System.setErr(error);
-            Sys.close(inputStream); // Must explicitly close the input.
+            IO.close(inputStream); // Must explicitly close the input.
 
             unpackJarOutputStream.flush();
             unpackJarOutputStream.finish();
-            Sys.close(unpackJarOutputStream); // closing the stream ALSO adds meta-data to the output!
+            IO.close(unpackJarOutputStream); // closing the stream ALSO adds meta-data to the output!
 
             return unpackOutputStream;
         }
@@ -465,7 +469,7 @@ public class Pack200Util {
         public static ByteArrayOutputStream repackJar(InputStream inputStream) throws IOException {
             // always make a copy, because pack200 closes the input stream!
             ByteArrayOutputStream baos = new ByteArrayOutputStream(inputStream.available());
-            Sys.copyStream(inputStream, baos);
+            IO.copyStream(inputStream, baos);
             inputStream = new ByteArrayInputStream(baos.toByteArray());
 
             ByteArrayOutputStream outputStream;

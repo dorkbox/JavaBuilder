@@ -50,11 +50,13 @@ import dorkbox.build.util.classloader.ByteClassloader;
 import dorkbox.build.util.classloader.ClassByteIterator;
 import dorkbox.build.util.jar.Pack200Util;
 import dorkbox.util.FileUtil;
+import dorkbox.util.IO;
 import dorkbox.util.LZMA;
 import dorkbox.util.OS;
 import dorkbox.util.Sys;
 import dorkbox.util.properties.PropertiesProvider;
 
+@SuppressWarnings({"AccessStaticViaInstance", "WeakerAccess"})
 public
 class Builder {
     // UNICODE is from: https://en.wikipedia.org/wiki/List_of_Unicode_characters#Box_Drawing
@@ -300,8 +302,8 @@ class Builder {
                     inputStream = new ByteArrayInputStream(outputStream.toByteArray());
 
                     FileOutputStream fileOutputStream = new FileOutputStream(new File(fixedName));
-                    Sys.copyStream(inputStream, fileOutputStream);
-                    Sys.close(fileOutputStream);
+                    IO.copyStream(inputStream, fileOutputStream);
+                    IO.close(fileOutputStream);
                 }
             }
         }

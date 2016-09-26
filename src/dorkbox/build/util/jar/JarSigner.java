@@ -15,28 +15,6 @@
  */
 package dorkbox.build.util.jar;
 
-import dorkbox.build.util.BuildLog;
-import dorkbox.util.Base64Fast;
-import dorkbox.util.Sys;
-import dorkbox.util.crypto.CryptoDSA;
-import dorkbox.util.crypto.CryptoX509;
-import org.bouncycastle.asn1.ASN1Integer;
-import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
-import org.bouncycastle.asn1.x500.X500Name;
-import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
-import org.bouncycastle.asn1.x509.DSAParameter;
-import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
-import org.bouncycastle.asn1.x9.X9ObjectIdentifiers;
-import org.bouncycastle.cert.X509CertificateHolder;
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
-import org.bouncycastle.crypto.params.DSAKeyParameters;
-import org.bouncycastle.crypto.params.DSAParameters;
-import org.bouncycastle.crypto.params.DSAPrivateKeyParameters;
-import org.bouncycastle.crypto.params.DSAPublicKeyParameters;
-import org.bouncycastle.crypto.util.PrivateKeyFactory;
-import org.bouncycastle.crypto.util.PublicKeyFactory;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
-
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -56,6 +34,29 @@ import java.util.Map;
 import java.util.jar.Attributes;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
+
+import org.bouncycastle.asn1.ASN1Integer;
+import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
+import org.bouncycastle.asn1.x500.X500Name;
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+import org.bouncycastle.asn1.x509.DSAParameter;
+import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
+import org.bouncycastle.asn1.x9.X9ObjectIdentifiers;
+import org.bouncycastle.cert.X509CertificateHolder;
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
+import org.bouncycastle.crypto.params.DSAKeyParameters;
+import org.bouncycastle.crypto.params.DSAParameters;
+import org.bouncycastle.crypto.params.DSAPrivateKeyParameters;
+import org.bouncycastle.crypto.params.DSAPublicKeyParameters;
+import org.bouncycastle.crypto.util.PrivateKeyFactory;
+import org.bouncycastle.crypto.util.PublicKeyFactory;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+
+import dorkbox.build.util.BuildLog;
+import dorkbox.util.Base64Fast;
+import dorkbox.util.IO;
+import dorkbox.util.crypto.CryptoDSA;
+import dorkbox.util.crypto.CryptoX509;
 
 public final
 class JarSigner {
@@ -94,7 +95,7 @@ class JarSigner {
             // write out the file
             OutputStream outputStream = new FileOutputStream(jarFile);
             signJarFile.writeTo(outputStream);
-            Sys.close(outputStream);
+            IO.close(outputStream);
 
             return new File(jarName);
         } catch (Throwable ex) {
@@ -231,7 +232,7 @@ class JarSigner {
 
                 byte[] inputBytes = new byte[fileSizeAsInt];
                 inputStream.read(inputBytes, 0, fileSizeAsInt);
-                Sys.close(inputStream);
+                IO.close(inputStream);
 
                 // read public key length
                 int wimpyPublicKeyLength = (inputBytes[fileSizeAsInt - 4] & 0xff) << 24 |
@@ -303,7 +304,7 @@ class JarSigner {
         // write out the file
         OutputStream outputStream = new FileOutputStream(wimpyKeyRawFile);
         keyOutputStream.writeTo(outputStream);
-        Sys.close(outputStream);
+        IO.close(outputStream);
     }
 
     private static
