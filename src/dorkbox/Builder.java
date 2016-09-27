@@ -785,6 +785,8 @@ class Builder {
         return FileUtil.delete(target, filesToIgnore);
     }
 
+    // UNICODE is from: https://en.wikipedia.org/wiki/List_of_Unicode_characters#Box_Drawing
+
     public static
     File moveFile(String source, String target) throws IOException {
         source = FileUtil.normalizeAsFile(source);
