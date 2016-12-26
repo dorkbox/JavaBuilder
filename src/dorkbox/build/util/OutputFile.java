@@ -1,10 +1,10 @@
 package dorkbox.build.util;
 
+import java.io.File;
+
 import dorkbox.Version;
 import dorkbox.build.Project;
 import dorkbox.util.FileUtil;
-
-import java.io.File;
 
 /**
  * Output file, conserves version information
@@ -36,7 +36,7 @@ class OutputFile {
                 String newName = cleanedName.replace(original, this.version.toString());
 
                 // version string is appended to the fileName
-                if (extension == null) {
+                if (extension.isEmpty()) {
                     return FileUtil.normalize(new File(newName + Project.JAR_EXTENSION));
                 }
                 else {
@@ -45,7 +45,7 @@ class OutputFile {
             }
             else if (cleanedName.endsWith(this.version.toString())){
                 // version string is ALREADY appended to the fileName
-                if (extension == null) {
+                if (extension.isEmpty()) {
                     return FileUtil.normalize(new File(cleanedName + Project.JAR_EXTENSION));
                 }
                 else {
@@ -53,7 +53,7 @@ class OutputFile {
                 }
             } else {
                 // version string is appended to the fileName
-                if (extension == null) {
+                if (extension.isEmpty()) {
                     return FileUtil.normalize(new File(cleanedName + "_" + this.version + Project.JAR_EXTENSION));
                 }
                 else {
@@ -62,7 +62,7 @@ class OutputFile {
             }
         }
         else {
-            if (extension == null) {
+            if (extension.isEmpty()) {
                 return FileUtil.normalize(new File(cleanedName + Project.JAR_EXTENSION));
             }
             else {
@@ -109,7 +109,7 @@ class OutputFile {
             final String original = this.version.getOriginal().toString();
             if (cleanedName.endsWith(original)) {
                 // version string is appended to the fileName
-                if (extension == null) {
+                if (extension.isEmpty()) {
                     return FileUtil.normalize(new File(cleanedName + Project.JAR_EXTENSION));
                 }
                 else {
@@ -118,7 +118,7 @@ class OutputFile {
             }
             else {
                 // version string is appended to the fileName
-                if (extension == null) {
+                if (extension.isEmpty()) {
                     return FileUtil.normalize(new File(cleanedName + "_" + this.version.getOriginal() + Project.JAR_EXTENSION));
                 }
                 else {
@@ -127,7 +127,7 @@ class OutputFile {
             }
         }
         else {
-            if (extension == null) {
+            if (extension.isEmpty()) {
                 return FileUtil.normalize(new File(outputFileName + Project.JAR_EXTENSION));
             }
             else {
