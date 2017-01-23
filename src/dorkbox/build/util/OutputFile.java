@@ -21,7 +21,9 @@ class OutputFile {
     }
 
     /**
-     * @return the outputfile. If version info is specified, then the CURRENT version info is used to generate the filename
+     * If version info is specified, then the CURRENT (new) version info is used to generate the filename
+     *
+     * @return the outputfile.
      */
     public
     File get() {
@@ -72,7 +74,9 @@ class OutputFile {
     }
 
     /**
-     * @return the SOURCE outputfile. If version info is specified, then the CURRENT version info is used to generate the filename
+     * If version info is specified, then the CURRENT (new) version info is used to generate the filename
+     *
+     * @return the SOURCE outputfile.
      */
     public
     File getSource() {
@@ -97,7 +101,9 @@ class OutputFile {
     }
 
     /**
-     * @return the outputfile. If version info is specified, then the ORIGINAL version info is used to generate the filename
+     * If version info is specified, then the ORIGINAL (unmodified) version info is used to generate the filename
+     *
+     * @return the outputfile.
      */
     public
     File getOriginal() {
@@ -128,7 +134,7 @@ class OutputFile {
         }
         else {
             if (extension.isEmpty()) {
-                return FileUtil.normalize(new File(outputFileName + Project.JAR_EXTENSION));
+                return FileUtil.normalize(new File(cleanedName + Project.JAR_EXTENSION));
             }
             else {
                 return FileUtil.normalize(new File(outputFileName));
@@ -137,7 +143,9 @@ class OutputFile {
     }
 
     /**
-     * @return the SOURCE outputfile. If version info is specified, then the ORIGINAL version info is used to generate the filename
+     * If version info is specified, then the ORIGINAL (unmnodified) version info is used to generate the filename
+     *
+     * @return the SOURCE outputfile.
      */
     public
     File getSourceOriginal() {
@@ -156,7 +164,7 @@ class OutputFile {
         }
         else {
             // always append _src.zip
-            return FileUtil.normalize(new File(outputFileName + Project.SRC_EXTENSION));
+            return FileUtil.normalize(new File(cleanedName + Project.SRC_EXTENSION));
         }
     }
 }
