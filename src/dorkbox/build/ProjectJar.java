@@ -1,10 +1,11 @@
 package dorkbox.build;
 
-import dorkbox.Version;
-import dorkbox.build.util.BuildLog;
-
 import java.io.File;
 import java.io.IOException;
+
+import dorkbox.Version;
+import dorkbox.build.util.BuildLog;
+import dorkbox.build.util.FileNotFoundRuntimeException;
 
 public class ProjectJar extends Project<ProjectJar> {
 
@@ -20,26 +21,16 @@ public class ProjectJar extends Project<ProjectJar> {
 
     @Override
     public ProjectJar addSrc(String file) {
-        if (!new File(file).canRead()) {
-            BuildLog.title("Error")
-                    .println("Unable to read specified jar source file: '" + file + "'");
-        }
-
-        this.checksumPaths.addFile(file);
-        super.addSrc(file);
-        return this;
+        BuildLog.title("Error")
+                .println("Cannot specify a source file in this manner for a jar. Please set the source along with the output file");
+        throw new FileNotFoundRuntimeException("Invalid file: " + file);
     }
 
     @Override
     public ProjectJar addSrc(File file) {
-        if (!file.canRead()) {
-            BuildLog.title("Error")
-                    .println("Unable to read specified jar source file: '" + file + "'");
-        }
-
-        this.checksumPaths.addFile(file.getAbsolutePath());
-        super.addSrc(file);
-        return this;
+        BuildLog.title("Error")
+                .println("Cannot specify a source file in this manner for a jar. Please set the source along with the output file");
+        throw new FileNotFoundRuntimeException("Invalid file: " + file);
     }
 
     @Override
@@ -67,13 +58,32 @@ public class ProjectJar extends Project<ProjectJar> {
 
     @Override
     public
-    ProjectJar outputFile(final String outputFile) {
+    ProjectJar outputFile(final String outputFile, final String outputSourceFile) {
         if (!new File(outputFile).canRead()) {
             BuildLog.title("Error")
                     .println("Unable to read specified jar output file: '" + outputFile + "'");
         }
 
+        if (outputSourceFile != null && !new File(outputSourceFile).canRead()) {
+            BuildLog.title("Error")
+                    .println("Unable to read specified jar output source file: '" + outputSourceFile + "'");
+        }
+
+        return outputFileNoWarn(outputFile, outputSourceFile);
+    }
+
+    public
+    ProjectJar outputFileNoWarn(final String outputFile) {
+        return outputFileNoWarn(outputFile, null);
+    }
+
+    public
+    ProjectJar outputFileNoWarn(final String outputFile, final String outputSourceFile) {
         this.checksumPaths.addFile(outputFile);
-        return super.outputFile(outputFile);
+        if (outputSourceFile != null) {
+            this.checksumPaths.addFile(outputSourceFile);
+        }
+
+        return super.outputFile(outputFile, outputSourceFile);
     }
 }

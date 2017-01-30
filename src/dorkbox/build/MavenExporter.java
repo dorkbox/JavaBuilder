@@ -239,7 +239,7 @@ class MavenExporter {
         }
 
         BuildLog.println();
-        BuildLog.title("Signing files").println();
+        BuildLog.title("Signing files");
 
         try {
             BuildLog.println(pomFile.getName());
@@ -258,7 +258,8 @@ class MavenExporter {
         }
 
 
-        if (!project.shouldSaveBuild) {
+        if (!project.exportToMaven) {
+            BuildLog.println();
             BuildLog.title("MAVEN").println("Not saving build and not exporting to maven.");
             BuildLog.finish();
             return;
