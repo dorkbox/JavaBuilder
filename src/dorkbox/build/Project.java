@@ -65,8 +65,8 @@ class Project<T extends Project<T>> {
     // used to suppress certain messages when building deps
     protected boolean isBuildingDependencies = false;
 
-    // most of the time, we save the build. Sometimes we don't want to save the build (ie: when running a test, for example)
-    protected boolean shouldSaveBuild = true;
+    // Sometimes we don't want to export the build to maven (ie: when running a test, for example)
+    protected boolean exportToMaven = false;
 
     public static List<File> builderFiles = new ArrayList<File>();
     public static Thread shutdownHook;
@@ -122,6 +122,10 @@ class Project<T extends Project<T>> {
     void reset() {
         deps.clear();
         buildList.clear();
+
+        BuildLog.start();
+        BuildLog.title("RESET").println("All project info resetting...");
+        BuildLog.finish();
     }
 
 
@@ -241,7 +245,7 @@ class Project<T extends Project<T>> {
         String lowerCase_outputDir = projectName.toLowerCase();
         this.stagingDir = new File(FileUtil.normalizeAsFile(STAGING + File.separator + lowerCase_outputDir));
         // must call this method, because it's not overridden by jar type
-        outputFile0(new File(this.stagingDir.getParentFile(), this.name + getExtension()).getAbsolutePath());
+        outputFile0(new File(this.stagingDir.getParentFile(), this.name + getExtension()).getAbsolutePath(), null);
     }
 
     /**
@@ -288,6 +292,15 @@ class Project<T extends Project<T>> {
     public
     T mavenInfo(final String groupId) {
         mavenInfo = new MavenInfo(groupId, this.name, this.version, null); // null = Scope.COMPILE
+        return (T)this;
+    }
+
+    /**
+     * Specifies the specific maven info for this project, to configure dependencies
+     */
+    public
+    T mavenInfo(final MavenInfo mavenInfo) {
+        this.mavenInfo = mavenInfo;
         return (T)this;
     }
 
@@ -455,10 +468,19 @@ class Project<T extends Project<T>> {
     }
 
     public
-    T outputFile(File outputFile) {
-        return outputFile(outputFile.getAbsolutePath());
+    T outputFile(final File outputFile) {
+        return outputFile(outputFile.getAbsolutePath(), null);
     }
 
+    public
+    T outputFile(final File outputFile, final File outputSourceFile) {
+        return outputFile(outputFile.getAbsolutePath(), outputSourceFile.getAbsolutePath());
+    }
+
+    public
+    T outputFile(final String outputFileName) {
+        return outputFile(outputFileName, null);
+    }
 
     /**
      * If the specified file is ONLY a filename, then it (and the source file, if necessary) will be placed into the staging directory.
@@ -467,20 +489,24 @@ class Project<T extends Project<T>> {
      * If no extension is provide, the default is '.jar'
      */
     public
-    T outputFile(String outputFileName) {
+    T outputFile(String outputFileName, String outputSourceFileName) {
         // this method is offset, for setting the output file via jar VS via constructor (constructor must always call outputFile0)
-        return outputFile0(outputFileName);
+        // if the constructor calls outputFile() instead, it will not work because of how methods are overloaded.
+        return outputFile0(outputFileName, outputSourceFileName);
     }
 
     private
-    T outputFile0(String outputFileName) {
+    T outputFile0(String outputFileName, String outputSourceFileName) {
         // output file is used for hash checking AND for new builds
-
         if (!outputFileName.contains(File.separator)) {
             outputFileName = new File(this.stagingDir, outputFileName).getAbsolutePath();
         }
 
-        this.outputFile = new OutputFile(version, outputFileName);
+        if (outputSourceFileName != null && !outputSourceFileName.contains(File.separator)) {
+            outputSourceFileName = new File(this.stagingDir, outputSourceFileName).getAbsolutePath();
+        }
+
+        this.outputFile = new OutputFile(version, outputFileName, outputSourceFileName);
 
         return (T) this;
     }
@@ -896,5 +922,4 @@ class Project<T extends Project<T>> {
             // only if we save the build. Test builds don't save, and we shouldn't upload them to maven
         }
     }
-
 }

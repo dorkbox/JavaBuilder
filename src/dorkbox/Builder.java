@@ -133,7 +133,11 @@ class Builder {
         System.arraycopy(arguments, 0, _args, 2, arguments.length);
 
         SimpleArgs args = new SimpleArgs(_args);
+
+        BuildLog.disable();
         Project.reset();
+        BuildLog.enable();
+
         make(buildOptions, args);
     }
 
@@ -224,6 +228,18 @@ class Builder {
             if (Project.shutdownHook != null) {
                 Runtime.getRuntime().removeShutdownHook(Project.shutdownHook);
                 Project.shutdownHook = null;
+            }
+
+            if (e instanceof InvocationTargetException) {
+
+                Throwable cause = e.getCause();
+                if (cause instanceof java.lang.ExceptionInInitializerError) {
+                    cause = cause.getCause();
+                }
+
+                if (cause instanceof RuntimeException) {
+                    throw (RuntimeException)cause;
+                }
             }
 
             throw e;
@@ -861,7 +877,9 @@ class Builder {
 
     private
     Builder() {
+        BuildLog.disable();
         Project.reset();
+        BuildLog.enable();
     }
 
     // loads the build.oak file information
@@ -958,7 +976,9 @@ class Builder {
                 project.options().compiler.forceRebuild = true;
                 project.build(OS.javaVersion);
 
+                BuildLog.disable();
                 Project.reset();
+                BuildLog.enable();
             } catch (Exception e) {
                 throw e;
             } finally {

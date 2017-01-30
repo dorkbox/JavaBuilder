@@ -25,7 +25,7 @@ class MavenInfo {
     private final String groupId;
     private final String artifactId;
     private final Version version;
-    private final Scope scope;
+    private Scope scope;
 
     public
     MavenInfo(final String groupId, final String artifactId, final Version version, final Scope scope) {
@@ -56,7 +56,13 @@ class MavenInfo {
     }
 
     public
+    MavenInfo setScope(final Scope scope) {
+        this.scope = scope;
+        return this;
+    }
+
+    public
     enum Scope {
-        COMPILE, PROVIDED, RUNTIME, TEST, SYSETM, IMPORT;
+        COMPILE, PROVIDED, RUNTIME, TEST, SYSTEM, IMPORT;
     }
 }

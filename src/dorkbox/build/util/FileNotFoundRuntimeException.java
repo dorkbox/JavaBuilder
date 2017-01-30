@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 dorkbox, llc
+ * Copyright 2017 dorkbox, llc
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,16 +15,28 @@
  */
 package dorkbox.build.util;
 
-import com.esotericsoftware.wildcard.Paths;
-
+/**
+ *
+ */
 public
-class CrossCompileClass {
-    public final int targetJavaVersion;
-    public final Paths sourceFiles;
+class FileNotFoundRuntimeException extends RuntimeException {
 
     public
-    CrossCompileClass(final int targetJavaVersion, final Paths sourceFiles) {
-        this.targetJavaVersion = targetJavaVersion;
-        this.sourceFiles = sourceFiles;
+    FileNotFoundRuntimeException(final String message) {
+        super(message);
+    }
+
+    public
+    FileNotFoundRuntimeException(final String message, final Throwable cause) {
+        super(message, cause);
+    }
+
+    public
+    FileNotFoundRuntimeException(final Throwable cause) {
+        super(cause);
+    }
+
+    public
+    FileNotFoundRuntimeException() {
     }
 }
