@@ -46,6 +46,7 @@ import dorkbox.build.ProjectJava;
 import dorkbox.build.SimpleArgs;
 import dorkbox.build.util.BuildLog;
 import dorkbox.build.util.BuildParser;
+import dorkbox.build.util.FileNotFoundRuntimeException;
 import dorkbox.build.util.classloader.ByteClassloader;
 import dorkbox.build.util.classloader.ClassByteIterator;
 import dorkbox.build.util.jar.Pack200Util;
@@ -504,10 +505,27 @@ class Builder {
     }
 
     /**
-     * Converts a class to it's .java file.
+     * Converts a class to it's .java file, but returns the relative path of the .java file to a specific directory in it's hierarchy.
+     * <p/>
+     * For example: getChildRelativeToDir("/a/b/c/d/e.bah", "c") -> "d/e.bah"
+     *
+     * @return throws runtime exception if it doesn't exist
      */
     public static
-    Paths getJavaFile(Class<?> clazz) throws IOException {
+    String getJavaFileRelativeToDir(Class<?> clazz, String dirInHeirarchy) {
+        Paths javaFile = Builder.getJavaFile(clazz);
+        String childRelativeToDir = FileUtil.getChildRelativeToDir(javaFile.toString(), dirInHeirarchy);
+        if (childRelativeToDir == null) {
+            throw new FileNotFoundRuntimeException("Cannot find child path in file: '" + dirInHeirarchy + "' in path '" + javaFile.toString() + "'");
+        }
+        return childRelativeToDir;
+    }
+
+    /**
+     * Converts a class to it's .java file. Throws IOException if the file is not found
+     */
+    public static
+    Paths getJavaFile(Class<?> clazz) {
         File rootFile = Build.get(clazz);
         assert rootFile != null;
 
@@ -527,24 +545,28 @@ class Builder {
             // the sources can be IN THE FILE, or they are my sources, and are in the src file.
             String nameAsFile = fileName.replace('.', File.separatorChar) + ".java";
 
-            boolean found = extractFilesFromZip(rootFile, nameAsFile);
+            try {
+                boolean found = extractFilesFromZip(rootFile, nameAsFile);
 
-            if (found) {
-                return new Paths(tempDir.getAbsolutePath(), nameAsFile);
-            }
+                if (found) {
+                    return new Paths(tempDir.getAbsolutePath(), nameAsFile);
+                }
 
-            // try the source file
-            rootPath = rootPath.replace(".jar", "_src.zip");
-            rootFile = new File(rootPath);
+                // try the source file
+                rootPath = rootPath.replace(".jar", "_src.zip");
+                rootFile = new File(rootPath);
 
-            found = extractFilesFromZip(rootFile, nameAsFile);
+                found = extractFilesFromZip(rootFile, nameAsFile);
 
-            if (found) {
-                return new Paths(tempDir.getAbsolutePath(), nameAsFile);
+                if (found) {
+                    return new Paths(tempDir.getAbsolutePath(), nameAsFile);
+                }
+            } catch (IOException e) {
+                throw new FileNotFoundRuntimeException("Cannot find source file from zip: '" + fileName + "'");
             }
         }
         // not found
-        throw new IOException("Cannot find source file: '" + fileName + "'");
+        throw new FileNotFoundRuntimeException("Cannot find source file: '" + fileName + "'");
     }
 
     /**
