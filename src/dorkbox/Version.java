@@ -582,6 +582,15 @@ class Version {
     }
 
     /**
+     * Sets the original version number to the current version number. Useful when building the same project more than once in a row.
+     */
+    public
+    void anchor() {
+        // this works, since the original version is identical EXCEPT for version numbers.
+        originalVersion.set(this);
+    }
+
+    /**
      * Gets the [MAJOR][MINOR][etc] version from a string. The passed in string can start with letters/words, as the first digit is used.
      *
      * @return an new Version object, which has major/minor/etc version info
