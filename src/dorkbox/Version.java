@@ -68,14 +68,7 @@ class Version {
     Version(final Class<?> clazz, final String version) {
         originalText = version;
         if (clazz != null) {
-            final Paths javaFile;
-            try {
-                javaFile = Builder.getJavaFile(clazz);
-            } catch (IOException e) {
-                throw new RuntimeException("Unable to open source file for class '" + clazz.getSimpleName() + "'. Please verify it and " +
-                                           "try again.");
-            }
-
+            final Paths javaFile = Builder.getJavaFile(clazz);
             file = javaFile.getFiles()
                            .get(0);
         }
