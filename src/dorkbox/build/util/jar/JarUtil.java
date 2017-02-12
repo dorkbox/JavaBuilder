@@ -1315,7 +1315,7 @@ class JarUtil {
                 pack.remove(actionsToRemove);
             }
 
-            String sourcePath = FileUtil.normalizeAsFile(pack.getSourcePath());
+            String sourcePath = FileUtil.normalize(pack.getSourcePath()).getAbsolutePath();
             String destPath = pack.getDestPath();
 
 

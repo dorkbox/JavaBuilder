@@ -62,6 +62,8 @@ public
 class Builder {
     // UNICODE is from: https://en.wikipedia.org/wiki/List_of_Unicode_characters#Box_Drawing
 
+    private static final boolean DEBUG_INSTRUCTIONS = false;
+
     public static final String BUILD_MODE = "build";
 
     /**
@@ -178,8 +180,8 @@ class Builder {
             Builder.prepareXcompile();
             log.println();
 
-            if (Builder.isJar) {
-                // when from eclipse, we want to run it directly (in case it changes significantly)
+            if (Builder.isJar || DEBUG_INSTRUCTIONS) {
+                // when from IDE, we want to run it directly (in case it changes significantly)
                 builder.compileBuildInstructions(args);
                 log.println();
             }
@@ -786,7 +788,7 @@ class Builder {
      */
     public static
     boolean delete(String target) {
-        return delete(new File(FileUtil.normalizeAsFile(target)));
+        return delete(FileUtil.normalize(target));
     }
 
     /**
@@ -827,8 +829,8 @@ class Builder {
 
     public static
     File moveFile(String source, String target) throws IOException {
-        source = FileUtil.normalizeAsFile(source);
-        target = FileUtil.normalizeAsFile(target);
+        source = FileUtil.normalize(source).getAbsolutePath();
+        target = FileUtil.normalize(target).getAbsolutePath();
 
 
         BuildLog.title("Moving file")
@@ -851,8 +853,8 @@ class Builder {
 
     public static
     void copyFile(String source, String target) throws IOException {
-        source = FileUtil.normalizeAsFile(source);
-        target = FileUtil.normalizeAsFile(target);
+        source = FileUtil.normalize(source).getAbsolutePath();
+        target = FileUtil.normalize(target).getAbsolutePath();
 
         BuildLog.title("Copying file")
                 .println("  ╭─ " + source, "╰─> " + target);
@@ -874,8 +876,8 @@ class Builder {
 
     public static
     void copyFileToDir(String source, String target) throws IOException {
-        source = FileUtil.normalizeAsFile(source);
-        target = FileUtil.normalizeAsFile(target);
+        source = FileUtil.normalize(source).getAbsolutePath();
+        target = FileUtil.normalize(target).getAbsolutePath();
 
         BuildLog.title("Copying file to dir")
                 .println("  ╭─ " + source, "╰─> " + target);
@@ -885,8 +887,8 @@ class Builder {
 
     public static
     void copyDirectory(String source, String target, String... dirNamesToIgnore) throws IOException {
-        source = FileUtil.normalizeAsFile(source);
-        target = FileUtil.normalizeAsFile(target);
+        source = FileUtil.normalize(source).getAbsolutePath();
+        target = FileUtil.normalize(target).getAbsolutePath();
 
         BuildLog.title("Copying dir")
                 .println("  ╭─ " + source, "╰─> " + target);
@@ -924,7 +926,7 @@ class Builder {
         ArrayList<String> implicit = new ArrayList<String>();
 
         for (String classpath : classpaths_source) {
-            File file = new File(FileUtil.normalizeAsFile(classpath));
+            File file = FileUtil.normalize(classpath);
             implicit.add(file.getAbsolutePath());
 
             if (file.canRead() || file.isDirectory()) {
@@ -953,7 +955,7 @@ class Builder {
 
         implicit = new ArrayList<String>();
         for (String source : sources_source) {
-            File file = new File(FileUtil.normalizeAsFile(source));
+            File file = FileUtil.normalize(source);
             implicit.add(file.getAbsolutePath());
 
             if (file.canRead() || file.isDirectory()) {

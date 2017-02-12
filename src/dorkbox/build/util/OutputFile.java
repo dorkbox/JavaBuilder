@@ -35,24 +35,24 @@ class OutputFile {
                 String newName = cleanedName.replace(original, version.toString());
 
                 // version string is replaced in the fileName
-                outputFileString = FileUtil.normalizeAsFile(newName);
-                outputFOrgString = FileUtil.normalizeAsFile(cleanedName);
+                outputFileString = FileUtil.normalize(newName).getAbsolutePath();
+                outputFOrgString = FileUtil.normalize(cleanedName).getAbsolutePath();
             }
             else if (cleanedName.endsWith(version.toString())){
                 // have to replace current with ORIG
                 String newName = cleanedName.replace(version.toString(), original);
 
                 // version string is ALREADY appended to the fileName
-                outputFileString = FileUtil.normalizeAsFile(cleanedName);
-                outputFOrgString = FileUtil.normalizeAsFile(newName);
+                outputFileString = FileUtil.normalize(cleanedName).getAbsolutePath();
+                outputFOrgString = FileUtil.normalize(newName).getAbsolutePath();
             } else {
                 // version string is appended to the fileName
-                outputFileString = FileUtil.normalizeAsFile(cleanedName + "_" + version);
-                outputFOrgString = FileUtil.normalizeAsFile(cleanedName + "_" + original);
+                outputFileString = FileUtil.normalize(cleanedName + "_" + version).getAbsolutePath();
+                outputFOrgString = FileUtil.normalize(cleanedName + "_" + original).getAbsolutePath();
             }
         }
         else {
-            outputFileString = FileUtil.normalizeAsFile(cleanedName);
+            outputFileString = FileUtil.normalize(cleanedName).getAbsolutePath();
             outputFOrgString = outputFileString;
         }
 
