@@ -492,7 +492,13 @@ class Builder {
                                       .getParentFile()
                                       .getParentFile();
                 // our src directory is always under the module dir
-                final File dir = getModuleDir(parent, moduleName);
+                File dir = getModuleDir(parent, moduleName);
+                if (dir != null) {
+                    return dir.getAbsoluteFile();
+                }
+
+                // it COULD BE that it's in the "current" location
+                dir = getModuleDir(FileUtil.normalize(".."), moduleName);
                 if (dir != null) {
                     return dir.getAbsoluteFile();
                 }
@@ -707,7 +713,7 @@ class Builder {
      */
     public static
     void registerModule(final String name, final String src) {
-        moduleCache.put(name, new File(src));
+        moduleCache.put(name, FileUtil.normalize(src));
     }
 
     private static

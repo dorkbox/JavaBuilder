@@ -1,7 +1,6 @@
 package dorkbox;
 
 import java.io.File;
-import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Method;
 import java.net.URL;
@@ -10,6 +9,7 @@ import java.net.URLDecoder;
 import java.security.CodeSource;
 import java.security.ProtectionDomain;
 
+import dorkbox.util.FileUtil;
 import dorkbox.util.OS;
 
 
@@ -129,12 +129,10 @@ class Build {
         // Can have %20 as spaces (in winxp at least). need to convert to proper path from URL
         try {
             String fileName = URLDecoder.decode(loc.getFile(), "UTF-8");
-            return new File(fileName).getAbsoluteFile().getCanonicalFile();
+            return FileUtil.normalize(fileName);
 
         } catch (UnsupportedEncodingException e) {
             throw new RuntimeException("Unable to decode file path!", e);
-        } catch (IOException e) {
-            throw new RuntimeException("Unable to get canonical file path!", e);
         }
     }
 
