@@ -160,7 +160,7 @@ class MavenExporter {
         // TODO: maybe use straight java (ie: no libs?)
         // https://stackoverflow.com/questions/2793150/using-java-net-urlconnection-to-fire-and-handle-http-requests
 
-        String fileName = project.name + "-" + projectVersion;
+        String fileName = project.name + "_" + projectVersion;
         fileName = new File(project.stagingDir, fileName).getAbsolutePath();
 
 
