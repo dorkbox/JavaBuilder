@@ -29,7 +29,13 @@ import java.util.Map;
 import java.util.Set;
 
 import org.bouncycastle.crypto.digests.MD5Digest;
+import org.slf4j.Logger;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.Serializer;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+import com.esotericsoftware.minlog.Log;
 import com.esotericsoftware.wildcard.Paths;
 import com.twmacinta.util.MD5;
 
@@ -43,6 +49,9 @@ import dorkbox.license.License;
 import dorkbox.util.Base64Fast;
 import dorkbox.util.FileUtil;
 import dorkbox.util.OS;
+import dorkbox.util.SerializationManager;
+import dorkbox.util.serialization.FileSerializer;
+import io.netty.buffer.ByteBuf;
 
 @SuppressWarnings({"unchecked", "unused"})
 public abstract
@@ -62,14 +71,81 @@ class Project<T extends Project<T>> {
     private static boolean alreadyChecked = false;
     private static Comparator<Project> dependencyComparator = new ProjectComparator();
 
-    // used to suppress certain messages when building deps
-    protected boolean isBuildingDependencies = false;
-
-    // Sometimes we don't want to export the build to maven (ie: when running a test, for example)
-    protected boolean exportToMaven = false;
-
     public static List<File> builderFiles = new ArrayList<File>();
     public static Thread shutdownHook;
+
+    static final SerializationManager manager = new SerializationManager() {
+        Kryo kryo = new Kryo();
+
+        {
+            // we don't want logging from Kryo...
+            Log.set(Log.LEVEL_ERROR);
+
+            register(File.class, new FileSerializer());
+        }
+
+        @Override
+        public
+        void register(final Class<?> clazz) {
+            kryo.register(clazz);
+        }
+
+        @Override
+        public
+        void register(final Class<?> clazz, final Serializer<?> serializer) {
+            kryo.register(clazz, serializer);
+        }
+
+        @Override
+        public
+        void register(final Class<?> type, final Serializer<?> serializer, final int id) {
+            kryo.register(type, serializer, id);
+        }
+
+        @Override
+        public
+        void write(final ByteBuf buffer, final Object message) {
+            final Output output = new Output();
+            writeFullClassAndObject(null, output, message);
+            buffer.writeBytes(output.getBuffer());
+        }
+
+        @Override
+        public
+        Object read(final ByteBuf buffer, final int length) throws IOException {
+            final Input input = new Input();
+            buffer.readBytes(input.getBuffer());
+
+            final Object o = readFullClassAndObject(null, input);
+            buffer.skipBytes(input.position());
+
+            return o;
+        }
+
+        @Override
+        public
+        void writeFullClassAndObject(final Logger logger, final Output output, final Object value) {
+            kryo.writeClassAndObject(output, value);
+        }
+
+        @Override
+        public
+        Object readFullClassAndObject(final Logger logger, final Input input) throws IOException {
+            return kryo.readClassAndObject(input);
+        }
+
+        @Override
+        public
+        void finishInit() {
+        }
+
+        @Override
+        public
+        boolean initialized() {
+            return false;
+        }
+    };
+
 
     static {
         // check to see if our deploy code has changed. if yes, then we have to rebuild everything since
@@ -130,7 +206,7 @@ class Project<T extends Project<T>> {
 
 
 
-    public final String name;
+    public String name;
 
     protected Version version;
 
@@ -151,7 +227,10 @@ class Project<T extends Project<T>> {
     protected List<Project<?>> dependencies = new ArrayList<Project<?>>();
 
     /** ALL related dependencies for this project (ie: recursively searched) */
-    List<Project<?>> fullDependencyList = null;
+    transient List<Project<?>> fullDependencyList = null;
+
+    // used to make sure licenses are called in the correct spot
+    private transient boolean calledLicenseBefore = false;
 
     transient Paths checksumPaths = new Paths();
     protected List<License> licenses = new ArrayList<License>();
@@ -159,14 +238,20 @@ class Project<T extends Project<T>> {
 
     private ArrayList<String> unresolvedDependencies = new ArrayList<String>();
 
+    // used to suppress certain messages when building deps
+    protected transient boolean isBuildingDependencies = false;
+
+    // Sometimes we don't want to export the build to maven (ie: when running a test, for example)
+    protected boolean exportToMaven = false;
+
     MavenExporter mavenExporter;
     public MavenInfo mavenInfo;
 
     /** true if we had to build this project */
-    boolean shouldBuild = false;
+    transient boolean shouldBuild = false;
 
     /** true if we skipped building this project */
-    boolean skippedBuild = false;
+    transient boolean skippedBuild = false;
 
     /**
      * Temporary projects are always built, but not always exported to maven (this is controlled by the parent, non-temp project
@@ -236,6 +321,10 @@ class Project<T extends Project<T>> {
         deps.remove(outputDir);
     }
 
+    // for serialization
+    protected
+    Project() {
+    }
 
     protected
     Project(String projectName) {
@@ -243,7 +332,7 @@ class Project<T extends Project<T>> {
         this.buildOptions = new BuildOptions();
 
         String lowerCase_outputDir = projectName.toLowerCase();
-        this.stagingDir = new File(FileUtil.normalizeAsFile(STAGING + File.separator + lowerCase_outputDir));
+        this.stagingDir = FileUtil.normalize(STAGING + File.separator + lowerCase_outputDir);
         // must call this method, because it's not overridden by jar type
         outputFile0(new File(this.stagingDir.getParentFile(), this.name + getExtension()).getAbsolutePath(), null);
     }
@@ -513,7 +602,7 @@ class Project<T extends Project<T>> {
 
     public
     T addSrc(String file) {
-        this.sources.add(new File(FileUtil.normalizeAsFile(file)));
+        this.sources.add(FileUtil.normalize(file));
         return (T) this;
     }
 
@@ -525,7 +614,7 @@ class Project<T extends Project<T>> {
 
     public
     T dist(String distLocation) {
-        this.distLocation = FileUtil.normalizeAsFile(distLocation);
+        this.distLocation = FileUtil.normalize(distLocation).getAbsolutePath();
         return (T) this;
     }
 
@@ -549,7 +638,6 @@ class Project<T extends Project<T>> {
         return this.buildOptions;
     }
 
-    private boolean calledLicenseBefore = false;
     /**
      * This call needs to be (at least) before dependencies are added, otherwise the order of licenses might be in the incorrect order.
      * Preferably, this should be the very first call.
@@ -591,7 +679,7 @@ class Project<T extends Project<T>> {
 
     public
     void copyFiles(String targetLocation) throws IOException {
-        copyFiles(new File(FileUtil.normalizeAsFile(targetLocation)));
+        copyFiles(FileUtil.normalize(targetLocation));
     }
 
     public
@@ -657,7 +745,7 @@ class Project<T extends Project<T>> {
 
     public
     void copyMainFiles(String targetLocation) throws IOException {
-        copyMainFiles(new File(FileUtil.normalizeAsFile(targetLocation)));
+        copyMainFiles(FileUtil.normalize(targetLocation));
     }
 
 
@@ -922,4 +1010,11 @@ class Project<T extends Project<T>> {
             // only if we save the build. Test builds don't save, and we shouldn't upload them to maven
         }
     }
+
+    /**
+     * Saves the project details to the specified location
+     * @param location
+     */
+    public abstract
+    void save(final String location);
 }

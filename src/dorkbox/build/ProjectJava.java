@@ -47,6 +47,7 @@ import dorkbox.Version;
 import dorkbox.build.util.BuildLog;
 import dorkbox.build.util.CrossCompileClass;
 import dorkbox.build.util.DependencyWalker;
+import dorkbox.build.util.FileNotFoundRuntimeException;
 import dorkbox.build.util.classloader.ByteClassloader;
 import dorkbox.build.util.classloader.JavaMemFileManager;
 import dorkbox.license.License;
@@ -62,9 +63,9 @@ class ProjectJava extends Project<ProjectJava> {
     protected Paths sourcePaths = new Paths();
     public Paths classPaths = new Paths();
 
-    private ByteClassloader bytesClassloader = null;
+    private transient ByteClassloader bytesClassloader = null;
 
-    protected Jarable jarable = null;
+    protected transient Jarable jarable = null;
 
     private boolean suppressSunWarnings = false;
     private final List<CrossCompileClass> crossCompileClasses = new ArrayList<CrossCompileClass>(4);
@@ -359,7 +360,12 @@ class ProjectJava extends Project<ProjectJava> {
                         FileUtil.delete(tempProject.stagingDir);
                         FileUtil.mkdir(tempProject.stagingDir);
                         tempProject.shouldBuild = true; // always build temp projects
-                        tempProject.build(crossCompileClass.targetJavaVersion);
+
+                        try {
+                            tempProject.build(crossCompileClass.targetJavaVersion);
+                        } catch (RuntimeException e) {
+                            e.printStackTrace();
+                        }
 
                         // now have to save out the source files (that are now converted to .class files)
                         for (File sourceFile : sourceFiles.getFiles()) {
@@ -504,7 +510,14 @@ class ProjectJava extends Project<ProjectJava> {
             args.add("1." + targetJavaVersion);
 
             args.add("-bootclasspath");
-            args.add(this.buildOptions.compiler.crossCompileLibrary.getCrossCompileLibraryLocation(targetJavaVersion));
+            String location = this.buildOptions.compiler.crossCompileLibrary.getCrossCompileLibraryLocation(targetJavaVersion);
+            File file = FileUtil.normalize(location);
+
+            if (!file.canRead()) {
+                throw new FileNotFoundRuntimeException("Unable to read cross compile jar: " + location);
+            }
+
+            args.add(file.getAbsolutePath());
         }
 
         // suppress sun proprietary warnings
@@ -730,44 +743,48 @@ class ProjectJava extends Project<ProjectJava> {
 
     /**
      * Take all of the parameters of this project, and convert it to a text file.
-     *
-     * @throws IOException
      */
+    @Override
     public
-    void toBuildFile() throws IOException {
-        YamlWriter writer = new YamlWriter(new FileWriter("build.oak"));
-        YamlConfig config = writer.getConfig();
+    void save(final String location) {
+        try {
+            YamlWriter writer = new YamlWriter(new FileWriter(location));
+            YamlConfig config = writer.getConfig();
 
-        config.writeConfig.setWriteRootTags(false);
+            config.writeConfig.setWriteRootTags(false);
 
-        config.setPropertyElementType(ProjectJava.class, "licenses", License.class);
-        config.setPrivateFields(true);
+            config.setPropertyElementType(ProjectJava.class, "licenses", License.class);
+            config.setPrivateFields(true);
 
-        config.readConfig.setConstructorParameters(License.class, new Class[] {String.class, LicenseType.class},
-                                                   new String[] {"licenseName", "licenseType"});
-        config.readConfig.setConstructorParameters(ProjectJava.class, new Class[] {String.class}, new String[] {"projectName"});
+            config.readConfig.setConstructorParameters(License.class,
+                                                       new Class[] {String.class, LicenseType.class},
+                                                       new String[] {"licenseName", "licenseType"});
+            config.readConfig.setConstructorParameters(ProjectJava.class, new Class[] {String.class}, new String[] {"projectName"});
 
-        config.setScalarSerializer(Paths.class, new ScalarSerializer<Paths>() {
-            @Override
-            public
-            Paths read(String value) throws YamlException {
-                String[] split = value.split(File.pathSeparator);
-                Paths paths = new Paths();
-                for (String s : split) {
-                    paths.addFile(s);
+            config.setScalarSerializer(Paths.class, new ScalarSerializer<Paths>() {
+                @Override
+                public
+                Paths read(String value) throws YamlException {
+                    String[] split = value.split(File.pathSeparator);
+                    Paths paths = new Paths();
+                    for (String s : split) {
+                        paths.addFile(s);
+                    }
+                    return paths;
                 }
-                return paths;
-            }
 
-            @Override
-            public
-            String write(Paths paths) throws YamlException {
-                return paths.toString(File.pathSeparator);
-            }
-        });
+                @Override
+                public
+                String write(Paths paths) throws YamlException {
+                    return paths.toString(File.pathSeparator);
+                }
+            });
 
-        writer.write(this);
-        writer.close();
+            writer.write(this);
+            writer.close();
+        } catch (IOException e) {
+            throw new RuntimeException("Unable to save file.", e);
+        }
     }
 
     /**

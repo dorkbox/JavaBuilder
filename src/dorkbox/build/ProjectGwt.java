@@ -15,14 +15,6 @@
  */
 package dorkbox.build;
 
-import com.esotericsoftware.wildcard.Paths;
-import dorkbox.Builder;
-import dorkbox.build.util.BuildLog;
-import dorkbox.build.util.jar.JarUtil;
-import dorkbox.util.FileUtil;
-import dorkbox.util.gwt.GwtSymbolMapParser;
-import dorkbox.util.process.JavaProcessBuilder;
-
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
@@ -32,6 +24,15 @@ import java.io.Writer;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map.Entry;
+
+import com.esotericsoftware.wildcard.Paths;
+
+import dorkbox.Builder;
+import dorkbox.build.util.BuildLog;
+import dorkbox.build.util.jar.JarUtil;
+import dorkbox.util.FileUtil;
+import dorkbox.util.gwt.GwtSymbolMapParser;
+import dorkbox.util.process.JavaProcessBuilder;
 
 public
 class ProjectGwt extends Project<ProjectGwt> {
@@ -406,5 +407,14 @@ class ProjectGwt extends Project<ProjectGwt> {
         }
 
         return this;
+    }
+
+    /**
+     * Take all of the parameters of this project, and convert it to a text file.
+     */
+    @Override
+    public
+    void save(final String location) {
+
     }
 }

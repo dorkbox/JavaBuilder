@@ -6,54 +6,46 @@ import java.io.IOException;
 import dorkbox.Version;
 import dorkbox.build.util.BuildLog;
 import dorkbox.build.util.FileNotFoundRuntimeException;
+import dorkbox.util.storage.Storage;
+import dorkbox.util.storage.StorageType;
 
 public class ProjectJar extends Project<ProjectJar> {
 
-    public static ProjectJar create(String projectName) {
+    public static
+    ProjectJar create(String projectName) {
         ProjectJar projectJar = new ProjectJar(projectName);
         deps.put(projectName, projectJar);
         return projectJar;
     }
 
-    private ProjectJar(String projectName) {
+    // for serialization
+    private
+    ProjectJar() {
+    }
+
+    private
+    ProjectJar(String projectName) {
         super(projectName);
     }
 
     @Override
-    public ProjectJar addSrc(String file) {
+    public
+    ProjectJar addSrc(String file) {
         BuildLog.title("Error")
                 .println("Cannot specify a source file in this manner for a jar. Please set the source along with the output file");
         throw new FileNotFoundRuntimeException("Invalid file: " + file);
     }
 
     @Override
-    public ProjectJar addSrc(File file) {
-        BuildLog.title("Error")
-                .println("Cannot specify a source file in this manner for a jar. Please set the source along with the output file");
-        throw new FileNotFoundRuntimeException("Invalid file: " + file);
-    }
-
-    @Override
-    public ProjectJar version(Version version) {
-        super.version(version);
-        return this;
-    }
-
-    @Override
-    public String getExtension() {
-        return Project.JAR_EXTENSION;
-    }
-
-    @Override
-    public boolean
-    build(final int targetJavaVersion) throws IOException {
+    public
+    boolean build(final int targetJavaVersion) throws IOException {
         return false;
     }
 
     @Override
-    public ProjectJar dist(String distLocation) {
-        super.dist(distLocation);
-        return this;
+    public
+    String getExtension() {
+        return Project.JAR_EXTENSION;
     }
 
     @Override
@@ -72,9 +64,26 @@ public class ProjectJar extends Project<ProjectJar> {
         return outputFileNoWarn(outputFile, outputSourceFile);
     }
 
+    @Override
     public
-    ProjectJar outputFileNoWarn(final String outputFile) {
-        return outputFileNoWarn(outputFile, null);
+    ProjectJar addSrc(File file) {
+        BuildLog.title("Error")
+                .println("Cannot specify a source file in this manner for a jar. Please set the source along with the output file");
+        throw new FileNotFoundRuntimeException("Invalid file: " + file);
+    }
+
+    @Override
+    public
+    ProjectJar dist(String distLocation) {
+        super.dist(distLocation);
+        return this;
+    }
+
+    @Override
+    public
+    ProjectJar version(Version version) {
+        super.version(version);
+        return this;
     }
 
     public
@@ -85,5 +94,40 @@ public class ProjectJar extends Project<ProjectJar> {
         }
 
         return super.outputFile(outputFile, outputSourceFile);
+    }
+
+    public
+    ProjectJar outputFileNoWarn(final String outputFile) {
+        return outputFileNoWarn(outputFile, null);
+    }
+
+    /**
+     * Take all of the parameters of this project, and convert it to a text file.
+     */
+    @Override
+    public
+    void save(final String location) {
+        Storage storage = StorageType.Disk()
+                   .file(location)
+                   .serializer(manager)
+                   .make();
+
+        storage.put(this.name, this);
+        storage.save();
+    }
+
+    /**
+     * Take all of the parameters of this project, and convert it to a text file.
+     */
+    public static
+    ProjectJar get(final String projectName, final String location) {
+        Storage storage = StorageType.Disk()
+                                     .file(location)
+                                     .serializer(manager)
+                                     .logger(null)
+                                     .make();
+
+        ProjectJar proj = storage.get(projectName);
+        return proj;
     }
 }
