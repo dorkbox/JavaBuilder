@@ -22,10 +22,15 @@ import dorkbox.Version;
  */
 public
 class MavenInfo {
-    private final String groupId;
-    private final String artifactId;
-    private final Version version;
+    private String groupId;
+    private String artifactId;
+    private Version version;
     private Scope scope;
+
+    // for serialization
+    private
+    MavenInfo() {
+    }
 
     public
     MavenInfo(final String groupId, final String artifactId, final Version version, final Scope scope) {

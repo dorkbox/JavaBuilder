@@ -429,6 +429,11 @@ class License implements Comparable<License> {
     public List<String> authors;
     public List<String> notes;
 
+    // for serialization
+    private
+    License() {
+    }
+
     public
     License(String licenseName, LicenseType licenseType) {
         this.name = licenseName;
