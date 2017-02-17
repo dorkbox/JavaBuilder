@@ -6,8 +6,7 @@ The JavaBuilder project is a Java project management and build tool, using the J
 The main distinction between this tool and others, such as Ant, Maven, Ivy, Gradle, etc. is that
 *this* build tool lets you work directly in Java. Since you are building a Java project, it can 
 safely be assumed that you already know Java. Additionally, because it's running *compiled code*
-(instead of interpreting or parsing lengthy config files) and because it uses the FastMD5 project
-for dependency checking and build verification, it's *wicked fast*.
+(instead of interpreting or parsing lengthy config files) it's *wicked fast*.
 
 #####  Why use XML, Groovy, Scala, JavaScript, or some other language to build your project? 
 
@@ -37,7 +36,6 @@ Note: This project was inspired (and some parts heavily modified) by the excelle
       Scar project, and includes utility classes/methods from a variety of sources.
 ```
 
-
-<h2>License</h2>
-
+License
+---------
 This project is © 2012 dorkbox llc, and is distributed under the terms of the Apache v2.0 License. See file "LICENSE" for further references.
