@@ -11,13 +11,12 @@
     </content>
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="jdk" jdkName="1.6" jdkType="JavaSDK" />
+    <orderEntry type="module" module-name="Utilities" />
     <orderEntry type="library" name="logging logback" level="application" />
     <orderEntry type="library" name="logging slf4j-api" level="application" />
     <orderEntry type="library" name="bouncyCastle bcpg-jdk15on" level="application" />
     <orderEntry type="library" name="bouncyCastle bcpkix-jdk15on" level="application" />
     <orderEntry type="library" name="bouncyCastle bcprov-jdk15on" level="application" />
-    <orderEntry type="module" module-name="Dorkbox-Util" />
-    <orderEntry type="module" module-name="JavaLauncher-Util" />
     <orderEntry type="library" name="dorkbox annotations" level="application" />
     <orderEntry type="library" name="lzma-java" level="application" />
     <orderEntry type="module-library">
@@ -30,11 +29,15 @@
         <SOURCES />
       </library>
     </orderEntry>
-    <orderEntry type="library" name="yamlbeans" level="application" />
     <orderEntry type="library" name="wildcard" level="application" />
     <orderEntry type="library" name="javaparser" level="application" />
     <orderEntry type="library" name="javatar" level="application" />
     <orderEntry type="library" name="async-http-client" level="application" />
     <orderEntry type="library" name="fast-md5" level="application" />
+    <orderEntry type="library" name="jsonbeans" level="application" />
+    <orderEntry type="library" name="kryo3" level="application" />
+    <orderEntry type="library" name="netty-all" level="application" />
+    <orderEntry type="library" name="dorkbox minlog_slf4j" level="application" />
+    <orderEntry type="library" name="yamlbeans" level="application" />
   </component>
 </module>
