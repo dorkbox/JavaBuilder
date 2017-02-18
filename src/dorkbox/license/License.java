@@ -38,6 +38,7 @@ import java.util.zip.ZipOutputStream;
 import dorkbox.Build;
 import dorkbox.Builder;
 import dorkbox.build.Project;
+import dorkbox.util.FileUtil;
 
 public
 class License implements Comparable<License> {
@@ -190,7 +191,7 @@ class License implements Comparable<License> {
      */
     public static
     void install(File targetLocation) throws IOException {
-        createFullTextLicenseFiles(targetLocation, null);
+        createFullTextLicenseFiles(FileUtil.normalize(targetLocation), null);
     }
 
     /**
@@ -430,6 +431,7 @@ class License implements Comparable<License> {
     public List<String> notes;
 
     // for serialization
+    @SuppressWarnings("unused")
     private
     License() {
     }
