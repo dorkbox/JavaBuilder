@@ -24,16 +24,15 @@ import java.util.Set;
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
-import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.AnnotationDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
-import com.github.javaparser.ast.body.TypeDeclaration;
+import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.AnnotationExpr;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.Type;
-import com.github.javaparser.ast.type.VoidType;
+import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 
 public
 class DependencyWalker {
@@ -49,12 +48,16 @@ class DependencyWalker {
 
     private static
     void addIfValidType(final String rootSource, final String packageSource, final Type type, final Set<String> dependencies) {
-        if (!(type instanceof VoidType)) {
-            String name = type.toStringWithoutComments()
-                              .replace('.', '/') + ".java";
+        type.accept(new VoidVisitorAdapter<Void>() {
+            @Override
+            public void visit(ClassOrInterfaceType n, Void arg) {
+                String name = n.getNameAsString()
+                               .replace('.', '/') + ".java";
 
-            addIfValid(rootSource, packageSource, name, dependencies);
-        }
+                addIfValid(rootSource, packageSource, name, dependencies);
+                super.visit(n, arg);
+            }
+        }, null);
     }
 
     private static
@@ -80,8 +83,7 @@ class DependencyWalker {
 
     private static
     String importSource(final String rootSource, final String packageSource, final ImportDeclaration anImport) {
-        String name = anImport.getName()
-                              .toStringWithoutComments()
+        String name = anImport.getNameAsString()
                               .replace('.', '/');
 
         if (name.indexOf('/') > 0) {
@@ -111,13 +113,11 @@ class DependencyWalker {
         try {
             in = new FileInputStream(sourceFile);
 
-            CompilationUnit cu;
-            // parse the file
-            cu = JavaParser.parse(in, null, false);
+            CompilationUnit cu = JavaParser.parse(in);
 
-            String packageName = cu.getPackage()
-                                   .getName()
-                                   .toStringWithoutComments()
+            String packageName = cu.getPackageDeclaration()
+                                   .get()
+                                   .getNameAsString()
                                    .replace('.', '/');
             String rootSource = getSourceLocation(sourceFile.getAbsolutePath(), packageName);
             String packageSource = new File(rootSource, packageName).getAbsolutePath();
@@ -125,7 +125,7 @@ class DependencyWalker {
             relativeNameNoExtension = new File(packageName,
                                                cu.getTypes()
                                                  .get(0)
-                                                 .getName()).getPath();
+                                                 .getNameAsString()).getPath();
 
             // check all imports
             List<ImportDeclaration> imports = cu.getImports();
@@ -138,54 +138,53 @@ class DependencyWalker {
             }
 
             // check everything else
-            List<TypeDeclaration> types = cu.getTypes();
-            for (TypeDeclaration type : types) {
-
-                List<Node> childrenNodes = type.getChildrenNodes();
-                for (Node childrenNode : childrenNodes) {
-
-                    if (childrenNode instanceof FieldDeclaration) {
-                        Type type1 = ((FieldDeclaration) childrenNode).getType();
+            cu.accept(new VoidVisitorAdapter<Void>() {
+                @Override
+                public void visit(FieldDeclaration n, Void arg) {
+                    for (VariableDeclarator v : n.getVariables()) {
+                        Type type1 = v.getType();
                         addIfValidType(rootSource, packageSource, type1, dependencies);
                     }
-                    else if (childrenNode instanceof AnnotationDeclaration) {
-                        List<AnnotationExpr> annotations = ((AnnotationDeclaration) childrenNode).getAnnotations();
-                        for (AnnotationExpr annotation : annotations) {
-                            String name = annotation.getName()
-                                                    .toStringWithoutComments()
-                                                    .replace('.', '/') + ".java";
-                            addIfValid(rootSource, packageSource, name, dependencies);
-                        }
-                    }
-                    else if (childrenNode instanceof MethodDeclaration) {
-                        MethodDeclaration n = (MethodDeclaration) childrenNode;
+                }
 
-                        // either the these will be in a different package (and our import check will get it), or it will be in the same package
-                        List<Parameter> parameters = n.getParameters();
-                        for (Parameter parameter : parameters) {
-                            Type type1 = parameter.getType();
-                            addIfValidType(rootSource, packageSource, type1, dependencies);
-                        }
-
-
-                        Type type1 = n.getType();
-                        addIfValidType(rootSource, packageSource, type1, dependencies);
-
-                        List<AnnotationExpr> annotations = n.getAnnotations();
-                        for (AnnotationExpr annotation : annotations) {
-                            String name = annotation.getName()
-                                                    .toStringWithoutComments()
-                                                    .replace('.', '/') + ".java";
-                            addIfValid(rootSource, packageSource, name, dependencies);
-                        }
-                    }
-                    else if (childrenNode instanceof ClassOrInterfaceType) {
-                        String name = ((ClassOrInterfaceType) childrenNode).getName()
-                                                                           .replace('.', '/') + ".java";
+                @Override
+                public void visit(AnnotationDeclaration n, Void arg) {
+                    List<AnnotationExpr> annotations = n.getAnnotations();
+                    for (AnnotationExpr annotation : annotations) {
+                        String name = annotation.getNameAsString()
+                                                .replace('.', '/') + ".java";
                         addIfValid(rootSource, packageSource, name, dependencies);
                     }
                 }
-            }
+
+                @Override
+                public void visit(MethodDeclaration n, Void arg) {
+                    // either the these will be in a different package (and our import check will get it), or it will be in the same package
+                    List<Parameter> parameters = n.getParameters();
+                    for (Parameter parameter : parameters) {
+                        Type type1 = parameter.getType();
+                        addIfValidType(rootSource, packageSource, type1, dependencies);
+                    }
+
+
+                    Type type1 = n.getType();
+                    addIfValidType(rootSource, packageSource, type1, dependencies);
+
+                    List<AnnotationExpr> annotations = n.getAnnotations();
+                    for (AnnotationExpr annotation : annotations) {
+                        String name = annotation.getNameAsString()
+                                                .replace('.', '/') + ".java";
+                        addIfValid(rootSource, packageSource, name, dependencies);
+                    }
+                }
+
+                @Override
+                public void visit(ClassOrInterfaceType n, Void arg) {
+                    String name = n.getNameAsString()
+                                   .replace('.', '/') + ".java";
+                    addIfValid(rootSource, packageSource, name, dependencies);
+                }
+            }, null);
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
