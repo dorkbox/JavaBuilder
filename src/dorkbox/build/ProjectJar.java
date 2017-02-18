@@ -7,14 +7,14 @@ import dorkbox.Version;
 import dorkbox.build.util.BuildLog;
 import dorkbox.build.util.FileNotFoundRuntimeException;
 import dorkbox.util.storage.Storage;
-import dorkbox.util.storage.StorageType;
+import dorkbox.util.storage.StorageSystem;
 
 public class ProjectJar extends Project<ProjectJar> {
 
     public static
     ProjectJar create(String projectName) {
         ProjectJar projectJar = new ProjectJar(projectName);
-        deps.put(projectName, projectJar);
+        Project.create(projectJar);
         return projectJar;
     }
 
@@ -107,10 +107,10 @@ public class ProjectJar extends Project<ProjectJar> {
     @Override
     public
     void save(final String location) {
-        Storage storage = StorageType.Disk()
-                   .file(location)
-                   .serializer(manager)
-                   .make();
+        Storage storage = StorageSystem.Disk()
+                                       .file(location)
+                                       .serializer(manager)
+                                       .make();
 
         storage.put(this.name, this);
         storage.save();
@@ -121,13 +121,18 @@ public class ProjectJar extends Project<ProjectJar> {
      */
     public static
     ProjectJar get(final String projectName, final String location) {
-        Storage storage = StorageType.Disk()
-                                     .file(location)
-                                     .serializer(manager)
-                                     .logger(null)
-                                     .make();
+        Storage storage = StorageSystem.Disk()
+                                       .file(location)
+                                       .serializer(manager)
+                                       .logger(null)
+                                       .make();
 
-        ProjectJar proj = storage.get(projectName);
+        ProjectJar proj;
+        try {
+            proj = storage.get(projectName);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
         return proj;
     }
 }

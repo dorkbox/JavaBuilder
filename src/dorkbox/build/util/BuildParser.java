@@ -50,27 +50,31 @@ public class BuildParser {
         buildFile = FileUtil.normalize(buildFile);
         if (!buildFile.canRead()) {
             // autodetect
-            if (!specified) {
-                specified = true;
+            if (specified) {
+                BuildLog.title("Build location").println("Build instructions not found", buildFile.getAbsolutePath());
+                BuildLog.println("You can specify the location via '-f <name>' or '-file <name>'");
+                return null;
+            }
+            else {
                 // are we in root/lib dir?
                 File dist = new File(buildFile.getParentFile(), "build");
                 if (dist.isDirectory()) {
                     buildFile = new File(dist, "build.oak");
-                    specified = false;
                 }
                 else {
                     dist = new File(buildFile.getParentFile(), "../build");
                     if (dist.isDirectory()) {
                         buildFile = new File(dist, "build.oak");
-                        specified = false;
                     }
                 }
-            }
 
-            if (specified) {
-                BuildLog.title("Build location").println("Build instructions not found", buildFile.getAbsolutePath());
-                BuildLog.println("You can specify the location via '-f <name>' or '-file <name>'");
-                return null;
+                buildFile = FileUtil.normalize(buildFile);
+
+                if (!buildFile.canRead()) {
+                    // cannot autodetect build file. It wasn't specified that we build via the text file, so maybe the build is on the
+                    // classpath?
+                    return null;
+                }
             }
         }
 

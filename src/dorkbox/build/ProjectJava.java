@@ -76,8 +76,7 @@ class ProjectJava extends Project<ProjectJava> {
     public static
     ProjectJava create(String projectName) {
         ProjectJava project = new ProjectJava(projectName);
-        deps.put(projectName, project);
-
+        Project.create(project);
         return project;
     }
 

@@ -70,6 +70,24 @@ class BuildLog {
         return LOG;
     }
 
+
+    /**
+     * Resets all of the log state
+     */
+    public static synchronized
+    BuildLog reset() {
+        nestedCount = 0;
+        suppressCount = 0;
+
+        TITLE_WIDTH = STOCK_TITLE_WIDTH;
+
+        cachedSpacer = null;
+        titleBuilder = null;
+
+        lastActionWasPrintln = true;
+        return LOG;
+    }
+
     /**
      * Forces the "end" of this, so that there is no trailing "opening" for further log elements
      */
@@ -92,7 +110,7 @@ class BuildLog {
             TITLE_WIDTH -= 2;
         }
 
-        titleBuilder = null;
+        reset();
         return LOG;
     }
 

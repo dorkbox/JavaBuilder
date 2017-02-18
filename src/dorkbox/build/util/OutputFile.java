@@ -12,11 +12,18 @@ import dorkbox.util.FileUtil;
 public
 class OutputFile {
 
-    private final File outputFile;
-    private final File outputFOrg;
+    private File outputFile;
+    private File outputFOrg;
 
-    private final File outputSourceFile;
-    private final File outputSourceFOrg;
+    private File outputSourceFile;
+    private File outputSourceFOrg;
+
+
+    // for serialization
+    @SuppressWarnings("unused")
+    private
+    OutputFile() {
+    }
 
     public
     OutputFile(final Version version, final String outputFileName, final String outputSourceFileName) {

@@ -212,9 +212,9 @@ class Builder {
                             localDateString,
                             "Completed in: " + Sys.getTimePrettyFull(System.nanoTime() - builder.startTime),
                             "Build Date code: " + Builder.buildDateUTC);
-
-                BuildLog.finish();
             }
+
+            BuildLog.finish();
         } catch (Exception e1) {
             e = e1;
 
@@ -260,12 +260,12 @@ class Builder {
 
         if (Builder.isJar) {
             File parent = runLocation.getParentFile();
-            if (!new File(parent, "libs").isDirectory()) {
+            if (!new File(parent, "jdkRuntimes").isDirectory()) {
                 parent = parent.getParentFile();
             }
 
-            File jdk = new File(parent, "libs");
-            return FileUtil.normalize(new File(jdk, "jdkRuntimes"));
+            File jdk = new File(parent, "jdkRuntimes");
+            return FileUtil.normalize(jdk);
         }
         else {
             final File javaFileSourceDir = Builder.getJavaFileSourceDir(Builder.class, runLocation);
@@ -919,7 +919,8 @@ class Builder {
         HashMap<String, ArrayList<String>> data = BuildParser.parse(args);
 
         if (data == null) {
-            throw new Exception();
+            // no instructions to load (likely that the file doesn't exist...)
+            return;
         }
 
         // data elements are always a list
