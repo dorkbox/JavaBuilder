@@ -146,7 +146,7 @@ class Builder {
 
     public static
     void make(BuildOptions buildOptions, SimpleArgs args) throws Exception {
-        String title = "JavaBuilder";
+        String title = "JavaBuilder v" + Build.getVersion();
         BuildLog log = BuildLog.start();
         log.title(title)
            .println(args);
@@ -198,7 +198,8 @@ class Builder {
                                       .toString()
                                       .replace("UTC", defaultTimeZone.getID());
 
-            if (BuildLog.getNestedCount() > 0) {
+            if (BuildLog.getNestedCount() > 1) {
+                // we are at 1 because when we START the build, we go from 0 -> 1
                 log.title(title)
                    .println(args,
                             localDateString,
@@ -255,10 +256,10 @@ class Builder {
     static
     File getJdkDir() {
         // this will ALWAYS be a dir
-        final File runtLocation = Build.get();
+        final File runLocation = Build.get();
 
         if (Builder.isJar) {
-            File parent = runtLocation.getParentFile();
+            File parent = runLocation.getParentFile();
             if (!new File(parent, "libs").isDirectory()) {
                 parent = parent.getParentFile();
             }
@@ -267,7 +268,7 @@ class Builder {
             return FileUtil.normalize(new File(jdk, "jdkRuntimes"));
         }
         else {
-            final File javaFileSourceDir = Builder.getJavaFileSourceDir(Builder.class, runtLocation);
+            final File javaFileSourceDir = Builder.getJavaFileSourceDir(Builder.class, runLocation);
             File parent = javaFileSourceDir.getParentFile();
             if (!new File(parent, "libs").isDirectory()) {
                 parent = parent.getParentFile();
@@ -951,7 +952,8 @@ class Builder {
 
         if (!implicit.isEmpty()) {
             implicit.add(0, "Classpaths");
-            BuildLog.println(implicit.toArray(new String[0]));
+            String[] message = implicit.toArray(new String[0]);
+            BuildLog.println(message);
         }
         else {
             BuildLog.title("WARNING").println("No classpath specified!");
@@ -981,7 +983,8 @@ class Builder {
 
         if (!implicit.isEmpty()) {
             implicit.add(0, "Sources");
-            BuildLog.println(implicit.toArray(new String[0]));
+            String[] message = implicit.toArray(new String[0]);
+            BuildLog.println(message);
         }
         else {
             BuildLog.title("WARNING").println("No sources specified!");
@@ -1124,8 +1127,6 @@ class Builder {
                 ioException.setStackTrace(new StackTraceElement[0]);
                 throw ioException;
             }
-
-            BuildLog.finish();
         }
 
 

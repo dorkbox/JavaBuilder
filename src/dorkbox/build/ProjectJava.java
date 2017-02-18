@@ -446,6 +446,7 @@ class ProjectJava extends Project<ProjectJava> {
                 FileUtil.delete(crossCompatBuiltFile);
             }
 
+            BuildLog.println();
             BuildLog.title("Staging").println(this.stagingDir);
         }
         else {

@@ -15,14 +15,18 @@
  */
 package dorkbox.build.util;
 
+import java.io.PrintStream;
+
 import dorkbox.util.OS;
 
-import java.io.PrintStream;
+// UNICODE is from: https://en.wikipedia.org/wiki/List_of_Unicode_characters#Box_Drawing
 
 public
 class BuildLog {
-    public static final int STOCK_TITLE_WIDTH = 14;
-    public static int TITLE_WIDTH = 14;
+    private static final int TITLE_ADJUSTMENT = 2;
+
+    private static final int STOCK_TITLE_WIDTH = 17;
+    private static int TITLE_WIDTH = STOCK_TITLE_WIDTH;
 
     private static final String TITLE_MESSAGE_DELIMITER = "│";
     private static final String TITLE_SEPERATOR = "─";
@@ -139,10 +143,10 @@ class BuildLog {
 
     private static synchronized
     void titleStart() {
-        boolean atBeginning = TITLE_WIDTH <= STOCK_TITLE_WIDTH;
-
         String sep = TITLE_SEPERATOR;
-        TITLE_WIDTH += 2;
+
+        boolean atBeginning = TITLE_WIDTH <= STOCK_TITLE_WIDTH;
+        TITLE_WIDTH += TITLE_ADJUSTMENT;
 
         StringBuilder spacerTitle = new StringBuilder(TITLE_WIDTH);
         for (int i = 2; i < TITLE_WIDTH; i++) {
@@ -160,18 +164,19 @@ class BuildLog {
         spacerTitle.append('╮');
 
         printer.println(spacerTitle.toString());
-
     }
 
     private static
     void titleEnd() {
-        boolean atBeginning = TITLE_WIDTH <= STOCK_TITLE_WIDTH;
         String sep = TITLE_SEPERATOR;
 
         StringBuilder spacerTitle = new StringBuilder(TITLE_WIDTH);
         for (int i = 2; i < TITLE_WIDTH; i++) {
             spacerTitle.append(sep);
         }
+
+        TITLE_WIDTH -= TITLE_ADJUSTMENT;
+        boolean atBeginning = TITLE_WIDTH <= STOCK_TITLE_WIDTH;
 
         if (atBeginning) {
             spacerTitle.append(sep);
@@ -185,7 +190,7 @@ class BuildLog {
 
         printer.println(spacerTitle.toString());
 
-        TITLE_WIDTH -= 2;
+
     }
 
     public static synchronized

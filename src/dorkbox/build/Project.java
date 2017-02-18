@@ -916,7 +916,8 @@ class Project<T extends Project<T>> {
         }
 
         if (stagingDir.exists()) {
-            BuildLog.println("Deleting staging location: " + this.stagingDir);
+            BuildLog.start();
+            BuildLog.title("Cleanup").println("Deleting staging location: " + this.stagingDir);
             FileUtil.delete(this.stagingDir);
 
             final File[] files = this.stagingDir.listFiles();
@@ -925,6 +926,7 @@ class Project<T extends Project<T>> {
                 BuildLog.println("Deleting staging location" + this.stagingDir.getParentFile());
                 FileUtil.delete(this.stagingDir.getParentFile());
             }
+            BuildLog.finish();
         }
     }
 
