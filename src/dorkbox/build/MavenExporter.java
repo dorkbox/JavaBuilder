@@ -71,7 +71,7 @@ class MavenExporter {
     private static final int retryCount = 30;
     public static final String SPACER = "    ";
 
-    private String groupId;
+    private final MavenInfo info;
     private String projectVersion;
 
     private String gitHubUrl;
@@ -90,7 +90,7 @@ class MavenExporter {
 
     public
     MavenExporter(final MavenInfo info) {
-        this.groupId = info.getGroupId();
+        this.info = info;
         this.projectVersion = info.getVersion().toStringWithoutPrefix();
     }
 
@@ -200,7 +200,7 @@ class MavenExporter {
 
 
         BuildLog.println("Creating the POM file");
-        String pomFileText = createString(project, targetJavaVersion, properties);
+        String pomFileText = createString(project, info, gitHubParent, gitHubProject, gitHubUrl, targetJavaVersion, properties);
 
         BufferedWriter writer = null;
         try {
@@ -350,20 +350,20 @@ class MavenExporter {
 
 
 
-        final Uploader uploader = new Uploader(project.name, uploadURL, repo, authInfo, groupId, projectVersion, description);
-        String groupID_asPath = groupId.replaceAll("\\.", "/");
+        final Uploader uploader = new Uploader(uploadURL, repo, authInfo, info.getGroupId(), info.getArtifactId(), projectVersion, description);
+        String groupID_asPath = info.getGroupId().replaceAll("\\.", "/");
 
         // now POM signature
         BuildLog.println(pomAscFile.getName());
         uploader.upload(pomAscFile, "pom.asc");
-        deleteSignatureTurds(authInfo, repo, groupID_asPath, project.name, projectVersion, pomAscFile);
+        deleteSignatureTurds(authInfo, repo, groupID_asPath, info.getArtifactId(), projectVersion, pomAscFile);
 
 
 
         // now jar signature
         BuildLog.println(jarAscFile.getName());
         uploader.upload(jarAscFile, "jar.asc");
-        deleteSignatureTurds(authInfo, repo, groupID_asPath, project.name, projectVersion, jarAscFile);
+        deleteSignatureTurds(authInfo, repo, groupID_asPath, info.getArtifactId(), projectVersion, jarAscFile);
 
 
 
@@ -374,7 +374,7 @@ class MavenExporter {
         // now sources signature
         BuildLog.println(sourcesAscFile.getName());
         uploader.upload(sourcesAscFile, "jar.asc", "sources");
-        deleteSignatureTurds(authInfo, repo, groupID_asPath, project.name, projectVersion, sourcesAscFile);
+        deleteSignatureTurds(authInfo, repo, groupID_asPath, info.getArtifactId(), projectVersion, sourcesAscFile);
 
 
 
@@ -386,7 +386,7 @@ class MavenExporter {
         // now javadoc signature
         BuildLog.println(docsAscFile.getName());
         uploader.upload(docsAscFile, "jar.asc", "javadoc");
-        deleteSignatureTurds(authInfo, repo, groupID_asPath, project.name, projectVersion, docsAscFile);
+        deleteSignatureTurds(authInfo, repo, groupID_asPath, info.getArtifactId(), projectVersion, docsAscFile);
 
 
         if (!hasErrors.isEmpty()) {
@@ -489,7 +489,7 @@ class MavenExporter {
                 }
                 else {
                     // have to verify that the URL exists
-                    final String URL = "https://oss.sonatype.org/content/repositories/releases/" + groupID_asPath + "/" + project.name + "/" + projectVersion + "/";
+                    final String URL = "https://oss.sonatype.org/content/repositories/releases/" + groupID_asPath + "/" + info.getArtifactId() + "/" + projectVersion + "/";
 
                     if (hasRepoReleased(URL)) {
                         BuildLog.print(" Released");
@@ -647,12 +647,12 @@ class MavenExporter {
      * themselves. See: https://issues.sonatype.org/browse/NEXUS-4906
      */
     private static
-    void deleteSignatureTurds(final String authInfo, final String repo, final String groupId_asPath, final String name,
+    void deleteSignatureTurds(final String authInfo, final String repo, final String groupId_asPath, final String artifactId,
                               final String version, final File signatureFile)
                     throws IOException {
 
         String delURL = "https://oss.sonatype.org/service/local/repositories/" + repo + "/content/" +
-                        groupId_asPath + "/" + name + "/" + version + "/" + signatureFile.getName();
+                        groupId_asPath + "/" + artifactId + "/" + version + "/" + signatureFile.getName();
 
         RequestBuilder builder;
         Request request;
@@ -733,8 +733,10 @@ class MavenExporter {
     /**
      * Creates the POM string.
      */
-    private
-    String createString(Project<?> project, final int targetJavaVersion, final Properties properties) {
+    private static
+    String createString(Project<?> project, MavenInfo info, String gitHubParent, String gitHubProject, String gitHubUrl,
+                        final int targetJavaVersion, final Properties properties) {
+
         if (project.description == null) {
             throw new RuntimeException("Must specify a project description for project '" + project.name + "'  Aborting.");
         }
@@ -753,9 +755,9 @@ class MavenExporter {
         b.append(NL);
         b.append(NL);
 
-        space(b,1).append("<groupId>").append(groupId).append("</groupId>").append(NL);
-        space(b,1).append("<artifactId>").append(project.name).append("</artifactId>").append(NL);
-        space(b,1).append("<version>").append(projectVersion).append("</version>").append(NL);
+        space(b,1).append("<groupId>").append(info.getGroupId()).append("</groupId>").append(NL);
+        space(b,1).append("<artifactId>").append(info.getArtifactId()).append("</artifactId>").append(NL);
+        space(b,1).append("<version>").append(info.getVersion().toStringWithoutPrefix()).append("</version>").append(NL);
         space(b,1).append("<packaging>").append("jar").append("</packaging>").append(NL);
 
         b.append(NL);
@@ -909,27 +911,27 @@ class MavenExporter {
      */
     private
     class Uploader {
-        private final String name;
         private final String uploadURL;
         private final String repo;
         private final String authInfo;
         private final String groupId;
+        private final String artifactId;
         private final String version;
         private final String description;
 
-        Uploader(final String name,
-                 final String uploadURL,
+        Uploader(final String uploadURL,
                  final String repo,
                  final String authInfo,
                  final String groupId,
+                 final String artifactId,
                  final String version,
                  final String description) {
 
-            this.name = name;
             this.uploadURL = uploadURL;
             this.repo = repo;
             this.authInfo = authInfo;
             this.groupId = groupId;
+            this.artifactId = artifactId;
             this.version = version;
             this.description = description;
         }
@@ -946,7 +948,7 @@ class MavenExporter {
 
                           .addBodyPart(new StringPart("r", repo))
                           .addBodyPart(new StringPart("g", groupId))
-                          .addBodyPart(new StringPart("a", name))
+                          .addBodyPart(new StringPart("a", artifactId))
                           .addBodyPart(new StringPart("v", version))
                           .addBodyPart(new StringPart("p", "jar"))
                           .addBodyPart(new StringPart("e", extension))
