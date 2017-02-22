@@ -29,6 +29,7 @@ class Version {
 
     private final File file;
     private final Version originalVersion;
+    private Version anchorOriginalVersion;
 
     private String prefix;
     private String[] subVersion;
@@ -580,7 +581,8 @@ class Version {
     public
     void anchor() {
         // this works, since the original version is identical EXCEPT for version numbers.
-        originalVersion.set(this);
+        anchorOriginalVersion = new Version(originalVersion); // makes a copy
+        originalVersion.set(this);  // sets the original version to us (so that version info/numbers line up)
     }
 
     /**
@@ -599,6 +601,14 @@ class Version {
     public
     Version getOriginal() {
         return originalVersion;
+    }
+
+    /**
+     * @return the anchored original version. This is useful if version numbers were incremented during the build process
+     */
+    public
+    Version getAnchored() {
+        return anchorOriginalVersion;
     }
 
     /**
