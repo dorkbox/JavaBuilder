@@ -3,7 +3,6 @@ package dorkbox;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
@@ -404,7 +403,7 @@ class Version {
         }
 
         try {
-            List<String> strings = FileUtil.readLines(new FileReader(file));
+            List<String> strings = FileUtil.read(file);
 
 
             boolean hasPrecedingText = precedingText != null && !precedingText.isEmpty();
@@ -490,7 +489,7 @@ class Version {
         }
 
         try {
-            List<String> strings = FileUtil.readLines(new FileReader(file));
+            List<String> strings = FileUtil.read(file);
 
 
             boolean hasPrecedingText = precedingText != null && !precedingText.isEmpty();
