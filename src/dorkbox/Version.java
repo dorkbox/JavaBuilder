@@ -403,7 +403,7 @@ class Version {
         }
 
         try {
-            List<String> strings = FileUtil.read(file);
+            List<String> strings = FileUtil.read(file, false);
 
 
             boolean hasPrecedingText = precedingText != null && !precedingText.isEmpty();
@@ -489,7 +489,7 @@ class Version {
         }
 
         try {
-            List<String> strings = FileUtil.read(file);
+            List<String> strings = FileUtil.read(file, false);
 
 
             boolean hasPrecedingText = precedingText != null && !precedingText.isEmpty();
