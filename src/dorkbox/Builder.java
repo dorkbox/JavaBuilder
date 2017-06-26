@@ -95,6 +95,15 @@ class Builder {
 
         try {
             tempDir = new File(FileUtil.tempDirectory("Builder"));
+            // forcibly delete the temp dir and all contents at shutdown.
+            Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
+                @Override
+                public
+                void run() {
+                    FileUtil.delete(tempDir);
+                }
+            }));
+
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

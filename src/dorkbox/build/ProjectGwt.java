@@ -32,7 +32,7 @@ import dorkbox.build.util.BuildLog;
 import dorkbox.build.util.jar.JarUtil;
 import dorkbox.util.FileUtil;
 import dorkbox.util.gwt.GwtSymbolMapParser;
-import dorkbox.util.process.JavaProcessBuilder;
+import dorkbox.util.process.JvmExecutor;
 
 public
 class ProjectGwt extends Project<ProjectGwt> {
@@ -126,6 +126,7 @@ class ProjectGwt extends Project<ProjectGwt> {
      *
      * @return true if this project was built, false otherwise
      */
+    @Override
     public
     boolean build(final int targetJavaVersion) throws IOException {
         // check dependencies for this project
@@ -183,7 +184,7 @@ class ProjectGwt extends Project<ProjectGwt> {
                 System.err.println("  Working location: " + FileUtil.normalize(new File("test"))
                                                                     .getParent());
 
-                JavaProcessBuilder builder = new JavaProcessBuilder(System.in, System.out, System.err);
+                JvmExecutor builder = new JvmExecutor(System.in, System.out, System.err);
                 builder.setMaximumHeapSizeInMegabytes(512);
 
                 // we want to DEBUG this! (figure out wtf is going on)
