@@ -42,8 +42,8 @@ import com.esotericsoftware.yamlbeans.YamlException;
 import com.esotericsoftware.yamlbeans.YamlWriter;
 import com.esotericsoftware.yamlbeans.scalar.ScalarSerializer;
 
+import dorkbox.BuildVersion;
 import dorkbox.Builder;
-import dorkbox.Version;
 import dorkbox.build.util.BuildLog;
 import dorkbox.build.util.CrossCompileClass;
 import dorkbox.build.util.DependencyWalker;
@@ -798,7 +798,7 @@ class ProjectJava extends Project<ProjectJava> {
 
     @Override
     public
-    ProjectJava version(Version version) {
+    ProjectJava version(BuildVersion version) {
         super.version(version);
         return this;
     }

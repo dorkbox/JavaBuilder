@@ -21,14 +21,14 @@ import dorkbox.util.OS;
  * Utility class to deal with getting version strings, and incrementing version numbers.
  *
  * CRITICAL: If the "version" modified the build file, the variable used in the build file CANNOT be `static final`! This is because the
- * compiler will inline the value during compiletime, and we cannot modify it during runtime
+ * compiler will inline the value during compile-time, and we cannot modify it during runtime
  */
 public
-class Version {
+class BuildVersion {
 
     private final File file;
-    private final Version originalVersion;
-    private Version anchorOriginalVersion;
+    private final BuildVersion originalVersion;
+    private BuildVersion anchorOriginalVersion;
 
     private String prefix;
     private String[] subVersion;
@@ -38,18 +38,18 @@ class Version {
     private final String originalText;
 
     public
-    Version() {
+    BuildVersion() {
         this(null, "0");
     }
 
     public
-    Version(String version) {
+    BuildVersion(String version) {
         this(null, version);
     }
 
     @SuppressWarnings("IncompleteCopyConstructor")
     public
-    Version(final Version other) {
+    BuildVersion(final BuildVersion other) {
         file = other.file;
         originalVersion = other.originalVersion;
 
@@ -65,7 +65,7 @@ class Version {
     }
 
     public
-    Version(final Class<?> clazz, final String version) {
+    BuildVersion(final Class<?> clazz, final String version) {
         originalText = version;
         if (clazz != null) {
             final Paths javaFile = Builder.getJavaFile(clazz);
@@ -83,7 +83,7 @@ class Version {
             prefix = "";
             subVersion = new String[1];
             subVersion[0] = "0";
-            originalVersion = new Version(this);
+            originalVersion = new BuildVersion(this);
             return;
         }
 
@@ -161,7 +161,7 @@ class Version {
             }
         }
 
-        originalVersion = new Version(this);
+        originalVersion = new BuildVersion(this);
     }
 
 
@@ -171,7 +171,7 @@ class Version {
      * @param readme the README.md file that also has version info in it (xml/maven format)
      */
     public
-    Version readme(final File readme) {
+    BuildVersion readme(final File readme) {
         this.readme = readme;
         return this;
     }
@@ -184,7 +184,7 @@ class Version {
      * @param sourceFile the .java file (specified as a class file) that also has version info in it
      */
     public
-    Version sourceFile(final String name, final String sourceRootPath, final Class<?> sourceFile) {
+    BuildVersion sourceFile(final String name, final String sourceRootPath, final Class<?> sourceFile) {
         // register this module. This could be refactored out -- however it is best to do it this way so we don't duplicate code
         Builder.registerModule(name, sourceRootPath);
 
@@ -204,7 +204,7 @@ class Version {
      * Sets this version NUMBER to a copy of what the specified version info is. NOTHING ELSE is changed.
      */
     public
-    Version set(final Version other) {
+    BuildVersion set(final BuildVersion other) {
         if (originalVersion != null) {
             originalVersion.set(this);
         }
@@ -270,7 +270,7 @@ class Version {
      * @return the Version object, for chaining instructions
      */
     public
-    Version incrementMajor() {
+    BuildVersion incrementMajor() {
         return increment(0);
     }
 
@@ -281,7 +281,7 @@ class Version {
      * @return the Version object, for chaining instructions
      */
     public
-    Version incrementMinor() {
+    BuildVersion incrementMinor() {
         return increment(1);
     }
 
@@ -292,7 +292,7 @@ class Version {
      * @return the Version object, for chaining instructions
      */
     public
-    Version increment(int index) {
+    BuildVersion increment(int index) {
         try {
             subVersion[index] = Integer.toString(Integer.parseInt(subVersion[index]) + 1);
         } catch (Exception e) {
@@ -336,8 +336,8 @@ class Version {
         // only saves the sourcefile if it was included.
         if (!sourceFiles.isEmpty()) {
             for (File sourceFile : sourceFiles) {
-                final String precedingText = "String getVersion() {";
-                final String readmeOrigText = "return \"" + originalVersion.toStringWithoutPrefix() + "\";";
+                final String precedingText = "Version getVersion() {";
+                final String readmeOrigText = "return new Version(\"" + originalVersion.toStringWithoutPrefix() + "\");";
 
                 final String validate = validate(sourceFile, precedingText, readmeOrigText, originalVersion.toStringWithoutPrefix());
                 if (validate != null) {
@@ -347,7 +347,7 @@ class Version {
             }
         }
 
-        final String origText = "Version version = Version.get(\"" + originalVersion.toString() + "\")";
+        final String origText = "BuildVersion version = BuildVersion.get(\"" + originalVersion.toString() + "\")";
 
         return validate(file, null, origText, originalVersion.toString());
     }
@@ -357,7 +357,7 @@ class Version {
      * Saves this file (if specified) and the README.md file (if specified)
      */
     public
-    Version save() {
+    BuildVersion save() {
         if (!ignoreSaves) {
             // only saves the readme if it was included.
             if (readme != null) {
@@ -370,16 +370,16 @@ class Version {
             // only saves the sourcefile if it was included.
             if (!sourceFiles.isEmpty()) {
                 for (File sourceFile : sourceFiles) {
-                    final String precedingText = "String getVersion() {";
-                    final String readmeOrigText = "return \"" + originalVersion.toStringWithoutPrefix() + "\";";
-                    final String readmeNewText = "return \"" + toStringWithoutPrefix() + "\";";
+                    final String precedingText = "Version getVersion() {";
+                    final String readmeOrigText = "return new Version(\"" + originalVersion.toStringWithoutPrefix() + "\");";
+                    final String readmeNewText = "return new Version(\"" + toStringWithoutPrefix() + "\");";
 
                     save(sourceFile, precedingText, readmeOrigText, readmeNewText);
                 }
             }
 
-            final String origText = "Version version = Version.get(\"" + originalVersion.toString() + "\")";
-            final String newText = "Version version = Version.get(\"" + toString() + "\")";
+            final String origText = "BuildVersion version = BuildVersion.get(\"" + originalVersion.toString() + "\")";
+            final String newText = "BuildVersion version = BuildVersion.get(\"" + toString() + "\")";
 
             save(file, null, origText, newText);
         }
@@ -580,7 +580,7 @@ class Version {
     public
     void anchor() {
         // this works, since the original version is identical EXCEPT for version numbers.
-        anchorOriginalVersion = new Version(originalVersion); // makes a copy
+        anchorOriginalVersion = new BuildVersion(originalVersion); // makes a copy
         originalVersion.set(this);  // sets the original version to us (so that version info/numbers line up)
     }
 
@@ -590,7 +590,7 @@ class Version {
      * @return an new Version object, which has major/minor/etc version info
      */
     public static
-    Version get(String version) {
+    BuildVersion get(String version) {
         return get(getCallingClass(), version);
     }
 
@@ -598,7 +598,7 @@ class Version {
      * @return the original version. This is useful if version numbers were incremented during the build process
      */
     public
-    Version getOriginal() {
+    BuildVersion getOriginal() {
         return originalVersion;
     }
 
@@ -606,7 +606,7 @@ class Version {
      * @return the anchored original version. This is useful if version numbers were incremented during the build process
      */
     public
-    Version getAnchored() {
+    BuildVersion getAnchored() {
         return anchorOriginalVersion;
     }
 
@@ -618,8 +618,8 @@ class Version {
      * @return an new Version object, which has major/minor version info
      */
     public static
-    Version get(final Class<?> clazz, final String version) {
-        return new Version(clazz, version);
+    BuildVersion get(final Class<?> clazz, final String version) {
+        return new BuildVersion(clazz, version);
     }
 
 
@@ -658,8 +658,8 @@ class Version {
      * @return a copy of the current version. Any updates to the copy do not apply to the original.
      */
     public
-    Version copy() {
-        return new Version(this);
+    BuildVersion copy() {
+        return new BuildVersion(this);
     }
 
     /**
@@ -673,12 +673,12 @@ class Version {
     /**
      * @return true if this version number equals the specified version number
      */
-    boolean versionEquals(final Version version) {
+    boolean versionEquals(final BuildVersion version) {
         return Arrays.equals(this.subVersion, version.subVersion);
     }
 
     public
-    Version ignoreSaves() {
+    BuildVersion ignoreSaves() {
         this.ignoreSaves = true;
         return this;
     }

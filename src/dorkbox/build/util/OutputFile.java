@@ -2,7 +2,7 @@ package dorkbox.build.util;
 
 import java.io.File;
 
-import dorkbox.Version;
+import dorkbox.BuildVersion;
 import dorkbox.build.Project;
 import dorkbox.util.FileUtil;
 
@@ -26,7 +26,7 @@ class OutputFile {
     }
 
     public
-    OutputFile(final Version version, final String outputFileName, final String outputSourceFileName) {
+    OutputFile(final BuildVersion version, final String outputFileName, final String outputSourceFileName) {
         //  If version info is specified, then the CURRENT (new) version info is used to generate the filename
         String extension = FileUtil.getExtension(outputFileName);
         String cleanedName = FileUtil.getNameWithoutExtension(outputFileName);
@@ -89,7 +89,7 @@ class OutputFile {
             outputSourceFOrg = FileUtil.normalize(new File(outputSourceFileName));
         } else {
             newExtension = Project.SRC_EXTENSION;
-            outputSourceFile =  new File(outputFileString + newExtension);;
+            outputSourceFile =  new File(outputFileString + newExtension);
             outputSourceFOrg = new File(outputFOrgString + newExtension);
         }
     }

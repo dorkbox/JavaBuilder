@@ -40,8 +40,8 @@ import com.esotericsoftware.wildcard.Paths;
 import com.twmacinta.util.MD5;
 
 import dorkbox.BuildOptions;
+import dorkbox.BuildVersion;
 import dorkbox.Builder;
-import dorkbox.Version;
 import dorkbox.build.util.BuildLog;
 import dorkbox.build.util.OutputFile;
 import dorkbox.build.util.ShutdownHook;
@@ -208,7 +208,7 @@ class Project<T extends Project<T>> {
 
     public String name;
 
-    protected Version version;
+    protected BuildVersion version;
 
     File stagingDir;
 
@@ -362,7 +362,7 @@ class Project<T extends Project<T>> {
      */
     public
     MavenExporter mavenExport(final String groupId, final MavenInfo.Scope scope) {
-        mavenExport(new MavenExporter(new MavenInfo(groupId, name, this.version, scope)));
+        mavenExport(new MavenExporter(new MavenInfo(groupId, name, this.version.toStringWithoutPrefix(), scope)));
         return mavenExporter;
     }
 
@@ -380,7 +380,7 @@ class Project<T extends Project<T>> {
      */
     public
     T mavenInfo(final String groupId) {
-        mavenInfo = new MavenInfo(groupId, this.name, this.version, null); // null = Scope.COMPILE
+        mavenInfo = new MavenInfo(groupId, this.name, this.version.toStringWithoutPrefix(), null); // null = Scope.COMPILE
         return (T)this;
     }
 
@@ -398,7 +398,7 @@ class Project<T extends Project<T>> {
      */
     public
     T mavenInfo(final String groupId, final MavenInfo.Scope scope) {
-        mavenInfo = new MavenInfo(groupId, this.name, this.version, scope);
+        mavenInfo = new MavenInfo(groupId, this.name, this.version.toStringWithoutPrefix(), scope);
         return (T)this;
     }
 
@@ -407,7 +407,7 @@ class Project<T extends Project<T>> {
      */
     public
     T mavenInfo(final String groupId, final String artifactId, final MavenInfo.Scope scope) {
-        mavenInfo = new MavenInfo(groupId, artifactId, this.version, scope);
+        mavenInfo = new MavenInfo(groupId, artifactId, this.version.toStringWithoutPrefix(), scope);
         return (T)this;
     }
 
@@ -416,7 +416,7 @@ class Project<T extends Project<T>> {
      */
     public
     T mavenInfo(final String groupId, final String artifactId, final String version, final MavenInfo.Scope scope) {
-        mavenInfo = new MavenInfo(groupId, artifactId, new Version(version), scope);
+        mavenInfo = new MavenInfo(groupId, artifactId, version, scope);
         return (T)this;
     }
 
@@ -874,7 +874,7 @@ class Project<T extends Project<T>> {
     }
 
     public
-    T version(Version version) {
+    T version(BuildVersion version) {
         this.version = version;
         return (T) this;
     }

@@ -91,7 +91,7 @@ class MavenExporter {
     public
     MavenExporter(final MavenInfo info) {
         this.info = info;
-        this.projectVersion = info.getVersion().toStringWithoutPrefix();
+        this.projectVersion = info.getVersion();
     }
 
     /**
@@ -757,7 +757,7 @@ class MavenExporter {
 
         space(b,1).append("<groupId>").append(info.getGroupId()).append("</groupId>").append(NL);
         space(b,1).append("<artifactId>").append(info.getArtifactId()).append("</artifactId>").append(NL);
-        space(b,1).append("<version>").append(info.getVersion().toStringWithoutPrefix()).append("</version>").append(NL);
+        space(b,1).append("<version>").append(info.getVersion()).append("</version>").append(NL);
         space(b,1).append("<packaging>").append("jar").append("</packaging>").append(NL);
 
         b.append(NL);
@@ -875,7 +875,7 @@ class MavenExporter {
                     space(b,2).append("<dependency>").append(NL);
                     space(b,3).append("<groupId>").append(mavenInfo.getGroupId()).append("</groupId>").append(NL);
                     space(b,3).append("<artifactId>").append(mavenInfo.getArtifactId()).append("</artifactId>").append(NL);
-                    space(b,3).append("<version>").append(mavenInfo.getVersion().toStringWithoutPrefix()).append("</version>").append(NL);
+                    space(b,3).append("<version>").append(mavenInfo.getVersion()).append("</version>").append(NL);
 
                     if (mavenInfo.getScope() != null) {
                         space(b,3).append("<scope>").append(mavenInfo.getScope()).append("</scope>").append(NL);

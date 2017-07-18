@@ -3,7 +3,7 @@ package dorkbox.build;
 import java.io.File;
 import java.io.IOException;
 
-import dorkbox.Version;
+import dorkbox.BuildVersion;
 import dorkbox.build.util.BuildLog;
 import dorkbox.build.util.FileNotFoundRuntimeException;
 import dorkbox.util.storage.Storage;
@@ -81,7 +81,7 @@ public class ProjectJar extends Project<ProjectJar> {
 
     @Override
     public
-    ProjectJar version(Version version) {
+    ProjectJar version(BuildVersion version) {
         super.version(version);
         return this;
     }
