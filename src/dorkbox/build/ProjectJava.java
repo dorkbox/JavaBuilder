@@ -55,6 +55,7 @@ import dorkbox.license.LicenseType;
 import dorkbox.util.FileUtil;
 import dorkbox.util.OS;
 
+@SuppressWarnings({"AccessStaticViaInstance", "Convert2Diamond"})
 public
 class ProjectJava extends Project<ProjectJava> {
 
@@ -191,6 +192,7 @@ class ProjectJava extends Project<ProjectJava> {
      *
      * @return true if this project was built, false otherwise
      */
+    @Override
     public
     boolean build(final int targetJavaVersion) throws IOException {
         // save off the target version we build
@@ -240,12 +242,7 @@ class ProjectJava extends Project<ProjectJava> {
 
         String version = "";
         if (this.version != null) {
-            final String verify = this.version.verify();
-
-            if (verify != null) {
-                throw new IOException(verify);
-            }
-
+            this.version.verify();
             version = this.version.toString();
         }
 
@@ -803,6 +800,7 @@ class ProjectJava extends Project<ProjectJava> {
         return this;
     }
 
+    @Override
     public
     void uploadToMaven() throws IOException {
         // only if we save the build. Test builds don't save, and we shouldn't upload them to maven

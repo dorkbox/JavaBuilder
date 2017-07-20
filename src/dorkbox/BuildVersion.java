@@ -16,6 +16,7 @@ import dorkbox.build.util.BuildLog;
 import dorkbox.util.FileUtil;
 import dorkbox.util.IO;
 import dorkbox.util.OS;
+import dorkbox.util.Version;
 
 /**
  * Utility class to deal with getting version strings, and incrementing version numbers.
@@ -23,50 +24,126 @@ import dorkbox.util.OS;
  * CRITICAL: If the "version" modified the build file, the variable used in the build file CANNOT be `static final`! This is because the
  * compiler will inline the value during compile-time, and we cannot modify it during runtime
  */
+@SuppressWarnings("Convert2Diamond")
 public
 class BuildVersion {
 
-    private final File file;
-    private final BuildVersion originalVersion;
-    private BuildVersion anchorOriginalVersion;
+    private static
+    class IncrementingVersion extends Version {
+        IncrementingVersion(final Version version) {
+            super(version);
+        }
 
-    private String prefix;
-    private String[] subVersion;
+        IncrementingVersion(final String version) {
+            super(version);
+        }
+
+        /**
+         * Increments the MAJOR version and resets the MINOR/PATCH version to 0.
+         *
+         * @return the Version object, for chaining instructions
+         */
+        Version incrementMajor() {
+            return increment(0);
+        }
+
+
+        /**
+         * Increments the MINOR version and resets the PATCH version to 0.
+         *
+         * @return the Version object, for chaining instructions
+         */
+        Version incrementMinor() {
+            return increment(1);
+        }
+
+        /**
+         * Increments the specified version (as an array) and resets everything > index to 0.
+         *
+         * @return the Version object, for chaining instructions
+         */
+        Version increment(int index) {
+            if (internalVersion.length < index) {
+                internalVersion = Arrays.copyOf(internalVersion, index);
+            }
+
+            internalVersion[index] = internalVersion[index]+1;
+
+            // if there are any indices "smaller" than the specified, we zero them out.
+            final int length = internalVersion.length;
+            if (length > index) {
+                for (int i = index+1; i < length; i++) {
+                    internalVersion[i] = 0; // reset minor/patch/etc to 0
+                }
+            }
+
+            // have to re-calculate the String
+            StringBuilder s = new StringBuilder(this.version.length());
+            for (int i : internalVersion) {
+                s.append(Integer.toString(i)).append('.');
+            }
+            // remove the last .
+            s.deleteCharAt(s.length()-1);
+
+            version = s.toString();
+
+            return this;
+        }
+    }
+
+
+    private final File file;
+
+    private IncrementingVersion original;
+    private IncrementingVersion current;
+    private IncrementingVersion anchored;
+
     private File readme;
     private List<File> sourceFiles = new ArrayList<File>();
     private boolean ignoreSaves = false;
-    private final String originalText;
 
-    public
-    BuildVersion() {
-        this(null, "0");
+    /**
+     * Gets the [MAJOR][MINOR] version from a string. The passed in string can start with letters/words, as the first digit is used. If an
+     * empty string is passed in, [0, 0] will be returned. If a string with a major, but no minor is passed in, [major, 0] will be
+     * returned.
+     *
+     * @return an new Version object, which has major/minor version info
+     */
+    public static
+    BuildVersion get(final Class<?> clazz, final String version) {
+        return new BuildVersion(clazz, version);
     }
 
-    public
-    BuildVersion(String version) {
-        this(null, version);
-    }
+
 
     @SuppressWarnings("IncompleteCopyConstructor")
     public
     BuildVersion(final BuildVersion other) {
-        file = other.file;
-        originalVersion = other.originalVersion;
+        this.current = new IncrementingVersion(other.original);
 
-        prefix = other.prefix;
+        file = other.file;
+
         readme = other.readme;
         sourceFiles.addAll(other.sourceFiles);
         ignoreSaves = other.ignoreSaves;
-        originalText = other.originalText;
 
-        final int length = other.subVersion.length;
-        subVersion = new String[length];
-        System.arraycopy(other.subVersion, 0, subVersion, 0, length);
+        original = new IncrementingVersion(other.original); // make a copy
+    }
+
+    public
+    BuildVersion(final String version) {
+        this.current = new IncrementingVersion(version);
+
+        original = new IncrementingVersion(version);
+        file = null;
     }
 
     public
     BuildVersion(final Class<?> clazz, final String version) {
-        originalText = version;
+        this.current = new IncrementingVersion(version);
+
+        original = new IncrementingVersion(version);
+
         if (clazz != null) {
             final Paths javaFile = Builder.getJavaFile(clazz);
             file = javaFile.getFiles()
@@ -75,93 +152,6 @@ class BuildVersion {
         else {
             file = null;
         }
-
-        final int length = version.length();
-
-        // if an empty or null string is passed it, it's version is "0"
-        if (length == 0) {
-            prefix = "";
-            subVersion = new String[1];
-            subVersion[0] = "0";
-            originalVersion = new BuildVersion(this);
-            return;
-        }
-
-
-        int startIndex = -1;
-        for (int i = 0; i < length; i++) {
-            char c =  version.charAt(i);
-            if (Character.isDigit(c)) {
-                startIndex = i;
-                break;
-            }
-        }
-
-        // maybe it starts with a 'v' or something (so we add that back in)
-        if (startIndex > 0) {
-            char c =  version.charAt(startIndex - 1);
-            if (c == '.') {
-                prefix = version.substring(0, startIndex - 1);
-            }
-            else {
-                prefix = version.substring(0, startIndex);
-            }
-        }
-        else {
-            prefix = "";
-        }
-
-
-        int dotCount = 0;
-        for (int i = 0; i < length; i++) {
-            char c = version.charAt(i);
-            if (c == '.') {
-                dotCount++;
-            }
-        }
-
-        int groupCount = dotCount + 1;
-        subVersion = new String[groupCount];
-
-        String dotString;
-
-        // maybe we have a dot, maybe not.
-        int dotIndex = version.indexOf('.');
-        if (dotIndex == -1) {
-            // no dots
-            if (startIndex == 0) {
-                dotString = version;
-            }
-            else {
-                dotString = version.substring(startIndex);
-            }
-
-            subVersion[0] = dotString;
-
-        }
-        else {
-            int i = 0;
-            if (startIndex > dotIndex) {
-                subVersion[0] = "0";
-                i++;
-                dotIndex = length;
-            }
-
-            for (; i < groupCount; i++) {
-                dotString = version.substring(startIndex, dotIndex);
-
-                dotIndex++;
-                startIndex = dotIndex;
-                dotIndex = version.indexOf('.', dotIndex);
-                if (dotIndex == -1) {
-                    dotIndex = length;
-                }
-
-                subVersion[i] = dotString;
-            }
-        }
-
-        originalVersion = new BuildVersion(this);
     }
 
 
@@ -200,156 +190,37 @@ class BuildVersion {
         return this;
     }
 
-    /**
-     * Sets this version NUMBER to a copy of what the specified version info is. NOTHING ELSE is changed.
-     */
-    public
-    BuildVersion set(final BuildVersion other) {
-        if (originalVersion != null) {
-            originalVersion.set(this);
-        }
-
-        prefix = other.prefix;
-
-        final int length = other.subVersion.length;
-        subVersion = new String[length];
-        System.arraycopy(other.subVersion, 0, subVersion, 0, length);
-
-        return this;
-    }
-
-    /**
-     * Gets the MAJOR version from a string. The passed in string can start with letters/words, as the first digit is used. If an empty
-     * string is passed in, 0 will be returned.
-     *
-     * @return an int that is the MAJOR version
-     */
-    public
-    int getMajor() {
-        try {
-            return Integer.parseInt(subVersion[0]);
-        } catch (Exception e) {
-                throw new NumberFormatException("Provided version '" + originalText + "' does not have a major (X.x.x.x) assigned or is " +
-                                                "improperly formatted: " + e.getMessage());
-        }
-    }
-
-    /**
-     * Gets the MINOR version from a string. The passed in string can start with letters/words, as the first digit is used. If an empty
-     * string is passed in, 0 will be returned. If a string with a major, but no minor is passed in, 0 will be returned.
-     *
-     * @return an int that is the minor
-     */
-    public
-    int getMinor() {
-        if (subVersion.length > 1) {
-            try {
-                return Integer.parseInt(subVersion[1]);
-            } catch (Exception e) {
-                throw new NumberFormatException("Provided version '" + originalText + "' does not have a minor (x.X.x.x) assigned or is " +
-                                                "improperly formatted: " + e.getMessage());
-            }
-        }
-        else {
-            return 0;
-        }
-    }
-
-    /**
-     * @return the version information as an ARRAY.
-     */
-    public
-    String[] get() {
-        return subVersion;
-    }
 
 
     /**
-     * Increments the MAJOR version and resets the MINOR version to 0.
-     *
-     * @return the Version object, for chaining instructions
+     * Verifies that all of the version information on save() will be valid. Throws IOException if it was not OK
      */
     public
-    BuildVersion incrementMajor() {
-        return increment(0);
-    }
-
-
-    /**
-     * Increments the MINOR version and resets the PATCH version to 0.
-     *
-     * @return the Version object, for chaining instructions
-     */
-    public
-    BuildVersion incrementMinor() {
-        return increment(1);
-    }
-
-
-    /**
-     * Increments the specified version (as an array) and resets everything > index to 0.
-     *
-     * @return the Version object, for chaining instructions
-     */
-    public
-    BuildVersion increment(int index) {
-        try {
-            subVersion[index] = Integer.toString(Integer.parseInt(subVersion[index]) + 1);
-        } catch (Exception e) {
-            throw new NumberFormatException("Provided version '" + originalText + "' does not have a major number assigned or is improperly " +
-                                            "formatted (it must be a number): " + e.getMessage());
-        }
-
-        // if there are any indices "smaller" than the specified, we zero them out.
-        final int length = subVersion.length;
-        if (length > index) {
-            for (int i = index+1; i < length; i++) {
-                subVersion[i] = "0"; // reset minor/patch/etc to 0
-            }
-        }
-
-        return this;
-    }
-
-    /**
-     * Verifies that all of the version information on save() will be valid.
-     *
-     * @return null indicates everything is OK, false is the error message
-     */
-    public
-    String verify() {
+    void verify() throws IOException {
         if (ignoreSaves) {
-            return null;
+            return;
         }
 
         // only saves the readme if it was included.
         if (readme != null) {
-            final String readmeOrigText = "<version>" + originalVersion.toStringWithoutPrefix() + "</version>";
+            final String readmeOrigText = "<version>" + original.toString() + "</version>";
 
-            final String validate = validate(readme, null, readmeOrigText, originalVersion.toStringWithoutPrefix());
-            if (validate != null) {
-                // null means there was an error!
-                return validate;
-            }
+            validate(readme, null, readmeOrigText, original.toString());
         }
 
         // only saves the sourcefile if it was included.
         if (!sourceFiles.isEmpty()) {
             for (File sourceFile : sourceFiles) {
                 final String precedingText = "Version getVersion() {";
-                final String readmeOrigText = "return new Version(\"" + originalVersion.toStringWithoutPrefix() + "\");";
+                final String readmeOrigText = "return new Version(\"" + original.toString() + "\");";
 
-                final String validate = validate(sourceFile, precedingText, readmeOrigText, originalVersion.toStringWithoutPrefix());
-                if (validate != null) {
-                    // null means there was an error!
-                    return validate;
-                }
+                validate(sourceFile, precedingText, readmeOrigText, original.toString());
             }
         }
 
-        final String origText = "BuildVersion version = BuildVersion.get(\"" + originalVersion.toString() + "\")";
-
-        return validate(file, null, origText, originalVersion.toString());
+        // now check the build file
+        final String origText = "BuildVersion version = BuildVersion.get(\"" + original.toString() + "\")";
+        validate(file, null, origText, original.toString());
     }
 
 
@@ -361,8 +232,8 @@ class BuildVersion {
         if (!ignoreSaves) {
             // only saves the readme if it was included.
             if (readme != null) {
-                final String readmeOrigText = "<version>" + originalVersion.toStringWithoutPrefix() + "</version>";
-                final String readmeNewText = "<version>" + toStringWithoutPrefix() + "</version>";
+                final String readmeOrigText = "<version>" + original.toString() + "</version>";
+                final String readmeNewText = "<version>" + toString() + "</version>";
 
                 save(readme, null, readmeOrigText, readmeNewText);
             }
@@ -371,14 +242,14 @@ class BuildVersion {
             if (!sourceFiles.isEmpty()) {
                 for (File sourceFile : sourceFiles) {
                     final String precedingText = "Version getVersion() {";
-                    final String readmeOrigText = "return new Version(\"" + originalVersion.toStringWithoutPrefix() + "\");";
-                    final String readmeNewText = "return new Version(\"" + toStringWithoutPrefix() + "\");";
+                    final String readmeOrigText = "return new Version(\"" + original.toString() + "\");";
+                    final String readmeNewText = "return new Version(\"" + toString() + "\");";
 
                     save(sourceFile, precedingText, readmeOrigText, readmeNewText);
                 }
             }
 
-            final String origText = "BuildVersion version = BuildVersion.get(\"" + originalVersion.toString() + "\")";
+            final String origText = "BuildVersion version = BuildVersion.get(\"" + original.toString() + "\")";
             final String newText = "BuildVersion version = BuildVersion.get(\"" + toString() + "\")";
 
             save(file, null, origText, newText);
@@ -483,109 +354,48 @@ class BuildVersion {
     }
 
     private static
-    String validate(final File file, final String precedingText, final String origText, final String expectedVersion) {
+    void validate(final File file, final String precedingText, final String origText, final String expectedVersion) throws IOException {
         if (file == null) {
-            return "Unable to save the version information if the calling class is not detected.";
+            throw new IOException("Unable to save the version information if the calling class is not detected.");
         }
 
-        try {
-            List<String> strings = FileUtil.read(file, true);
+        List<String> strings = FileUtil.read(file, true);
 
 
-            boolean hasPrecedingText = precedingText != null && !precedingText.isEmpty();
-            boolean foundPrecedingText = false;
-            boolean found = false;
+        boolean hasPrecedingText = precedingText != null && !precedingText.isEmpty();
+        boolean foundPrecedingText = false;
+        boolean found = false;
 
-            if (hasPrecedingText) {
-                for (int i = 0; i < strings.size(); i++) {
-                    String string = strings.get(i);
-                    if (string.contains(precedingText)) {
-                        foundPrecedingText = true;
-                    }
+        if (hasPrecedingText) {
+            for (String string : strings) {
+                if (string.contains(precedingText)) {
+                    foundPrecedingText = true;
+                }
 
-                    if (foundPrecedingText && string.contains(origText)) {
-                        found = true;
-                        break;
-                    }
+                if (foundPrecedingText && string.contains(origText)) {
+                    found = true;
+                    break;
                 }
             }
-            else {
-                for (int i = 0; i < strings.size(); i++) {
-                    String string =  strings.get(i);
-
-                    // the source string (in the file) cannot be "final", because "final" (if static) is inlined by the compiler.
-                    if (string.contains(origText)) {
-                        found = true;
-                        break;
-                    }
-                }
-            }
-
-            if (!found) {
-                return "Expected version string/info '" + expectedVersion + "' NOT FOUND in '" + file +
-                       "'. Check spacing/formatting and try again.";
-            }
-        } catch (IOException e) {
-            return "Unable to read file. " + e.getMessage();
-        }
-
-        return null;
-    }
-
-
-    @Override
-    public
-    String toString() {
-        // this is DIFFERENT than toStringWithoutPrefix(), in that this DOES NOT do anything with length == 1.
-        final int length = subVersion.length;
-        final StringBuilder stringBuilder = new StringBuilder(length * 3);
-
-        stringBuilder.append(prefix);
-
-        for (String v : subVersion) {
-            stringBuilder.append(v);
-            stringBuilder.append('.');
-        }
-
-        final int length1 = stringBuilder.length();
-        stringBuilder.delete(length1 - 1, length1);
-
-        return stringBuilder.toString();
-    }
-
-    public
-    String toStringWithoutPrefix() {
-        final int length = subVersion.length;
-        final StringBuilder stringBuilder = new StringBuilder(length * 3);
-
-        for (String v : subVersion) {
-            stringBuilder.append(v);
-            stringBuilder.append('.');
-        }
-
-        if (length == 1) {
-            stringBuilder.append('0');
         }
         else {
-            final int length1 = stringBuilder.length();
-            stringBuilder.delete(length1 - 1, length1);
+            for (String string : strings) {
+                // the source string (in the file) cannot be "final", because "final" (if static) is inlined by the compiler.
+                if (string.contains(origText)) {
+                    found = true;
+                    break;
+                }
+            }
         }
 
-        return stringBuilder.toString();
+        if (!found) {
+            throw new IOException("Expected version string/info '" + expectedVersion + "' NOT FOUND in '" + file +
+                   "'. Check spacing/formatting and try again.");
+        }
     }
 
     /**
-     * Sets the original version number to the current version number. Useful when building the same project more than once in a row.
-     */
-    public
-    void anchor() {
-        // this works, since the original version is identical EXCEPT for version numbers.
-        anchorOriginalVersion = new BuildVersion(originalVersion); // makes a copy
-        originalVersion.set(this);  // sets the original version to us (so that version info/numbers line up)
-    }
-
-    /**
-     * Gets the [MAJOR][MINOR][etc] version from a string. The passed in string can start with letters/words, as the first digit is used.
+     * Gets the [MAJOR][MINOR] version from a string. The passed in string can start with letters/words, as the first digit is used.
      *
      * @return an new Version object, which has major/minor/etc version info
      */
@@ -598,30 +408,9 @@ class BuildVersion {
      * @return the original version. This is useful if version numbers were incremented during the build process
      */
     public
-    BuildVersion getOriginal() {
-        return originalVersion;
+    Version getOriginal() {
+        return original;
     }
-
-    /**
-     * @return the anchored original version. This is useful if version numbers were incremented during the build process
-     */
-    public
-    BuildVersion getAnchored() {
-        return anchorOriginalVersion;
-    }
-
-    /**
-     * Gets the [MAJOR][MINOR] version from a string. The passed in string can start with letters/words, as the first digit is used. If an
-     * empty string is passed in, [0, 0] will be returned. If a string with a major, but no minor is passed in, [major, 0] will be
-     * returned.
-     *
-     * @return an new Version object, which has major/minor version info
-     */
-    public static
-    BuildVersion get(final Class<?> clazz, final String version) {
-        return new BuildVersion(clazz, version);
-    }
-
 
     private static Class getCallingClass() {
         // java < 8, it is SIGNIFICANTLY faster to call sun.reflect.Reflection.getCallerClass
@@ -667,19 +456,53 @@ class BuildVersion {
      */
     public
     boolean hasChanged() {
-        return !this.versionEquals(originalVersion);
-    }
-
-    /**
-     * @return true if this version number equals the specified version number
-     */
-    boolean versionEquals(final BuildVersion version) {
-        return Arrays.equals(this.subVersion, version.subVersion);
+        return !this.current.equals(original);
     }
 
     public
     BuildVersion ignoreSaves() {
         this.ignoreSaves = true;
         return this;
+    }
+
+    /**
+     * Increments the MAJOR version and resets the MINOR/PATCH version to 0.
+     *
+     * @return the Version object, for chaining instructions
+     */
+    public
+    Version incrementMajor() {
+        return this.current.incrementMajor();
+    }
+
+
+    /**
+     * Increments the MINOR version and resets the PATCH version to 0.
+     *
+     * @return the Version object, for chaining instructions
+     */
+    public
+    Version incrementMinor() {
+        return this.current.incrementMinor();
+    }
+
+    @Override
+    public
+    String toString() {
+        return this.current.toString();
+    }
+
+    // "anchored" means that
+    // - we save the original version info into anchored
+    // - change original to be current, so reading files, etc, work AFTER the version was changed
+    public
+    void anchor() {
+        this.anchored = this.original;
+        this.original = new IncrementingVersion(this.current);
+    }
+
+    public
+    Version getAnchored() {
+        return this.anchored;
     }
 }

@@ -362,7 +362,7 @@ class Project<T extends Project<T>> {
      */
     public
     MavenExporter mavenExport(final String groupId, final MavenInfo.Scope scope) {
-        mavenExport(new MavenExporter(new MavenInfo(groupId, name, this.version.toStringWithoutPrefix(), scope)));
+        mavenExport(new MavenExporter(new MavenInfo(groupId, name, this.version.toString(), scope)));
         return mavenExporter;
     }
 
@@ -380,7 +380,7 @@ class Project<T extends Project<T>> {
      */
     public
     T mavenInfo(final String groupId) {
-        mavenInfo = new MavenInfo(groupId, this.name, this.version.toStringWithoutPrefix(), null); // null = Scope.COMPILE
+        mavenInfo = new MavenInfo(groupId, this.name, this.version.toString(), null); // null = Scope.COMPILE
         return (T)this;
     }
 
@@ -398,7 +398,7 @@ class Project<T extends Project<T>> {
      */
     public
     T mavenInfo(final String groupId, final MavenInfo.Scope scope) {
-        mavenInfo = new MavenInfo(groupId, this.name, this.version.toStringWithoutPrefix(), scope);
+        mavenInfo = new MavenInfo(groupId, this.name, this.version.toString(), scope);
         return (T)this;
     }
 
@@ -407,7 +407,7 @@ class Project<T extends Project<T>> {
      */
     public
     T mavenInfo(final String groupId, final String artifactId, final MavenInfo.Scope scope) {
-        mavenInfo = new MavenInfo(groupId, artifactId, this.version.toStringWithoutPrefix(), scope);
+        mavenInfo = new MavenInfo(groupId, artifactId, this.version.toString(), scope);
         return (T)this;
     }
 
