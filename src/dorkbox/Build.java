@@ -11,6 +11,7 @@ import java.security.ProtectionDomain;
 
 import dorkbox.util.FileUtil;
 import dorkbox.util.OS;
+import dorkbox.util.Version;
 
 
 @SuppressWarnings("resource")
@@ -140,8 +141,8 @@ class Build {
      * Gets the version number.
      */
     public static
-    String getVersion() {
-        return "2.39";
+    Version getVersion() {
+        return new Version("2.39");
     }
 
     public static
