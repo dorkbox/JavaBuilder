@@ -96,7 +96,6 @@ class BuildVersion {
 
     private IncrementingVersion original;
     private IncrementingVersion current;
-    private IncrementingVersion anchored;
 
     private File readme;
     private List<File> sourceFiles = new ArrayList<File>();
@@ -229,6 +228,12 @@ class BuildVersion {
      */
     public
     BuildVersion save() {
+        if (original.toString()
+                    .equals(toString())) {
+            // don't save anything if nothing has changed.
+            return this;
+        }
+
         if (!ignoreSaves) {
             // only saves the readme if it was included.
             if (readme != null) {
@@ -490,19 +495,5 @@ class BuildVersion {
     public
     String toString() {
         return this.current.toString();
-    }
-
-    // "anchored" means that
-    // - we save the original version info into anchored
-    // - change original to be current, so reading files, etc, work AFTER the version was changed
-    public
-    void anchor() {
-        this.anchored = this.original;
-        this.original = new IncrementingVersion(this.current);
-    }
-
-    public
-    Version getAnchored() {
-        return this.anchored;
     }
 }
