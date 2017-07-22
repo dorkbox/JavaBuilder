@@ -37,12 +37,7 @@ class OutputFile {
         if (version != null) {
             // is the ORIG version part of the filename?
             // TWO situations, it can be anchored OR normal
-            final String original;
-            if (version.getAnchored() != null) {
-                original = version.getAnchored().toString();
-            } else {
-                original = version.getOriginal().toString();
-            }
+            final String original = version.getOriginal().toString();
 
             if (cleanedName.endsWith(original)) {
                 // have to replace ORIG with current
