@@ -11,6 +11,7 @@ import dorkbox.build.util.jar.JarOptions;
 import dorkbox.build.util.jar.JarSigner;
 import dorkbox.build.util.jar.JarUtil;
 
+@SuppressWarnings("unused")
 public
 class Jarable {
     private final ProjectJava projectJava;
@@ -20,6 +21,8 @@ class Jarable {
     private boolean includeSource = false;
 
     boolean includeSourceAsSeparate = false;
+
+    private boolean includeLicenseInfo = true;
 
     /**
      * Sign the jar with a self-signed certificate
@@ -120,6 +123,17 @@ class Jarable {
     }
 
     /**
+     * Skips installing the license info in the resulting jar. By DEFAULT, license info is included.
+     * <p>
+     * The source code file will ALWAYS have the license information included
+     */
+    public
+    Jarable skipLicenseInfo() {
+        includeLicenseInfo = false;
+        return this;
+    }
+
+    /**
      * Builds a jar from the specified source files, class file, and extras
      */
     void buildJar() throws IOException {
@@ -148,7 +162,7 @@ class Jarable {
         if (this.includeSource) {
             jarOptions.sourcePaths = this.projectJava.sourcePaths;
         }
-        if (!this.projectJava.licenses.isEmpty()) {
+        if (includeLicenseInfo && !this.projectJava.licenses.isEmpty()) {
             jarOptions.licenses = this.projectJava.licenses;
         }
         if (this.newClassPath != null) {
@@ -164,7 +178,9 @@ class Jarable {
             jarOptions.extraPaths = this.projectJava.extraFiles;
             jarOptions.sourcePaths = this.projectJava.sourcePaths;
 
+
             if (!this.projectJava.licenses.isEmpty()) {
+                // the source code will ALWAYS have the license information included
                 jarOptions.licenses = this.projectJava.licenses;
             }
 
