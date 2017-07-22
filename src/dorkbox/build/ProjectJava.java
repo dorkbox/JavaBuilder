@@ -363,15 +363,17 @@ class ProjectJava extends Project<ProjectJava> {
                     e.printStackTrace();
                 }
 
-                File buildLocation = new File(this.stagingDir.getParent(), "classFeilDeps");
+                File buildLocation = new File(this.stagingDir.getParent(), "classFileDeps");
                 FileUtil.delete(buildLocation);
                 FileUtil.mkdir(buildLocation);
 
                 // now have to save out the source files (that are now converted to .class files)
-                for (File sourceFile : sourceDependencies.getFiles()) {
-                    String s = relativeLocations.get(sourceFile) + ".class";
-                    File file = new File(tempProject.stagingDir, s);
-                    FileUtil.copyFile(file, new File(buildLocation, s));
+                // There can be inner-classes, so the ALL children of the parent dir must be added.
+                List<File> files = FileUtil.parseDir(tempProject.stagingDir);
+                int root = tempProject.stagingDir.getAbsolutePath().length() + 1; // include slash
+                for (File file : files) {
+                    String relativeName = file.getAbsolutePath().substring(root);
+                    FileUtil.copyFile(file, new File(buildLocation, relativeName));
                 }
 
                 FileUtil.delete(tempProject.stagingDir);
