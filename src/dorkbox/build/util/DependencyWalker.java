@@ -66,8 +66,10 @@ class DependencyWalker {
             // this means we base our check on the ROOT
             File file = new File(rootSource, name);
             if (file.exists()) {
-                dependencies.add(name);
-                collect(file, dependencies);
+                boolean add = dependencies.add(name);
+                if (add) {
+                    collect(file, dependencies);
+                }
             }
         }
         else {
@@ -75,8 +77,10 @@ class DependencyWalker {
             File file = new File(packageSource, name);
             if (file.exists()) {
                 String newName = file.getAbsolutePath();
-                dependencies.add(newName);
-                collect(file, dependencies);
+                boolean add = dependencies.add(newName);
+                if (add) {
+                    collect(file, dependencies);
+                }
             }
         }
     }
@@ -132,8 +136,10 @@ class DependencyWalker {
             for (ImportDeclaration anImport : imports) {
                 String importSource = importSource(rootSource, packageSource, anImport);
                 if (importSource != null) {
-                    dependencies.add(importSource);
-                    collect(new File(rootSource, importSource), dependencies);
+                    boolean add = dependencies.add(importSource);
+                    if (add) {
+                        collect(new File(rootSource, importSource), dependencies);
+                    }
                 }
             }
 
