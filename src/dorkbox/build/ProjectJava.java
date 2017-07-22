@@ -123,6 +123,14 @@ class ProjectJava extends Project<ProjectJava> {
         return sourcePath(new Paths(dir, patterns));
     }
 
+    /**
+     * Add a class to the list of sources that are available when compiling the code
+     */
+    public
+    ProjectJava sourcePath(final Class<?> sourceClass) {
+        return sourcePath(Builder.getJavaFile(sourceClass));
+    }
+
     public
     ProjectJava classPath(ProjectJar project) {
         if (project == null) {
@@ -321,11 +329,20 @@ class ProjectJava extends Project<ProjectJava> {
 
                 Set<String> dependencies = new HashSet<String>();
 
+
+                if (OS.javaVersion > targetJavaVersion) {
+                    BuildLog.title("Cross-Compile")
+                            .println("Class dependencies  [Java v1." + targetJavaVersion + "]");
+                }
+                else {
+                    BuildLog.title("Compiling").println("Class dependencies");
+                }
+
                 for (File sourceFile : sourceDependencies.getFiles()) {
                     String relativeNameNoExtension = DependencyWalker.collect(sourceFile, dependencies);
                     relativeLocations.put(sourceFile, relativeNameNoExtension);
 
-                    BuildLog.title("Compiling Classes").println(relativeNameNoExtension + ".java");
+                    BuildLog.println(relativeNameNoExtension + ".java");
                 }
 
                 // have to compile these classes!
@@ -346,7 +363,7 @@ class ProjectJava extends Project<ProjectJava> {
                     e.printStackTrace();
                 }
 
-                File buildLocation = new File(this.stagingDir.getParent(), "crossCompileBuilt");
+                File buildLocation = new File(this.stagingDir.getParent(), "classFeilDeps");
                 FileUtil.delete(buildLocation);
                 FileUtil.mkdir(buildLocation);
 
