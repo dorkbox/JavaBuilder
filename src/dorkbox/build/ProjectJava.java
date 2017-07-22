@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -338,7 +339,10 @@ class ProjectJava extends Project<ProjectJava> {
                     BuildLog.title("Compiling").println("Class dependencies");
                 }
 
-                for (File sourceFile : sourceDependencies.getFiles()) {
+                List<File> files = sourceDependencies.getFiles();
+                Collections.sort(files);
+
+                for (File sourceFile : files) {
                     String relativeNameNoExtension = DependencyWalker.collect(sourceFile, dependencies);
                     relativeLocations.put(sourceFile, relativeNameNoExtension);
 
@@ -369,7 +373,7 @@ class ProjectJava extends Project<ProjectJava> {
 
                 // now have to save out the source files (that are now converted to .class files)
                 // There can be inner-classes, so the ALL children of the parent dir must be added.
-                List<File> files = FileUtil.parseDir(tempProject.stagingDir);
+                files = FileUtil.parseDir(tempProject.stagingDir);
                 int root = tempProject.stagingDir.getAbsolutePath().length() + 1; // include slash
                 for (File file : files) {
                     String relativeName = file.getAbsolutePath().substring(root);
