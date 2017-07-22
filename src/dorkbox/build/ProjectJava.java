@@ -315,17 +315,17 @@ class ProjectJava extends Project<ProjectJava> {
                 this.classPaths.addFile(file.getAbsolutePath());
             }
 
-            // add source file dependencies
+            // add source class file dependencies
             if (!this.sourceDependencies.isEmpty()) {
                 Map<File, String> relativeLocations = new HashMap<File, String>();
 
                 Set<String> dependencies = new HashSet<String>();
 
                 for (File sourceFile : sourceDependencies.getFiles()) {
-                    BuildLog.title("Compiling Classes").println(sourceFile.getName() + "  [Java v1." + this.targetJavaVersion + "]");
-
                     String relativeNameNoExtension = DependencyWalker.collect(sourceFile, dependencies);
                     relativeLocations.put(sourceFile, relativeNameNoExtension);
+
+                    BuildLog.title("Compiling Classes").println(relativeNameNoExtension + ".java");
                 }
 
                 // have to compile these classes!
@@ -361,9 +361,7 @@ class ProjectJava extends Project<ProjectJava> {
                 BuildLog.enable();
 
                 // now have to add this dir to our project
-                Paths dependencyClassFiles = new Paths();
-                dependencyClassFiles.addFile(buildLocation.getAbsolutePath());
-                classPath(dependencyClassFiles);
+                this.classPaths.addFile(buildLocation.getAbsolutePath());
             }
 
 
@@ -428,9 +426,7 @@ class ProjectJava extends Project<ProjectJava> {
                 }
 
                 // now have to add this dir to our project
-                Paths crossFiles = new Paths();
-                crossFiles.addFile(crossCompatBuiltFile.getAbsolutePath());
-                classPath(crossFiles);
+                this.classPaths.addFile(crossCompatBuiltFile.getAbsolutePath());
 
                 Paths crossIncludeFiles = new Paths();
                 for (String relativeName : relativeLocations.values()) {
