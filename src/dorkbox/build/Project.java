@@ -53,7 +53,7 @@ import dorkbox.util.SerializationManager;
 import dorkbox.util.serialization.FileSerializer;
 import io.netty.buffer.ByteBuf;
 
-@SuppressWarnings({"unchecked", "unused"})
+@SuppressWarnings({"unchecked", "unused", "Convert2Diamond", "AccessStaticViaInstance"})
 public abstract
 class Project<T extends Project<T>> {
     public static final String JAR_EXTENSION = ".jar";
@@ -225,6 +225,9 @@ class Project<T extends Project<T>> {
 
     /** DIRECT dependencies for this project */
     protected List<Project<?>> dependencies = new ArrayList<Project<?>>();
+
+    /** Dependencies that are just source code files, not a jar. These are converted into a jar when the project is build */
+    protected Paths sourceDependencies = new Paths();
 
     /** ALL related dependencies for this project (ie: recursively searched) */
     transient List<Project<?>> fullDependencyList = null;
@@ -465,7 +468,7 @@ class Project<T extends Project<T>> {
             Project<?>[] array = new Project<?>[deps.size()];
             deps.toArray(array);
             fullDependencyList = Arrays.asList(array);
-            Collections.sort(fullDependencyList, dependencyComparator);
+            fullDependencyList.sort(dependencyComparator);
         }
     }
 
@@ -509,6 +512,25 @@ class Project<T extends Project<T>> {
         this.dependencies.add(project);
 
         return (T) this;
+    }
+
+    /**
+     * Adds java files, as Paths, to be built. This removes the need for building a temp jar first.
+     */
+    public
+    T depends(final Paths dependencies) {
+        checksumPaths.add(dependencies);
+        sourceDependencies.add(dependencies);
+
+        return (T) this;
+    }
+
+    /**
+     * Adds java files, as Paths, to be built. This removes the need for building a temp jar first.
+     */
+    public
+    T depends(final Class<?> dependencyClass) {
+        return depends(Builder.getJavaFile(dependencyClass));
     }
 
     /**

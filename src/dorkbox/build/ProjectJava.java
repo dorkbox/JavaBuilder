@@ -315,6 +315,58 @@ class ProjectJava extends Project<ProjectJava> {
                 this.classPaths.addFile(file.getAbsolutePath());
             }
 
+            // add source file dependencies
+            if (!this.sourceDependencies.isEmpty()) {
+                Map<File, String> relativeLocations = new HashMap<File, String>();
+
+                Set<String> dependencies = new HashSet<String>();
+
+                for (File sourceFile : sourceDependencies.getFiles()) {
+                    BuildLog.title("Compiling Classes").println(sourceFile.getName() + "  [Java v1." + this.targetJavaVersion + "]");
+
+                    String relativeNameNoExtension = DependencyWalker.collect(sourceFile, dependencies);
+                    relativeLocations.put(sourceFile, relativeNameNoExtension);
+                }
+
+                // have to compile these classes!
+                BuildLog.disable();
+
+                ProjectJava tempProject = ProjectJava.create("ClassFileDependencies:" + this.name)
+                                                     .temporary()
+                                                     .options(buildOptions)
+                                                     .sourcePath(sourceDependencies);
+
+                FileUtil.delete(tempProject.stagingDir);
+                FileUtil.mkdir(tempProject.stagingDir);
+                tempProject.shouldBuild = true; // always build temp projects
+
+                try {
+                    tempProject.build(this.targetJavaVersion);
+                } catch (RuntimeException e) {
+                    e.printStackTrace();
+                }
+
+                File buildLocation = new File(this.stagingDir.getParent(), "crossCompileBuilt");
+                FileUtil.delete(buildLocation);
+                FileUtil.mkdir(buildLocation);
+
+                // now have to save out the source files (that are now converted to .class files)
+                for (File sourceFile : sourceDependencies.getFiles()) {
+                    String s = relativeLocations.get(sourceFile) + ".class";
+                    File file = new File(tempProject.stagingDir, s);
+                    FileUtil.copyFile(file, new File(buildLocation, s));
+                }
+
+                FileUtil.delete(tempProject.stagingDir);
+                BuildLog.enable();
+
+                // now have to add this dir to our project
+                Paths dependencyClassFiles = new Paths();
+                dependencyClassFiles.addFile(buildLocation.getAbsolutePath());
+                classPath(dependencyClassFiles);
+            }
+
+
             // have to build cross-compiled files first.
             File crossCompatBuiltFile = null;
             if (!crossCompileClasses.isEmpty()) {
