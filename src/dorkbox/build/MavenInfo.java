@@ -66,6 +66,19 @@ class MavenInfo {
 
     public
     enum Scope {
-        COMPILE, PROVIDED, RUNTIME, TEST, SYSTEM, IMPORT
+        // these must be lowercase
+        COMPILE("compile"), PROVIDED("provided"), RUNTIME("runtime"), TEST("test"), SYSTEM("system"), IMPORT("import");
+
+        private final String text;
+
+        Scope(final String scope) {
+            this.text = scope;
+        }
+
+        @Override
+        public
+        String toString() {
+            return text;
+        }
     }
 }
