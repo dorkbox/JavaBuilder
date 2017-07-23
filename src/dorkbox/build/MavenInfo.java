@@ -64,6 +64,7 @@ class MavenInfo {
         return this;
     }
 
+    @SuppressWarnings("unused")
     public
     enum Scope {
         // these must be lowercase
