@@ -26,7 +26,6 @@ import java.net.ConnectException;
 import java.net.URL;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.ExecutionException;
 
 import org.bouncycastle.openpgp.PGPException;
 import org.slf4j.LoggerFactory;
@@ -63,7 +62,8 @@ import dorkbox.util.crypto.CryptoPGP;
  */
 public
 class MavenExporter {
-    private static final String NL = OS.LINE_SEPARATOR;
+    // has to be CRLF
+    private static final String NL = OS.LINE_SEPARATOR_WINDOWS;
 
     private static final String repositoryId = "repositoryId";
     private static final String profileId = "profileId";
@@ -673,6 +673,7 @@ class MavenExporter {
     /**
      * Sends the HTTP request and returns the response
      */
+    @SuppressWarnings("unchecked")
     private static
     String sendHttp(final Request request) throws IOException {
         // we configure the client to use the DEFAULT JDK one, to lessen the number of dependencies required.
@@ -721,9 +722,7 @@ class MavenExporter {
             return response.getResponseBody();
         } catch (ConnectException ignored) {
             return "Not connected or bad address";
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } catch (ExecutionException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
 
@@ -748,9 +747,11 @@ class MavenExporter {
 
         StringBuilder b = new StringBuilder();
 
-        b.append("<project xmlns=\"http://maven.apache.org/POM/4.0.0\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n" +
-                 "         xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd\">\n" +
-                 "\t<modelVersion>4.0.0</modelVersion>");
+        b.append("<project").append(NL);
+        space(b,1).append("xmlns=\"http://maven.apache.org/POM/4.0.0\"").append(NL);
+        space(b,1).append("xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"").append(NL);
+        space(b,1).append("xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd\">").append(NL);
+        space(b,1).append("<modelVersion>4.0.0</modelVersion>").append(NL);
 
         b.append(NL);
         b.append(NL);
