@@ -234,8 +234,8 @@ class ProjectJava extends Project<ProjectJava> {
 
         shouldBuild |= !verifyChecksums();
 
-        // exit early if we already built this project
-        if (buildList.contains(this.name)) {
+        // exit early if we already built this project, unless we force a rebuild
+        if (!forceRebuild && buildList.contains(this.name)) {
             if (!this.isBuildingDependencies) {
                 BuildLog.title("Building")
                         .println(this.name + " already built this run");

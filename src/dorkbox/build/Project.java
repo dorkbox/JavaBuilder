@@ -67,7 +67,7 @@ class Project<T extends Project<T>> {
     public static Map<String, Project> deps = new LinkedHashMap<String, Project>();
     protected static Set<String> buildList = new HashSet<String>();
 
-    private static boolean forceRebuild = false;
+    private static boolean forceRebuildAll = false;
     private static boolean alreadyChecked = false;
     private static Comparator<Project> dependencyComparator = new ProjectComparator();
 
@@ -164,14 +164,14 @@ class Project<T extends Project<T>> {
 
             if (oldHash != null) {
                 if (!oldHash.equals(hashedContents)) {
-                    forceRebuild = true;
+                    forceRebuildAll = true;
                 }
             }
             else {
-                forceRebuild = true;
+                forceRebuildAll = true;
             }
 
-            if (forceRebuild) {
+            if (forceRebuildAll) {
                 if (!alreadyChecked) {
                     alreadyChecked = true;
                     BuildLog.println("Build system changed. Rebuilding.");
@@ -255,6 +255,9 @@ class Project<T extends Project<T>> {
 
     /** true if we skipped building this project */
     transient boolean skippedBuild = false;
+
+    // true if we should rebuild this project
+    boolean forceRebuild = false;
 
     /**
      * Temporary projects are always built, but not always exported to maven (this is controlled by the parent, non-temp project
@@ -809,7 +812,7 @@ class Project<T extends Project<T>> {
      * project needs to rebuild
      */
     boolean verifyChecksums() throws IOException {
-        if (forceRebuild || this.buildOptions.compiler.forceRebuild) {
+        if (forceRebuildAll || this.buildOptions.compiler.forceRebuild) {
             return false;
         }
 
@@ -1041,4 +1044,12 @@ class Project<T extends Project<T>> {
      */
     public abstract
     void save(final String location);
+
+    /**
+     * Forces a particular build to always build, even if it has been built before
+     */
+    public
+    void forceRebuild() {
+        forceRebuild = true;
+    }
 }
