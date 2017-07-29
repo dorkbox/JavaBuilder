@@ -96,6 +96,7 @@ class BuildVersion {
 
     private IncrementingVersion original;
     private IncrementingVersion current;
+    private IncrementingVersion anchored;
 
     private File readme;
     private List<File> sourceFiles = new ArrayList<File>();
@@ -495,5 +496,21 @@ class BuildVersion {
     public
     String toString() {
         return this.current.toString();
+    }
+
+    /**
+     * Anchored means that
+     *  - anchored = original
+     *  - original = copy of current, so reading files, etc, work AFTER the version was changed, but are not modified any further
+     */
+    public
+    void anchor() {
+        this.anchored = this.original;
+        this.original = new IncrementingVersion(this.current);
+    }
+
+    public
+    Version getAnchored() {
+        return this.anchored;
     }
 }
