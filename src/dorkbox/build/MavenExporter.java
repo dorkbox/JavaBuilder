@@ -72,7 +72,6 @@ class MavenExporter {
     public static final String SPACER = "    ";
 
     private final MavenInfo info;
-    private String projectVersion;
 
     private String gitHubUrl;
     private String gitHubParent;
@@ -91,7 +90,6 @@ class MavenExporter {
     public
     MavenExporter(final MavenInfo info) {
         this.info = info;
-        this.projectVersion = info.getVersion();
     }
 
     /**
@@ -159,6 +157,8 @@ class MavenExporter {
 
         // TODO: maybe use straight java (ie: no libs?)
         // https://stackoverflow.com/questions/2793150/using-java-net-urlconnection-to-fire-and-handle-http-requests
+
+        String projectVersion = project.version.toString();
 
         String fileName = project.name + "_" + projectVersion;
         fileName = new File(project.stagingDir, fileName).getAbsolutePath();
@@ -462,6 +462,7 @@ class MavenExporter {
 
             // if we go too quickly, promoting will get this error:  {"errors":[{"id":"*","msg":"Unhandled: Repository: comdorkbox-1024 has invalid state: open"}]}
             // or:   {"errors":[{"id":"*","msg":"Unhandled: Repository: comdorkbox-1292 has invalid state: released"}]}
+            // or:   {"errors":[{"id":"*","msg":"Unhandled: Repository: comdorkbox-1292 has invalid state: opened"}]}
             // or will get a "already transitioning" error.
             hasErrors = promoteRepo(authInfo, profile, repo, nameAndVersion);
 
@@ -758,7 +759,8 @@ class MavenExporter {
 
         space(b,1).append("<groupId>").append(info.getGroupId()).append("</groupId>").append(NL);
         space(b,1).append("<artifactId>").append(info.getArtifactId()).append("</artifactId>").append(NL);
-        space(b,1).append("<version>").append(info.getVersion()).append("</version>").append(NL);
+        // have to use the project version. the info.getVersion is a copy from BEFORE the version change, so it's invalid.
+        space(b,1).append("<version>").append(project.version.toString()).append("</version>").append(NL);
         space(b,1).append("<packaging>").append("jar").append("</packaging>").append(NL);
 
         b.append(NL);
