@@ -61,6 +61,7 @@ import com.ice.tar.TarInputStream;
 
 import dorkbox.BuildOptions;
 import dorkbox.Builder;
+import dorkbox.build.Project;
 import dorkbox.build.util.BuildLog;
 import dorkbox.license.License;
 import dorkbox.util.Base64Fast;
@@ -1717,6 +1718,45 @@ class JarUtil {
         }
 
         task.inputStream = inputStream;
+    }
+
+    /**
+     * Merge the projects' dependencies output files into the project's outputFile
+     *
+     * @param project This is primary project who's output file will contain all of the other files.
+     */
+    public static
+    void mergeDependencies(final Project project) throws IOException {
+        File primaryFile = project.outputFile.get();
+        //noinspection unchecked
+        List<Project> otherProjects = project.getFullDependencyList();
+
+        File[] files = new File[otherProjects.size()];
+
+        for (int i = 0; i < otherProjects.size(); i++) {
+            files[i] = otherProjects.get(i).outputFile.get();
+        }
+
+        merge(primaryFile, files);
+    }
+
+    /**
+     * Merge the specified projects' output files into the primaryProject outputFile
+     *
+     * @param primaryProject This is primary project who's output file will contain all of the other files.
+     * @param otherProjects  Other projects output files to merge into the primary project's output file
+     */
+    public static
+    void merge(Project primaryProject, Project... otherProjects) throws IOException {
+        File primaryFile = primaryProject.outputFile.get();
+
+        File[] files = new File[otherProjects.length];
+
+        for (int i = 0; i < otherProjects.length; i++) {
+            files[i] = otherProjects[i].outputFile.get();
+        }
+
+        merge(primaryFile, files);
     }
 
     /**
