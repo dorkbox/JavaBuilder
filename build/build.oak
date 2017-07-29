@@ -1,6 +1,0 @@
-# see https://github.com/EsotericSoftware/yamlbeans for format
-classpath: libs
-
-source:
- - build/**/*.java
- - src/**/*.java
