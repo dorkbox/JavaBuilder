@@ -110,7 +110,7 @@ class ProjectGwt extends Project<ProjectGwt> {
         if (srcDir.endsWith("src")) {
             String parent = new File(srcDir).getAbsoluteFile()
                                             .getParent();
-            checksum(new Paths(parent));
+            hash.add(parent);
         }
 
         return sourcePath(new Paths(srcDir, "./"));
@@ -356,16 +356,15 @@ class ProjectGwt extends Project<ProjectGwt> {
      *
      * @return true if the checksums for path match the saved checksums and the jar file exists
      */
-    @Override
     boolean verifyChecksums() throws IOException {
-        boolean sourceHashesSame = super.verifyChecksums();
+        boolean sourceHashesSame = hash.verifyChecksums();
         if (!sourceHashesSame) {
             return false;
         }
 
         // if the sources are the same, check the output dir
         if (this.stagingDir.exists()) {
-            String dirChecksum = generateChecksum(this.stagingDir);
+            String dirChecksum = hash.generateChecksum(this.stagingDir);
             String checkContents = Builder.settings.get(this.stagingDir.getAbsolutePath(), String.class);
 
             return dirChecksum != null && dirChecksum.equals(checkContents);
@@ -377,7 +376,6 @@ class ProjectGwt extends Project<ProjectGwt> {
     /**
      * GWT only cares about the output dir (it doesn't make jars for compiling) Saves the checksums for a given path
      */
-    @Override
     void saveChecksums() throws IOException {
         // by default, we save the build. When building a 'test' build, we opt to NOT save the build hashes, so that a 'normal' build
         // will then compile.
@@ -385,11 +383,11 @@ class ProjectGwt extends Project<ProjectGwt> {
             return;
         }
 
-        super.saveChecksums();
+        hash.saveChecksums();
 
         // hash/save the output files (if there are any)
         if (this.stagingDir.exists()) {
-            String fileChecksum = generateChecksum(this.stagingDir);
+            String fileChecksum = hash.generateChecksum(this.stagingDir);
             Builder.settings.save(this.stagingDir.getAbsolutePath(), fileChecksum);
         }
     }

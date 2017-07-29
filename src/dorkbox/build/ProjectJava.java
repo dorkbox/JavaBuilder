@@ -98,7 +98,7 @@ class ProjectJava extends Project<ProjectJava> {
         this.sourcePaths.add(sourcePaths);
 
         // ALWAYS add the source paths to be checksumed!
-        checksum(sourcePaths);
+        hash.add(sourcePaths);
 
         return this;
     }
@@ -110,7 +110,7 @@ class ProjectJava extends Project<ProjectJava> {
     ProjectJava sourcePath(String srcDir) {
         if (srcDir.endsWith("src")) {
             String parent = new File(srcDir).getAbsoluteFile().getParent();
-            checksum(new Paths(parent));
+            hash.add(new Paths(parent));
         }
 
         return sourcePath(new Paths(srcDir, "./"));
@@ -217,7 +217,7 @@ class ProjectJava extends Project<ProjectJava> {
                 // also, we DO NOT check jar versions/etc here (that happens later)
 
                 // if true, this means that the files ARE the same and they have not changed
-                final boolean b = project.verifyChecksums();
+                final boolean b = project.hash.verifyChecksums();
                 shouldBuild |= !b;
             }
         }
@@ -905,14 +905,13 @@ class ProjectJava extends Project<ProjectJava> {
      * @return true if the checksums for path match the saved checksums.  If there is a JAR file, it also checks to see if it is built &
      * matches the saved checksums.  If it's a temp project (and specifies a jar) the jarChecksum is ignored (so only checksums based on source code changes)
      */
-    @Override
     boolean verifyChecksums() throws IOException {
         // if temporary + we override the status, we ALWAYS build it
         if (this.temporary && this.overrideTemporary) {
             return false;
         }
 
-        boolean sourceHashesSame = super.verifyChecksums();
+        boolean sourceHashesSame = hash.verifyChecksums();
         if (!sourceHashesSame) {
             return false;
         }
@@ -926,7 +925,7 @@ class ProjectJava extends Project<ProjectJava> {
         final File originalOutputFile = this.outputFile.getOriginal();
 
         if (originalOutputFile.canRead()) {
-            String jarChecksum = generateChecksum(originalOutputFile);
+            String jarChecksum = hash.generateChecksum(originalOutputFile);
             String checkContents = Builder.settings.get(this.name + ":" + originalOutputFile.getAbsolutePath(), String.class);
 
             boolean outputFileGood = jarChecksum != null && jarChecksum.equals(checkContents);
@@ -939,7 +938,7 @@ class ProjectJava extends Project<ProjectJava> {
                     final File originalOutputFileSource = this.outputFile.getSourceOriginal();
 
                     // now check the src.zip file (if there was one).
-                    jarChecksum = generateChecksum(originalOutputFileSource);
+                    jarChecksum = hash.generateChecksum(originalOutputFileSource);
                     checkContents = Builder.settings.get(this.name + ":" + originalOutputFileSource.getAbsolutePath(), String.class);
 
                     return jarChecksum != null && jarChecksum.equals(checkContents);
@@ -961,7 +960,6 @@ class ProjectJava extends Project<ProjectJava> {
      * Saves the checksums for a given path - PER PROJECT (otherwise updating a jar in one place, and saving it's checksum, will verify
      * it everywhere else)
      */
-    @Override
     void saveChecksums() throws IOException {
         // by default, we save the build. When building a 'test' build, we opt to NOT save the build hashes, so that a 'normal' build
         // will then compile.
@@ -969,21 +967,21 @@ class ProjectJava extends Project<ProjectJava> {
             return;
         }
 
-        super.saveChecksums();
+        hash.saveChecksums();
 
         // when we verify checksums, we verify the ORIGINAL (if there is version info) -- and when we SAVE checksums, we save the NEW version
         final File currentOutputFile = this.outputFile.get();
 
         // hash/save the jar file (if there was one)
         if (currentOutputFile.exists()) {
-            String fileChecksum = generateChecksum(currentOutputFile);
+            String fileChecksum = hash.generateChecksum(currentOutputFile);
             Builder.settings.save(this.name + ":" + currentOutputFile.getAbsolutePath(), fileChecksum);
 
             if (this.jarable != null && this.jarable.includeSourceAsSeparate) {
                 final File currentOutputFileSource = this.outputFile.getSource();
 
                 // now check the src.zip file (if there was one).
-                fileChecksum = generateChecksum(currentOutputFileSource);
+                fileChecksum = hash.generateChecksum(currentOutputFileSource);
 
                 Builder.settings.save(this.name + ":" + currentOutputFileSource.getAbsolutePath(), fileChecksum);
             }

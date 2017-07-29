@@ -28,7 +28,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.bouncycastle.crypto.digests.MD5Digest;
 import org.slf4j.Logger;
 
 import com.esotericsoftware.kryo.Kryo;
@@ -37,16 +36,15 @@ import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.minlog.Log;
 import com.esotericsoftware.wildcard.Paths;
-import com.twmacinta.util.MD5;
 
 import dorkbox.BuildOptions;
 import dorkbox.BuildVersion;
 import dorkbox.Builder;
 import dorkbox.build.util.BuildLog;
+import dorkbox.build.util.Hash;
 import dorkbox.build.util.OutputFile;
 import dorkbox.build.util.ShutdownHook;
 import dorkbox.license.License;
-import dorkbox.util.Base64Fast;
 import dorkbox.util.FileUtil;
 import dorkbox.util.OS;
 import dorkbox.util.SerializationManager;
@@ -160,7 +158,7 @@ class Project<T extends Project<T>> {
 
         try {
             String oldHash = Builder.settings.get("BUILD", String.class);
-            String hashedContents = generateChecksums(paths);
+            String hashedContents = Hash.generateChecksums(paths);
 
             if (oldHash != null) {
                 if (!oldHash.equals(hashedContents)) {
@@ -185,6 +183,8 @@ class Project<T extends Project<T>> {
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        Hash.forceRebuildAll = forceRebuildAll;
     }
 
     public static
@@ -235,7 +235,6 @@ class Project<T extends Project<T>> {
     // used to make sure licenses are called in the correct spot
     private transient boolean calledLicenseBefore = false;
 
-    transient Paths checksumPaths = new Paths();
     protected List<License> licenses = new ArrayList<License>();
     protected BuildOptions buildOptions;
 
@@ -258,6 +257,8 @@ class Project<T extends Project<T>> {
 
     // true if we should rebuild this project
     boolean forceRebuild = false;
+
+    protected transient Hash hash;
 
     /**
      * Temporary projects are always built, but not always exported to maven (this is controlled by the parent, non-temp project
@@ -341,6 +342,8 @@ class Project<T extends Project<T>> {
         this.stagingDir = FileUtil.normalize(STAGING + File.separator + lowerCase_outputDir);
         // must call this method, because it's not overridden by jar type
         outputFile0(new File(this.stagingDir.getParentFile(), this.name + getExtension()).getAbsolutePath(), null);
+
+        hash = new Hash(projectName, buildOptions);
     }
 
     /**
@@ -522,7 +525,7 @@ class Project<T extends Project<T>> {
      */
     public
     T depends(final Paths dependencies) {
-        checksumPaths.add(dependencies);
+        hash.add(dependencies);
         sourceDependencies.add(dependencies);
 
         return (T) this;
@@ -790,111 +793,6 @@ class Project<T extends Project<T>> {
             if (source != null && source.canRead()) {
                 Builder.copyFile(source, new File(targetLocation, source.getName()));
             }
-        }
-    }
-
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////
-//// CHECKSUM LOGIC
-///////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    /**
-     * Add a path to be checksum'd.
-     */
-    @SuppressWarnings("WeakerAccess")
-    public final
-    void checksum(Paths path) {
-        this.checksumPaths.add(path);
-    }
-
-    /**
-     * @return true if the checksums for path match the saved checksums and the jar file exists, false if the check failed and the
-     * project needs to rebuild
-     */
-    boolean verifyChecksums() throws IOException {
-        if (forceRebuildAll || this.buildOptions.compiler.forceRebuild) {
-            return false;
-        }
-
-        // check to see if our SOURCES *and check-summed files* have changed.
-        String hashedContents = generateChecksums(this.checksumPaths);
-        String checkContents = Builder.settings.get(this.name, String.class);
-
-        return hashedContents != null && hashedContents.equals(checkContents);
-    }
-
-    /**
-     * Saves the checksums for a given path
-     */
-    void saveChecksums() throws IOException {
-        // by default, we save the build. When building a 'test' build, we opt to NOT save the build hashes, so that a 'normal' build
-        // will then compile.
-        if (!buildOptions.compiler.saveBuild) {
-            return;
-        }
-
-        // hash/save the sources *and check-summed files* files
-        String hashedContents = generateChecksums(this.checksumPaths);
-        Builder.settings.save(this.name, hashedContents);
-    }
-
-    /**
-     * Generates checksums for the given path
-     */
-    public static
-    String generateChecksum(File file) throws IOException {
-        synchronized (Project.class) {
-            // calculate the hash of file
-            boolean found = false;
-            if (file.isFile() && file.canRead()) {
-                found = true;
-            }
-
-            if (!found) {
-                return null;
-            }
-
-            byte[] hashBytes = MD5.getHash(file);
-
-            return Base64Fast.encodeToString(hashBytes, false);
-        }
-    }
-
-    /**
-     * Generates checksums for the given path
-     */
-    public static
-    String generateChecksums(Paths... paths) throws IOException {
-        synchronized (Project.class) {
-            // calculate the hash of all the files in the source path
-            Set<String> names = new HashSet<String>(64);
-
-            for (Paths path : paths) {
-                names.addAll(path.getPaths());
-            }
-
-            // hash of hash of files. faster than using java to hash files
-            MD5Digest md5_digest = new MD5Digest();
-
-            boolean found = false;
-            for (String name : names) {
-                File file = new File(name);
-                if (file.isFile() && file.canRead()) {
-                    found = true;
-
-                    byte[] hashBytes = MD5.getHash(file);
-                    md5_digest.update(hashBytes, 0, hashBytes.length);
-                }
-            }
-
-            if (!found) {
-                return null;
-            }
-
-            byte[] hashBytes = new byte[md5_digest.getDigestSize()];
-            md5_digest.doFinal(hashBytes, 0);
-
-            return Base64Fast.encodeToString(hashBytes, false);
         }
     }
 

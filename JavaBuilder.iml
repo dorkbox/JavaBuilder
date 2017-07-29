@@ -34,7 +34,6 @@
     <orderEntry type="library" name="javaparser" level="application" />
     <orderEntry type="library" name="javatar" level="application" />
     <orderEntry type="library" name="async-http-client" level="application" />
-    <orderEntry type="library" name="fast-md5" level="application" />
     <orderEntry type="library" name="jsonbeans" level="application" />
     <orderEntry type="library" name="netty-all" level="application" />
     <orderEntry type="library" name="yamlbeans" level="application" />

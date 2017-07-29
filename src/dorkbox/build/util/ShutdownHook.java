@@ -15,11 +15,11 @@
  */
 package dorkbox.build.util;
 
-import com.esotericsoftware.wildcard.Paths;
-import dorkbox.Builder;
-import dorkbox.build.Project;
-
 import java.io.IOException;
+
+import com.esotericsoftware.wildcard.Paths;
+
+import dorkbox.Builder;
 
 public
 class ShutdownHook implements Runnable {
@@ -36,7 +36,7 @@ class ShutdownHook implements Runnable {
         try {
             BuildLog.start();
             BuildLog.println("Saving build file checksums.");
-            String hashedContents = Project.generateChecksums(paths);
+            String hashedContents = Hash.generateChecksums(paths);
             Builder.settings.save("BUILD", hashedContents);
             BuildLog.finish();
         } catch (IOException e) {

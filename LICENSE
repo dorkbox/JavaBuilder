@@ -14,13 +14,6 @@
       Copyright 2010, dorkbox, llc
 
 
-    - FastMD5 - LGPL v3 License
-      http://www.twmacinta.com/myjava/fast_md5.php
-      Copyright 1996, Santeri Paavolainen, Helsinki Finland
-      Many changes Copyright 2002 - 2010 Timothy W Macinta
-        Originally written by Santeri Paavolainen, Helsinki Finland 1996
-
-
     - FilenameUtils.java (normalize + dependencies) - Apache 2.0 License
       http://commons.apache.org/proper/commons-io/
       Copyright 2013, ASF

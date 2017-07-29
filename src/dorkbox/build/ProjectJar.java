@@ -88,9 +88,9 @@ public class ProjectJar extends Project<ProjectJar> {
 
     public
     ProjectJar outputFileNoWarn(final String outputFile, final String outputSourceFile) {
-        this.checksumPaths.addFile(outputFile);
+        hash.add(outputFile);
         if (outputSourceFile != null) {
-            this.checksumPaths.addFile(outputSourceFile);
+            hash.add(outputSourceFile);
         }
 
         return super.outputFile(outputFile, outputSourceFile);
