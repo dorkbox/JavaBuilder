@@ -748,11 +748,11 @@ class MavenExporter {
 
         StringBuilder b = new StringBuilder();
 
-        b.append("<project").append(NL);
-        space(b,1).append("xmlns=\"http://maven.apache.org/POM/4.0.0\"").append(NL);
-        space(b,1).append("xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"").append(NL);
-        space(b,1).append("xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd\">").append(NL);
-        space(b,1).append("<modelVersion>4.0.0</modelVersion>").append(NL);
+        b.append("<project")
+         .append(" xmlns=\"http://maven.apache.org/POM/4.0.0\"")
+         .append(" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"")
+         .append(" xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd\">")
+         .append("<modelVersion>4.0.0</modelVersion>").append(NL);
 
         b.append(NL);
         b.append(NL);
