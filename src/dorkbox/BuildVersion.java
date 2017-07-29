@@ -223,6 +223,46 @@ class BuildVersion {
         validate(file, null, origText, original.toString());
     }
 
+    private static
+    void validate(final File file, final String precedingText, final String origText, final String expectedVersion) throws IOException {
+        if (file == null) {
+            throw new IOException("Unable to save the version information if the calling class is not detected.");
+        }
+
+        List<String> strings = FileUtil.read(file, true);
+
+
+        boolean hasPrecedingText = precedingText != null && !precedingText.isEmpty();
+        boolean foundPrecedingText = false;
+        boolean found = false;
+
+        if (hasPrecedingText) {
+            for (String string : strings) {
+                if (string.contains(precedingText)) {
+                    foundPrecedingText = true;
+                }
+
+                if (foundPrecedingText && string.contains(origText)) {
+                    found = true;
+                    break;
+                }
+            }
+        }
+        else {
+            for (String string : strings) {
+                // the source string (in the file) cannot be "final", because "final" (if static) is inlined by the compiler.
+                if (string.contains(origText)) {
+                    found = true;
+                    break;
+                }
+            }
+        }
+
+        if (!found) {
+            throw new IOException("Expected version string/info '" + expectedVersion + "' NOT FOUND in '" + file +
+                                  "'. Check spacing/formatting and try again.");
+        }
+    }
 
     /**
      * Saves this file (if specified) and the README.md file (if specified)
@@ -356,47 +396,6 @@ class BuildVersion {
             }
         } catch (IOException e) {
             throw new RuntimeException("Unable to write file.", e);
-        }
-    }
-
-    private static
-    void validate(final File file, final String precedingText, final String origText, final String expectedVersion) throws IOException {
-        if (file == null) {
-            throw new IOException("Unable to save the version information if the calling class is not detected.");
-        }
-
-        List<String> strings = FileUtil.read(file, true);
-
-
-        boolean hasPrecedingText = precedingText != null && !precedingText.isEmpty();
-        boolean foundPrecedingText = false;
-        boolean found = false;
-
-        if (hasPrecedingText) {
-            for (String string : strings) {
-                if (string.contains(precedingText)) {
-                    foundPrecedingText = true;
-                }
-
-                if (foundPrecedingText && string.contains(origText)) {
-                    found = true;
-                    break;
-                }
-            }
-        }
-        else {
-            for (String string : strings) {
-                // the source string (in the file) cannot be "final", because "final" (if static) is inlined by the compiler.
-                if (string.contains(origText)) {
-                    found = true;
-                    break;
-                }
-            }
-        }
-
-        if (!found) {
-            throw new IOException("Expected version string/info '" + expectedVersion + "' NOT FOUND in '" + file +
-                   "'. Check spacing/formatting and try again.");
         }
     }
 
