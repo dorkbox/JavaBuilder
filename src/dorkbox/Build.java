@@ -142,7 +142,7 @@ class Build {
      */
     public static
     Version getVersion() {
-        return new Version("2.39");
+        return new Version("3.0");
     }
 
     public static
