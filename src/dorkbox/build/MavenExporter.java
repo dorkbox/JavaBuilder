@@ -471,7 +471,8 @@ class MavenExporter {
             while (retryCount-- >= 0) {
                 if (!hasErrors.isEmpty()) {
                     if (retryCount == 0) {
-                        BuildLog.println("Unknown error during promotion (no more retries available)!", hasErrors);
+                        // 2 println(), so that it lines up
+                        BuildLog.println().println("Unknown error during promotion (no more retries available)!", hasErrors);
                     }
                     else {
                         BuildLog.print(".");
@@ -481,7 +482,15 @@ class MavenExporter {
                             e.printStackTrace();
                         }
 
-                        if (!hasErrors.contains("has invalid state: open")) {
+                        boolean alreadyTransitioning = !hasErrors.contains("Staging repository is already transitioning");
+                        if (alreadyTransitioning) {
+                            BuildLog.println().println("Repository transition in progress. Waiting...");
+                            try {
+                                Thread.sleep(8000L);
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
+                        } else if (!hasErrors.contains("has invalid state: open")) {
                             BuildLog.println("Unknown error during promotion, retrying!", hasErrors);
                         }
 
