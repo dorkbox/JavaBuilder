@@ -262,7 +262,7 @@ class Builder {
     /**
      * @return the location of the jdk runtimes
      */
-    static
+    public static
     File getJdkDir() {
         // this will ALWAYS be a dir
         final File runLocation = Build.get();
