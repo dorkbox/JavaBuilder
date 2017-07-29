@@ -57,7 +57,7 @@ import dorkbox.util.OS;
 import dorkbox.util.Sys;
 import dorkbox.util.properties.PropertiesProvider;
 
-@SuppressWarnings({"AccessStaticViaInstance", "WeakerAccess"})
+@SuppressWarnings({"AccessStaticViaInstance", "WeakerAccess", "Convert2Diamond"})
 public
 class Builder {
     // UNICODE is from: https://en.wikipedia.org/wiki/List_of_Unicode_characters#Box_Drawing
@@ -267,25 +267,22 @@ class Builder {
         // this will ALWAYS be a dir
         final File runLocation = Build.get();
 
+        File parent;
         if (Builder.isJar) {
-            File parent = runLocation.getParentFile();
-            if (!new File(parent, "jdkRuntimes").isDirectory()) {
-                parent = parent.getParentFile();
-            }
-
-            File jdk = new File(parent, "jdkRuntimes");
-            return FileUtil.normalize(jdk);
+            parent = runLocation.getParentFile();
         }
         else {
-            final File javaFileSourceDir = Builder.getJavaFileSourceDir(Builder.class, runLocation);
-            File parent = javaFileSourceDir.getParentFile();
-            if (!new File(parent, "libs").isDirectory()) {
-                parent = parent.getParentFile();
-            }
-
-            File jdk = new File(parent, "libs");
-            return FileUtil.normalize(new File(jdk, "jdkRuntimes"));
+            File javaFileSourceDir = Builder.getJavaFileSourceDir(Builder.class, runLocation);
+            parent = javaFileSourceDir.getParentFile();
         }
+
+        // walk up to find the libs dir.
+        File jdk;
+        while (!(jdk = new File(parent, "jdkRuntimes")).isDirectory()) {
+            parent = parent.getParentFile();
+        }
+
+        return FileUtil.normalize(jdk);
     }
 
     /**
