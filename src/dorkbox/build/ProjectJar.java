@@ -110,7 +110,7 @@ public class ProjectJar extends Project<ProjectJar> {
         Storage storage = StorageSystem.Disk()
                                        .file(location)
                                        .serializer(manager)
-                                       .make();
+                                       .build();
 
         storage.put(this.name, this);
         storage.save();
@@ -125,14 +125,8 @@ public class ProjectJar extends Project<ProjectJar> {
                                        .file(location)
                                        .serializer(manager)
                                        .logger(null)
-                                       .make();
+                                       .build();
 
-        ProjectJar proj;
-        try {
-            proj = storage.get(projectName);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        return proj;
+        return storage.get(projectName);
     }
 }
