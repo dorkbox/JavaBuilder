@@ -7,6 +7,7 @@ import dorkbox.BuildVersion;
 import dorkbox.build.util.BuildLog;
 import dorkbox.build.util.FileNotFoundRuntimeException;
 import dorkbox.util.storage.Storage;
+import dorkbox.util.storage.StorageKey;
 import dorkbox.util.storage.StorageSystem;
 
 public class ProjectJar extends Project<ProjectJar> {
@@ -112,7 +113,7 @@ public class ProjectJar extends Project<ProjectJar> {
                                        .serializer(manager)
                                        .build();
 
-        storage.put(this.name, this);
+        storage.put(new StorageKey(this.name), this);
         storage.save();
     }
 
@@ -127,6 +128,6 @@ public class ProjectJar extends Project<ProjectJar> {
                                        .logger(null)
                                        .build();
 
-        return storage.get(projectName);
+        return storage.get(new StorageKey(projectName));
     }
 }
