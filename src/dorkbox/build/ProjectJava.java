@@ -204,6 +204,9 @@ class ProjectJava extends Project<ProjectJava> {
     @Override
     public
     boolean build(final int targetJavaVersion) throws IOException {
+        // we should always rebuild if specified
+        forceRebuild |= buildOptions.compiler.forceRebuild;
+
         // save off the target version we build
         this.targetJavaVersion = targetJavaVersion;
 
@@ -233,6 +236,9 @@ class ProjectJava extends Project<ProjectJava> {
 
 
         shouldBuild |= !verifyChecksums();
+
+        // we should always rebuild if specified
+        shouldBuild |= forceRebuild;
 
         // exit early if we already built this project, unless we force a rebuild
         if (!forceRebuild && buildList.contains(this.name)) {
