@@ -211,8 +211,8 @@ class BuildVersion {
         // only saves the sourcefile if it was included.
         if (!sourceFiles.isEmpty()) {
             for (File sourceFile : sourceFiles) {
-                final String precedingText = "Version getVersion() {";
-                final String readmeOrigText = "return new Version(\"" + original.toString() + "\");";
+                final String precedingText = "String getVersion() {";
+                final String readmeOrigText = "return \"" + original.toString() + "\";";
 
                 validate(sourceFile, precedingText, readmeOrigText, original.toString());
             }
@@ -287,9 +287,9 @@ class BuildVersion {
             // only saves the sourcefile if it was included.
             if (!sourceFiles.isEmpty()) {
                 for (File sourceFile : sourceFiles) {
-                    final String precedingText = "Version getVersion() {";
-                    final String readmeOrigText = "return new Version(\"" + original.toString() + "\");";
-                    final String readmeNewText = "return new Version(\"" + toString() + "\");";
+                    final String precedingText = "String getVersion() {";
+                    final String readmeOrigText = "return \"" + original.toString() + "\";";
+                    final String readmeNewText = "return \"" + toString() + "\";";
 
                     save(sourceFile, precedingText, readmeOrigText, readmeNewText);
                 }
