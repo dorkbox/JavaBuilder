@@ -22,7 +22,10 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import com.esotericsoftware.wildcard.Paths;
@@ -178,6 +181,11 @@ class Hash {
                 names.addAll(path.getPaths());
             }
 
+            // have to make sure the list is sorted, so the iterators are consistent
+            List<String> sortedNames = new ArrayList<String>(names.size());
+            sortedNames.addAll(names);
+            Collections.sort(sortedNames);
+
             // hash of all files. faster than using java to hash files
             MessageDigest sha1 = digestThreadLocal.get();
             sha1.reset();
@@ -187,7 +195,7 @@ class Hash {
             int bytesRead = 0;
 
             boolean found = false;
-            for (String name : names) {
+            for (String name : sortedNames) {
                 File file = new File(name);
                 if (file.isFile() && file.canRead()) {
                     found = true;
