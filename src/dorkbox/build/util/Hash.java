@@ -199,6 +199,7 @@ class Hash {
                 File file = new File(name);
                 if (file.isFile() && file.canRead()) {
                     found = true;
+                    bytesRead = 0;
 
                     FileInputStream inputStream = null;
                     try {
