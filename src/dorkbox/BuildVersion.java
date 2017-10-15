@@ -30,6 +30,11 @@ class BuildVersion {
 
     private static
     class IncrementingVersion extends Version {
+        private IncrementingVersion() {
+            // no-arg for serialization
+            super();
+        }
+
         IncrementingVersion(final Version version) {
             super(version);
         }
@@ -92,7 +97,7 @@ class BuildVersion {
     }
 
 
-    private final File file;
+    private File file;
 
     private IncrementingVersion original;
     private IncrementingVersion current;
@@ -114,6 +119,9 @@ class BuildVersion {
         return new BuildVersion(clazz, version);
     }
 
+    private BuildVersion() {
+        // no-arg for serialization
+    }
 
 
     @SuppressWarnings("IncompleteCopyConstructor")
