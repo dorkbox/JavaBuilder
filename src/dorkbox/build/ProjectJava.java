@@ -321,13 +321,22 @@ class ProjectJava extends Project<ProjectJava> {
             for (Project<?> project : fullDependencyList) {
                 // dep can be a jar as well
                 final File file = project.outputFile.get();
-                if (!file.canRead()) {
-                    throw new IOException("Dependency for project: '" + this.name + "' does not exist. '" + file.getAbsolutePath() + "'");
-                }
 
-                // if we are compiling our build instructions (and projects), this won't exist. This is OK,
-                // because we run from memory instead (in the classloader)
-                this.classPaths.addFile(file.getAbsolutePath());
+                if (!file.canRead()) {
+                    // if this project is a jar project, there might be "extra files", which mean this project IS NOT a
+                    // compile dependency, but a runtime dependency (via the "extra files" section)
+                    Paths extraFiles = project.extraFiles();
+                    if (extraFiles.count() == 0) {
+                        throw new IOException("Dependency for project: '" + this.name + "' does not have a source jar or extra files. " +
+                                              "Something is very wrong. A source jar is a compile dependency, and extra files are runtime" +
+                                              " dependencies.");
+                    }
+                }
+                else {
+                    // if we are compiling our build instructions (and projects), this won't exist. This is OK,
+                    // because we run from memory instead (in the classloader)
+                    this.classPaths.addFile(file.getAbsolutePath());
+                }
             }
 
             // add source class file dependencies
