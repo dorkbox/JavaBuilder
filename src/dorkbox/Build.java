@@ -81,17 +81,6 @@ class Build {
                         }
                     }
 
-                    // now have to add fastMD5 sum jars (they are in a different location)
-                    libDir = new File(libDir, "fast-md5");
-                    for (File f : libDir.listFiles()) {
-                        final String name = f.getName();
-
-                        if (!f.isDirectory() && f.canRead() && name.endsWith(".jar") && !name.contains("source") && !name.contains("src")) {
-                            // System.err.println("adding url " + f.getAbsolutePath());
-                            method.invoke(sysloader, new Object[] {f.toURI().toURL()});
-                        }
-                    }
-
                     // try to load the library again to make sure the libs loaded
                     Class.forName("com.esotericsoftware.wildcard.Paths");
                 } catch (Throwable t) {
