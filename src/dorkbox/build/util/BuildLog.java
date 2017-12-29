@@ -17,8 +17,6 @@ package dorkbox.build.util;
 
 import java.io.PrintStream;
 
-import dorkbox.util.OS;
-
 // UNICODE is from: https://en.wikipedia.org/wiki/List_of_Unicode_characters#Box_Drawing
 
 public
@@ -37,7 +35,7 @@ class BuildLog {
 
     private static PrintStream printer = System.err;
 
-    private static StringBuilder titleBuilder = null;
+    private static String title = null;
 
     private static StringBuilder cachedSpacer;
     private static int cachedSpacerWidth = -1;
@@ -66,7 +64,7 @@ class BuildLog {
             nestedCount--;
             titleEnd();
         }
-        titleBuilder = null;
+        title = null;
         return LOG;
     }
 
@@ -82,7 +80,7 @@ class BuildLog {
         TITLE_WIDTH = STOCK_TITLE_WIDTH;
 
         cachedSpacer = null;
-        titleBuilder = null;
+        title = null;
 
         lastActionWasPrintln = true;
         return LOG;
@@ -146,16 +144,21 @@ class BuildLog {
     }
 
     public static synchronized
-    BuildLog title(String title) {
+    BuildLog title(final String title) {
+        if (suppressCount != 0) {
+            // don't log anything.
+            return LOG;
+        }
+
         // always set the title
-        titleBuilder = null;
+        BuildLog.title = null;
 
         if (!lastActionWasPrintln) {
             printer.println();
             lastActionWasPrintln = true;
         }
 
-        prepTitle(title, true);
+        makeTitle(title);
         return LOG;
     }
 
@@ -221,7 +224,19 @@ class BuildLog {
      * Creates everything in front of the message section, so that our "message" can be appended to each log entry if desired
      */
     private static
-    StringBuilder prepTitle(String title, boolean newLine) {
+    void makeTitle(final String title) {
+        if (BuildLog.title != null) {
+            // title already created, use what already exists.
+            if (lastActionWasPrintln) {
+                printer.print(BuildLog.title);
+            }
+
+            lastActionWasPrintln = false;
+            return;
+        }
+
+        lastActionWasPrintln = false;
+
         char spacer1 = ' ';
 
         if (cachedSpacerWidth != TITLE_WIDTH || cachedSpacer == null) {
@@ -233,21 +248,16 @@ class BuildLog {
             cachedSpacer = spacerTitle;
         }
 
+        StringBuilder titleBuilder = new StringBuilder(1024);
+
         if (title == null) {
-            if (titleBuilder == null) {
-                titleBuilder = new StringBuilder(1024);
-            }
-
-            if (newLine) {
-                titleBuilder.append(cachedSpacer)
-                            .append(TITLE_MESSAGE_DELIMITER)
-                            .append(spacer1);
-            }
-
-            return titleBuilder;
+            // no title.
+            titleBuilder.append(cachedSpacer)
+                        .append(TITLE_MESSAGE_DELIMITER)
+                        .append(spacer1);
         }
-
-        if (titleBuilder == null) {
+        else {
+            // a title of some kind.
             int length = title.length();
             int padding = TITLE_WIDTH - length - 1;
             StringBuilder msg = new StringBuilder(TITLE_WIDTH);
@@ -275,20 +285,18 @@ class BuildLog {
                 msg.append(spacer1);
             }
 
-            titleBuilder = new StringBuilder(1024);
             titleBuilder.append(msg)
                         .append(TITLE_MESSAGE_DELIMITER)
                         .append(spacer1);
         }
 
-        return titleBuilder;
+        BuildLog.title = titleBuilder.toString();
+        printer.print(BuildLog.title);
     }
 
     public static synchronized
     BuildLog print(Object... message) {
         print(false, message);
-        // the first print will print the title, the following will NOT.
-        titleBuilder = null;
         return LOG;
     }
 
@@ -300,57 +308,72 @@ class BuildLog {
 
     private static
     void print(boolean newLine, Object... message) {
-        if (suppressCount != 0) {
-            if (newLine) {
-                titleBuilder = null;
-            }
+        if (suppressCount != 0 ) {
+            // don't log anything.
             return;
         }
 
-        // only makes it if necessary
-        StringBuilder msg;
-        if (titleBuilder == null) {
-            msg = prepTitle(null, newLine);
-        }
-        else {
-            msg = titleBuilder;
+        // only print the title if we need to, or if we want to print a new line ONLY
+        if (lastActionWasPrintln) {
+            // only makes it if necessary
+            makeTitle(null);
         }
 
-        if (message != null && message.length > 0 && message[0] != null) {
-            String titleMessageDelimiter = TITLE_MESSAGE_DELIMITER;
-            String newLineToken = OS.LINE_SEPARATOR;
-            int start = 0;
+        lastActionWasPrintln = newLine;
 
-            char spacer1 = ' ';
+        if (message == null || message.length == 0 || message[0] == null) {
+            if (newLine) {
+                printer.println();
+            }
 
-            // if we have more than one message, the messages AFTER the first one are INDENTED
-            msg.append(message[start++]);
+            return;
+        }
 
-            if (message.length > 1) {
+        int start = 0;
+        char spacer1 = ' ';
+
+        // if we have more than one message, the messages AFTER the first one are INDENTED ON A NEW LINE
+        if (newLine && message.length > 1) {
+            printer.println(message[start++]);
+        } else {
+            printer.print(message[start++]);
+        }
+
+        boolean hadPrintLn = false;
+
+        if (message.length > 1) {
+            if (newLine) {
+                for (int i = start; i < message.length; i++) {
+                    // make an empty title
+                    printer.print(cachedSpacer);
+                    printer.print(TITLE_MESSAGE_DELIMITER);
+                    printer.print(spacer1);
+                    printer.print(spacer1);
+                    printer.print(spacer1);
+
+                    String m = message[i].toString();
+                    printer.println(m);
+                    hadPrintLn = true;
+                }
+            } else {
+                char comma = ',';
+
                 for (int i = start; i < message.length; i++) {
                     String m = message[i].toString();
-                    if (msg.length() > 0) {
-                        msg.append(newLineToken);
-                    }
-                    // next line
-                    msg.append(cachedSpacer)
-                       .append(titleMessageDelimiter)
-                       .append(spacer1)
-                       .append(spacer1)
-                       .append(spacer1)
-                       .append(m);
+                    printer.print(spacer1);
+                    printer.print(comma);
+                    printer.print(m);
                 }
             }
         }
 
+
         if (newLine) {
-            printer.println(msg.toString());
-            titleBuilder = null;
-            lastActionWasPrintln = true;
-        }
-        else {
-            printer.print(msg.toString());
-            lastActionWasPrintln = false;
+            if (!hadPrintLn) {
+                printer.println();
+            }
+
+            BuildLog.title = null;
         }
     }
 }
