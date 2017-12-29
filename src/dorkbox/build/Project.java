@@ -35,7 +35,6 @@ import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.minlog.Log;
-import com.esotericsoftware.wildcard.Paths;
 
 import dorkbox.BuildOptions;
 import dorkbox.BuildVersion;
@@ -44,6 +43,7 @@ import dorkbox.build.util.BuildLog;
 import dorkbox.build.util.Hash;
 import dorkbox.build.util.OutputFile;
 import dorkbox.build.util.ShutdownHook;
+import dorkbox.build.util.wildcard.Paths;
 import dorkbox.license.License;
 import dorkbox.util.FileUtil;
 import dorkbox.util.OS;
@@ -213,18 +213,17 @@ class Project<T extends Project<T>> {
 
     protected BuildVersion version;
 
-    File stagingDir;
+    protected File stagingDir;
 
     // if true, we do not delete the older versions during a build
     boolean keepOldVersion;
 
     public OutputFile outputFile;
 
-    public List<File> sources = new ArrayList<File>();
     // could also be called native lib location
     private String distLocation;
 
-    protected Paths extraFiles = new Paths();
+    public Paths extraFiles = new Paths();
 
     /** DIRECT dependencies for this project */
     protected List<Project<?>> dependencies = new ArrayList<Project<?>>();
@@ -232,8 +231,10 @@ class Project<T extends Project<T>> {
     /** Dependencies that are just source code files, not a jar. These are converted into a jar when the project is build */
     protected Paths sourceDependencies = new Paths();
 
+    protected Paths sourcePaths = new Paths();
+
     /** ALL related dependencies for this project (ie: recursively searched) */
-    transient List<Project<?>> fullDependencyList = null;
+    protected transient List<Project<?>> fullDependencyList = null;
 
     // used to make sure licenses are called in the correct spot
     private transient boolean calledLicenseBefore = false;
@@ -245,6 +246,9 @@ class Project<T extends Project<T>> {
 
     // used to suppress certain messages when building deps
     protected transient boolean isBuildingDependencies = false;
+
+    // used to suppress logging what dependencies are used
+    private boolean suppressDependencyLog = false;
 
     // Sometimes we don't want to export the build to maven (ie: when running a test, for example)
     protected boolean exportToMaven = false;
@@ -297,6 +301,7 @@ class Project<T extends Project<T>> {
             }
         }
     }
+
 
     /**
      * resolves all of the dependencies for this project, since the build order can be specified in ANY order
@@ -463,10 +468,11 @@ class Project<T extends Project<T>> {
     }
 
     /**
-     * Checks to see if we already built this project. Also, will automatically build this projects
+     * Checks to see if we already built this project. Also, will automatically build this project's
      * dependencies (if they haven't already been built).
      */
-    void resolveDependencies() throws IOException {
+    protected
+    void resolveDependencies() {
         resolveDeps();
 
         if (fullDependencyList == null) {
@@ -479,6 +485,87 @@ class Project<T extends Project<T>> {
             fullDependencyList = Arrays.asList(array);
             fullDependencyList.sort(dependencyComparator);
         }
+    }
+
+    /**
+     * suppress logging what dependencies are used
+     */
+    public
+    T suppressDependencyLog() {
+        suppressDependencyLog = true;
+        return (T) this;
+    }
+
+    /**
+     * Outputs all of the dependency information for a build
+     */
+    protected
+    void logDependencies() {
+        if (!suppressDependencyLog && !fullDependencyList.isEmpty()) {
+            String[] array2 = new String[fullDependencyList.size() + 1];
+            array2[0] = "Depends";
+            int i = 1;
+            for (Project<?> project : fullDependencyList) {
+                array2[i] = project.name;
+
+                if (project.version != null) {
+                    array2[i] += " " + project.version;
+                }
+
+                if (project instanceof ProjectJar) {
+                    array2[i] += " (jar)";
+                }
+
+                i++;
+            }
+            BuildLog.println().println((Object[]) array2).println();
+        }
+    }
+
+    /**
+     * Add paths to the list of sources that are available when compiling the code
+     */
+    public
+    T sourcePath(Paths sourcePaths) {
+        if (sourcePaths == null) {
+            throw new NullPointerException("Source paths cannot be null!");
+        }
+        this.sourcePaths.add(sourcePaths);
+
+        // ALWAYS add the source paths to be checksumed!
+        hash.add(sourcePaths);
+
+        return (T) this;
+    }
+
+    /**
+     * Add paths to the list of sources that are available when compiling the code
+     */
+    public
+    T sourcePath(String srcDir) {
+        if (srcDir.endsWith("src")) {
+            String parent = new File(srcDir).getAbsoluteFile()
+                                            .getParent();
+            hash.add(new Paths(parent));
+        }
+
+        return sourcePath(new Paths(srcDir, "./"));
+    }
+
+    /**
+     * Add paths to the list of sources that are available when compiling the code
+     */
+    public
+    T sourcePath(String dir, String... patterns) {
+        return sourcePath(new Paths(dir, patterns));
+    }
+
+    /**
+     * Add a class to the list of sources that are available when compiling the code
+     */
+    public
+    T sourcePath(final Class<?> sourceClass) {
+        return sourcePath(Builder.getJavaFile(sourceClass));
     }
 
     /**
@@ -575,7 +662,18 @@ class Project<T extends Project<T>> {
 
     public
     T extraFiles(File file) {
-        this.extraFiles.add(new Paths(file.getParent(), file.getName()));
+        Paths paths = new Paths(file.getParent(), file.getName());
+        Iterator<File> fileIterator = paths.fileIterator();
+
+        while (fileIterator.hasNext()) {
+            File next = fileIterator.next();
+
+            if (!next.canRead()) {
+                BuildLog.title("Error").println("Unable to read specified extra file: '" + file.getAbsolutePath() + "'");
+            }
+        }
+
+        this.extraFiles.add(paths);
         return (T) this;
     }
 
@@ -631,17 +729,6 @@ class Project<T extends Project<T>> {
         return (T) this;
     }
 
-    public
-    T addSrc(String file) {
-        this.sources.add(FileUtil.normalize(file));
-        return (T) this;
-    }
-
-    public
-    T addSrc(File file) {
-        this.sources.add(file);
-        return (T) this;
-    }
 
     public
     T dist(String distLocation) {
@@ -707,6 +794,11 @@ class Project<T extends Project<T>> {
         return (T) this;
     }
 
+    public
+    File getStagingDir() {
+        return stagingDir;
+    }
+
 
     public
     void copyFiles(String targetLocation) throws IOException {
@@ -746,10 +838,6 @@ class Project<T extends Project<T>> {
             // do we have a "source" file as well?
             if (source != null && source.canRead()) {
                 Builder.copyFile(source, new File(targetLocation, source.getName()));
-            }
-
-            for (File f : this.sources) {
-                Builder.copyFile(f, new File(targetLocation, f.getName()));
             }
         }
 

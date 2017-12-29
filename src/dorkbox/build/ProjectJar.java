@@ -5,7 +5,6 @@ import java.io.IOException;
 
 import dorkbox.BuildVersion;
 import dorkbox.build.util.BuildLog;
-import dorkbox.build.util.FileNotFoundRuntimeException;
 import dorkbox.util.storage.Storage;
 import dorkbox.util.storage.StorageKey;
 import dorkbox.util.storage.StorageSystem;
@@ -27,14 +26,6 @@ public class ProjectJar extends Project<ProjectJar> {
     private
     ProjectJar(String projectName) {
         super(projectName);
-    }
-
-    @Override
-    public
-    ProjectJar addSrc(String file) {
-        BuildLog.title("Error")
-                .println("Cannot specify a source file in this manner for a jar. Please set the source along with the output file");
-        throw new FileNotFoundRuntimeException("Invalid file: " + file);
     }
 
     @Override
@@ -63,14 +54,6 @@ public class ProjectJar extends Project<ProjectJar> {
         }
 
         return outputFileNoWarn(outputFile, outputSourceFile);
-    }
-
-    @Override
-    public
-    ProjectJar addSrc(File file) {
-        BuildLog.title("Error")
-                .println("Cannot specify a source file in this manner for a jar. Please set the source along with the output file");
-        throw new FileNotFoundRuntimeException("Invalid file: " + file);
     }
 
     @Override

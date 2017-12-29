@@ -37,7 +37,6 @@ import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.ToolProvider;
 
-import com.esotericsoftware.wildcard.Paths;
 import com.esotericsoftware.yamlbeans.YamlConfig;
 import com.esotericsoftware.yamlbeans.YamlException;
 import com.esotericsoftware.yamlbeans.YamlWriter;
@@ -51,6 +50,7 @@ import dorkbox.build.util.DependencyWalker;
 import dorkbox.build.util.FileNotFoundRuntimeException;
 import dorkbox.build.util.classloader.ByteClassloader;
 import dorkbox.build.util.classloader.JavaMemFileManager;
+import dorkbox.build.util.wildcard.Paths;
 import dorkbox.license.License;
 import dorkbox.license.LicenseType;
 import dorkbox.util.FileUtil;
@@ -62,7 +62,6 @@ class ProjectJava extends Project<ProjectJava> {
 
     protected ArrayList<String> extraArgs;
 
-    protected Paths sourcePaths = new Paths();
     public Paths classPaths = new Paths();
 
     private transient ByteClassloader bytesClassloader = null;
@@ -82,54 +81,8 @@ class ProjectJava extends Project<ProjectJava> {
         return project;
     }
 
-    private
     ProjectJava(String projectName) {
         super(projectName);
-    }
-
-    /**
-     * Add paths to the list of sources that are available when compiling the code
-     */
-    public
-    ProjectJava sourcePath(Paths sourcePaths) {
-        if (sourcePaths == null) {
-            throw new NullPointerException("Source paths cannot be null!");
-        }
-        this.sourcePaths.add(sourcePaths);
-
-        // ALWAYS add the source paths to be checksumed!
-        hash.add(sourcePaths);
-
-        return this;
-    }
-
-    /**
-     * Add paths to the list of sources that are available when compiling the code
-     */
-    public
-    ProjectJava sourcePath(String srcDir) {
-        if (srcDir.endsWith("src")) {
-            String parent = new File(srcDir).getAbsoluteFile().getParent();
-            hash.add(new Paths(parent));
-        }
-
-        return sourcePath(new Paths(srcDir, "./"));
-    }
-
-    /**
-     * Add paths to the list of sources that are available when compiling the code
-     */
-    public
-    ProjectJava sourcePath(String dir, String... patterns) {
-        return sourcePath(new Paths(dir, patterns));
-    }
-
-    /**
-     * Add a class to the list of sources that are available when compiling the code
-     */
-    public
-    ProjectJava sourcePath(final Class<?> sourceClass) {
-        return sourcePath(Builder.getJavaFile(sourceClass));
     }
 
     public
@@ -213,32 +166,13 @@ class ProjectJava extends Project<ProjectJava> {
         // check dependencies for this project
         resolveDependencies();
 
-        // we want to make sure that we build IF one of our dependencies needs to build too
-        for (Project<?> project : fullDependencyList) {
-            if (!shouldBuild && !(project instanceof ProjectJar)) {
-                // if one of our dependencies has to build, so do we (don't keep checking if we have to build)
-                // also, we DO NOT check jar versions/etc here (that happens later)
+        // we should always rebuild if specified
+        shouldBuild |= forceRebuild;
 
-                // if true, this means that the files ARE the same and they have not changed
-                final boolean b = project.hash.verifyChecksums();
-                shouldBuild |= !b;
-            }
-        }
-
-        // has our dependencies or their versions changed at all?
-        final ArrayList<String> depWithVersionInfo = new ArrayList<String>();
-        for (Project<?> project : fullDependencyList) {
-            // version can be null, which is OK for our tests here
-            depWithVersionInfo.add(project.name + ":" + project.version);
-        }
-        final String origDepsWithVersion = Builder.settings.get(this.name + ":deps", String.class);
-        shouldBuild |= !depWithVersionInfo.toString().equals(origDepsWithVersion);
-
+        shouldBuild |= hasDependenciesChanged();
 
         shouldBuild |= !verifyChecksums();
 
-        // we should always rebuild if specified
-        shouldBuild |= forceRebuild;
 
         // exit early if we already built this project, unless we force a rebuild
         if (!forceRebuild && buildList.contains(this.name)) {
@@ -269,25 +203,7 @@ class ProjectJava extends Project<ProjectJava> {
             BuildLog.title("Compiling").println(this.name  + " " + version);
         }
 
-        if (!fullDependencyList.isEmpty()) {
-            String[] array2 = new String[fullDependencyList.size() + 1];
-            array2[0] = "Depends";
-            int i = 1;
-            for (Project<?> project : fullDependencyList) {
-                array2[i] = project.name;
-
-                if (project.version != null) {
-                    array2[i] += " " + project.version;
-                }
-
-                if (project instanceof ProjectJar) {
-                    array2[i] += " (jar)";
-                }
-
-                i++;
-            }
-            BuildLog.println().println((Object[]) array2).println();
-        }
+        logDependencies();
 
         if (shouldBuild) {
             // We have to make sure that TEMPORARY projects are built - even if that temp project DOES NOT need to build b/c of source code
@@ -313,7 +229,7 @@ class ProjectJava extends Project<ProjectJava> {
             }
 
             // barf if we don't have source files!
-            if (this.sourcePaths.getFiles().isEmpty()) {
+            if (this.sourcePaths.isEmpty()) {
                 throw new IOException("No source files specified for project: " + this.name);
             }
 
@@ -326,10 +242,13 @@ class ProjectJava extends Project<ProjectJava> {
                     // if this project is a jar project, there might be "extra files", which mean this project IS NOT a
                     // compile dependency, but a runtime dependency (via the "extra files" section)
                     Paths extraFiles = project.extraFiles();
-                    if (extraFiles.count() == 0) {
-                        throw new IOException("Dependency for project: '" + this.name + "' does not have a source jar or extra files. " +
+                    if (extraFiles.size() == 0) {
+                        throw new IOException("Dependency " + project + " for project '" + this.name + "' does not have a source jar or extra files. " +
                                               "Something is very wrong. A source jar is a compile dependency, and extra files are runtime" +
                                               " dependencies.");
+                    } else {
+                        // add the extra files to the classpath
+                        this.classPaths.add(extraFiles);
                     }
                 }
                 else {
@@ -522,7 +441,7 @@ class ProjectJava extends Project<ProjectJava> {
             saveChecksums();
 
             // save our dependencies and their version info
-            Builder.settings.save(this.name + ":deps", depWithVersionInfo.toString());
+            saveDependencyVersionInfo();
 
             if (crossCompatBuiltFile != null) {
                 FileUtil.delete(crossCompatBuiltFile);
@@ -537,6 +456,38 @@ class ProjectJava extends Project<ProjectJava> {
         }
 
         BuildLog.finish();
+
+        return shouldBuild;
+    }
+
+    /**
+     * @return true if our dependencies have changed and we need to rebuild
+     */
+    private
+    boolean hasDependenciesChanged() throws IOException {
+        boolean shouldBuild = false;
+
+        // we want to make sure that we build IF one of our dependencies needs to build too
+        for (Project<?> project : fullDependencyList) {
+            if (!shouldBuild && !(project instanceof ProjectJar)) {
+                // if one of our dependencies has to build, so do we (don't keep checking if we have to build)
+                // also, we DO NOT check jar versions/etc here (that happens later)
+
+                // if true, this means that the files ARE the same and they have not changed
+                final boolean b = project.hash.verifyChecksums();
+                shouldBuild = !b;
+            }
+        }
+
+        // has our dependencies or their versions changed at all?
+        final ArrayList<String> depsWithVersionInfo = new ArrayList<String>(fullDependencyList.size());
+        for (Project<?> project : fullDependencyList) {
+            // version can be null, which is OK for our tests here
+            depsWithVersionInfo.add(project.name + ":" + project.version);
+        }
+
+        final String origDepsWithVersion = Builder.settings.get(this.name + ":deps", String.class);
+        shouldBuild |= !depsWithVersionInfo.toString().equals(origDepsWithVersion);
 
         return shouldBuild;
     }
@@ -1001,5 +952,19 @@ class ProjectJava extends Project<ProjectJava> {
                 Builder.settings.save(this.name + ":" + currentOutputFileSource.getAbsolutePath(), fileChecksum);
             }
         }
+    }
+
+    /**
+     * Saves the dependency + version info (so if the version changes, we update the info)
+     */
+    private
+    void saveDependencyVersionInfo() {
+        final ArrayList<String> depsWithVersionInfo = new ArrayList<String>(fullDependencyList.size());
+        for (Project<?> project : fullDependencyList) {
+            // version can be null, which is OK for our tests here
+            depsWithVersionInfo.add(project.name + ":" + project.version);
+        }
+
+        Builder.settings.save(this.name + ":deps", depsWithVersionInfo.toString());
     }
 }
