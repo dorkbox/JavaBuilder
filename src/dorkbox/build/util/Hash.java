@@ -28,11 +28,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import com.esotericsoftware.wildcard.Paths;
-
 import dorkbox.BuildOptions;
 import dorkbox.Builder;
 import dorkbox.build.Project;
+import dorkbox.build.util.wildcard.Paths;
 import dorkbox.util.Base64Fast;
 import dorkbox.util.IO;
 

@@ -37,8 +37,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-import com.esotericsoftware.wildcard.Paths;
-
 import dorkbox.annotation.AnnotationDefaults;
 import dorkbox.annotation.AnnotationDetector;
 import dorkbox.build.Project;
@@ -50,6 +48,7 @@ import dorkbox.build.util.FileNotFoundRuntimeException;
 import dorkbox.build.util.classloader.ByteClassloader;
 import dorkbox.build.util.classloader.ClassByteIterator;
 import dorkbox.build.util.jar.Pack200Util;
+import dorkbox.build.util.wildcard.Paths;
 import dorkbox.util.FileUtil;
 import dorkbox.util.IO;
 import dorkbox.util.LZMA;

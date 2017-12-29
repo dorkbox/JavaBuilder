@@ -10,9 +10,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import com.esotericsoftware.wildcard.Paths;
-
 import dorkbox.build.util.BuildLog;
+import dorkbox.build.util.wildcard.Paths;
 import dorkbox.util.FileUtil;
 import dorkbox.util.IO;
 import dorkbox.util.OS;

@@ -55,7 +55,6 @@ import java.util.zip.ZipOutputStream;
 
 import org.bouncycastle.crypto.digests.SHA512Digest;
 
-import com.esotericsoftware.wildcard.Paths;
 import com.ice.tar.TarEntry;
 import com.ice.tar.TarInputStream;
 
@@ -63,6 +62,7 @@ import dorkbox.BuildOptions;
 import dorkbox.Builder;
 import dorkbox.build.Project;
 import dorkbox.build.util.BuildLog;
+import dorkbox.build.util.wildcard.Paths;
 import dorkbox.license.License;
 import dorkbox.util.Base64Fast;
 import dorkbox.util.FileUtil;
@@ -387,6 +387,40 @@ class JarUtil {
     }
 
     /**
+     * @param inputFile file to get the contents from (excluding manifest info and directory names)
+     *
+     * @return list of files, null if there are problems
+     */
+    public static
+    List<String> getJarContents(File inputFile) {
+        // by default, this will not have access to the manifest! (not that we care...)
+        // we will ALSO lose entry comments!
+        try {
+            JarInputStream jarInputStream = new JarInputStream(new FileInputStream(inputFile), false);
+
+            ArrayList<String> contents = new ArrayList<>();
+
+            JarEntry entry;
+            while ((entry = jarInputStream.getNextJarEntry()) != null) {
+                if (!entry.isDirectory()) {
+                    String name = entry.getName();
+
+                    contents.add(name);
+                }
+            }
+
+            // finish the stream that we have been writing to
+            IO.close(jarInputStream);
+
+            return contents;
+        } catch (IOException ignored) {
+        }
+
+        return null;
+    }
+
+
+    /**
      * This will also install the specified licenses, and for JARs, this will ALSO normalize (pack+unpack) the jar
      * <p/>
      * Note about JarOutputStream:
@@ -475,15 +509,15 @@ class JarUtil {
 
         int totalEntries = 0;
         if (options.inputPaths != null) {
-            totalEntries += options.inputPaths.count();
+            totalEntries += options.inputPaths.size();
         }
 
         if (options.extraPaths != null) {
-            totalEntries += options.extraPaths.count();
+            totalEntries += options.extraPaths.size();
         }
 
         if (options.sourcePaths != null) {
-            totalEntries += options.sourcePaths.count();
+            totalEntries += options.sourcePaths.size();
         }
 
         BuildLog.println();
@@ -697,7 +731,7 @@ class JarUtil {
             // These files will MATCH the path hierarchy in the jar
             ///////////////////////////////////////////////
             if (options.extraPaths != null) {
-                final int count = options.extraPaths.count();
+                final int count = options.extraPaths.size();
                 List<SortedFiles> sortList = new ArrayList<SortedFiles>(count);
 
                 if (count > 0) {
@@ -728,9 +762,9 @@ class JarUtil {
             // include the source code if possible
             ///////////////////////////////////////////////
             if (options.sourcePaths != null && !options.sourcePaths.isEmpty()) {
-                List<SortedFiles> sortList = new ArrayList<SortedFiles>(options.sourcePaths.count());
+                List<SortedFiles> sortList = new ArrayList<SortedFiles>(options.sourcePaths.size());
 
-                BuildLog.println("\tAdding sources (" + options.sourcePaths.count() + " entries)...");
+                BuildLog.println("\tAdding sources (" + options.sourcePaths.size() + " entries)...");
 
                 fullPaths = options.sourcePaths.getPaths();
                 relativePaths = options.sourcePaths.getRelativePaths();

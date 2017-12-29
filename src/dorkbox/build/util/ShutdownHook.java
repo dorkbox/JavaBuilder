@@ -17,9 +17,8 @@ package dorkbox.build.util;
 
 import java.io.IOException;
 
-import com.esotericsoftware.wildcard.Paths;
-
 import dorkbox.Builder;
+import dorkbox.build.util.wildcard.Paths;
 
 public
 class ShutdownHook implements Runnable {

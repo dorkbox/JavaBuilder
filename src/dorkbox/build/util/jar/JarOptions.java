@@ -20,8 +20,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.esotericsoftware.wildcard.Paths;
-
+import dorkbox.build.util.wildcard.Paths;
 import dorkbox.license.License;
 
 public class JarOptions {

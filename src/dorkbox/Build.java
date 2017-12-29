@@ -42,53 +42,6 @@ class Build {
         } catch (Exception ignored) {
             System.err.println("CRITICAL:: Can't load javaFX to the classpath URLS");
         }
-
-
-        File runLocation = get();
-        if (runLocation != null) {
-            // we want to look for the libraries, because they are OFTEN going to be in the incorrect path.
-            // this is only necessary if they aren't correctly loaded.
-            try {
-                Class.forName("com.esotericsoftware.wildcard.Paths");
-            } catch (Exception e) {
-                // whoops. can't find it on the path
-
-                File parent = runLocation.getParentFile();
-                File libDir = new File(parent, "libs");
-
-                if (!libDir.isDirectory()) {
-                    libDir = new File(parent.getParentFile(), "libs");
-                }
-
-                if (!libDir.isDirectory()) {
-                    throw new RuntimeException("Unable to find the libs directory for execution: " + runLocation);
-                }
-
-                Class<?>[] parameters = new Class[] {URL.class};
-                Class<URLClassLoader> sysclass = URLClassLoader.class;
-                URLClassLoader sysloader = (URLClassLoader) ClassLoader.getSystemClassLoader();
-
-                try {
-                    Method method = sysclass.getDeclaredMethod("addURL", parameters);
-                    method.setAccessible(true);
-
-                    // add lib dir jars
-                    for (File f : libDir.listFiles()) {
-                        final String name = f.getName();
-                        if (!f.isDirectory() && f.canRead() && name.endsWith(".jar") && !name.contains("source") && !name.contains("src")) {
-                            // System.err.println("adding url " + f.getAbsolutePath());
-                            method.invoke(sysloader, new Object[] {f.toURI().toURL()});
-                        }
-                    }
-
-                    // try to load the library again to make sure the libs loaded
-                    Class.forName("com.esotericsoftware.wildcard.Paths");
-                } catch (Throwable t) {
-                    t.printStackTrace();
-                    throw new RuntimeException("Unable to load the libs directory for execution: " + libDir);
-                }
-            }
-        }
     }
 
     public static

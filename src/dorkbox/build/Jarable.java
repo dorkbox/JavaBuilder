@@ -3,13 +3,12 @@ package dorkbox.build;
 import java.io.File;
 import java.io.IOException;
 
-import com.esotericsoftware.wildcard.Paths;
-
 import dorkbox.build.util.BuildLog;
 import dorkbox.build.util.PreJarAction;
 import dorkbox.build.util.jar.JarOptions;
 import dorkbox.build.util.jar.JarSigner;
 import dorkbox.build.util.jar.JarUtil;
+import dorkbox.build.util.wildcard.Paths;
 
 @SuppressWarnings("unused")
 public

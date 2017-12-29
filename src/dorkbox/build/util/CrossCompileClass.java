@@ -15,7 +15,7 @@
  */
 package dorkbox.build.util;
 
-import com.esotericsoftware.wildcard.Paths;
+import dorkbox.build.util.wildcard.Paths;
 
 public
 class CrossCompileClass {
