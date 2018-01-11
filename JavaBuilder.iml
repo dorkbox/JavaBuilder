@@ -36,7 +36,7 @@
     <orderEntry type="library" name="javatar" level="application" />
     <orderEntry type="library" name="async-http-client" level="application" />
     <orderEntry type="library" name="jsonbeans" level="application" />
-    <orderEntry type="library" name="netty-all" level="application" />
+    <orderEntry type="library" name="netty" level="application" />
     <orderEntry type="library" name="yamlbeans" level="application" />
     <orderEntry type="library" name="kryo" level="application" />
   </component>
