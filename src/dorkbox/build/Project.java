@@ -47,8 +47,8 @@ import dorkbox.build.util.wildcard.Paths;
 import dorkbox.license.License;
 import dorkbox.util.FileUtil;
 import dorkbox.util.OS;
-import dorkbox.util.SerializationManager;
 import dorkbox.util.serialization.FileSerializer;
+import dorkbox.util.serialization.SerializationManager;
 import io.netty.buffer.ByteBuf;
 
 @SuppressWarnings({"unchecked", "unused", "Convert2Diamond", "AccessStaticViaInstance"})
@@ -86,6 +86,13 @@ class Project<T extends Project<T>> {
         public
         SerializationManager register(final Class<?> clazz) {
             kryo.register(clazz);
+            return this;
+        }
+
+        @Override
+        public
+        SerializationManager register(final Class<?> clazz, final int id) {
+            kryo.register(clazz, id);
             return this;
         }
 
