@@ -548,7 +548,7 @@ class ProjectJava extends Project<ProjectJava> {
             File file = FileUtil.normalize(location);
 
             if (!file.canRead()) {
-                throw new FileNotFoundRuntimeException("Unable to read cross compile jar: " + location);
+                throw new FileNotFoundRuntimeException("Unable to read cross compile jar: " + file.getAbsolutePath());
             }
 
             args.add(file.getAbsolutePath());
