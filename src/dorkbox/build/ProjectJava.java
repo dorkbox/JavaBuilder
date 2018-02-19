@@ -379,8 +379,9 @@ class ProjectJava extends Project<ProjectJava> {
                             FileUtil.copyFile(file, new File(crossCompatBuiltFile, s));
                         }
 
-                        tempProject.cleanup();
-                        // FileUtil.delete(tempProject.stagingDir);
+                        // tempProject.cleanup();
+                        // DO NOT want to call project.cleanup()!!
+                        FileUtil.delete(tempProject.stagingDir);
                         BuildLog.enable();
                     }
                 }
@@ -580,20 +581,20 @@ class ProjectJava extends Project<ProjectJava> {
         if (this.classPaths != null && !this.classPaths.isEmpty()) {
             args.add("-classpath");
             // System.err.println("CP " + this.classPaths.toString(File.pathSeparator));
-            String cp = this.classPaths.toString(File.pathSeparator);
+            StringBuilder cp = new StringBuilder(this.classPaths.toString(File.pathSeparator));
             String javaLibPath = System.getProperty("java.home") + File.separator + "lib" + File.separator;
 
             // have to try to load the JCE to the classpath (it is not always included)
             // can't compile binaries that use the JCE otherwise.
-            cp += File.pathSeparator + javaLibPath + "jce.jar";
+            cp.append(File.pathSeparator + javaLibPath + "jce.jar");
 
             if (OS.javaVersion == 7) {
                 // we have to add javaFX to the classpath (they are not included on the classpath by default), otherwise we
                 // can't compile javaFX binaries. This was fixed in Java 1.8.
-                cp += File.pathSeparator + System.getProperty("java.home") + File.separator + "lib" + File.separator + "jfxrt.jar";
+                cp.append(File.pathSeparator + System.getProperty("java.home") + File.separator + "lib" + File.separator + "jfxrt.jar");
             }
 
-            args.add(cp);
+            args.add(cp.toString());
         }
 
         // now compile the code
