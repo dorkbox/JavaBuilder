@@ -15,13 +15,7 @@
  */
 package dorkbox.build;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.net.ConnectException;
 import java.net.URL;
 import java.util.List;
@@ -30,16 +24,7 @@ import java.util.Properties;
 import org.bouncycastle.openpgp.PGPException;
 import org.slf4j.LoggerFactory;
 
-import com.ning.http.client.AsyncHandler;
-import com.ning.http.client.AsyncHttpClient;
-import com.ning.http.client.AsyncHttpClientConfig;
-import com.ning.http.client.HttpResponseBodyPart;
-import com.ning.http.client.HttpResponseHeaders;
-import com.ning.http.client.HttpResponseStatus;
-import com.ning.http.client.ListenableFuture;
-import com.ning.http.client.Request;
-import com.ning.http.client.RequestBuilder;
-import com.ning.http.client.Response;
+import com.ning.http.client.*;
 import com.ning.http.client.providers.jdk.JDKAsyncHttpProvider;
 import com.ning.http.multipart.FilePart;
 import com.ning.http.multipart.StringPart;
@@ -133,25 +118,6 @@ class MavenExporter {
         final int targetJavaVersion = project.targetJavaVersion;
 
         BuildLog.start();
-
-        // make sure we have internet!
-        URL maven = new URL("http://www.maven.org/");
-        BufferedReader in = null;
-        boolean hasInternet = false;
-        try {
-            in = new BufferedReader(new InputStreamReader(maven.openStream()));
-            hasInternet = true;
-        } catch (Exception ignored) {
-        } finally {
-            IO.closeQuietly(in);
-        }
-
-
-        if (!hasInternet) {
-            BuildLog.title("MAVEN").println("Not able to connect to maven.org, aborting.");
-            BuildLog.finish();
-            return;
-        }
 
         BuildLog.title("MAVEN").println("Exporting to sonatype");
 
@@ -261,6 +227,26 @@ class MavenExporter {
         if (!project.exportToMaven) {
             BuildLog.println();
             BuildLog.title("MAVEN").println("Not saving build and not exporting to maven.");
+            BuildLog.finish();
+            return;
+        }
+
+        // make sure we have internet!
+        URL maven = new URL("http://www.maven.org/");
+        BufferedReader in = null;
+        boolean hasInternet = false;
+        try {
+            in = new BufferedReader(new InputStreamReader(maven.openStream()));
+            hasInternet = true;
+        } catch (Exception ignored) {
+        } finally {
+            IO.closeQuietly(in);
+        }
+
+
+        if (!hasInternet) {
+            BuildLog.title("MAVEN")
+                    .println("Not able to connect to maven.org, aborting.");
             BuildLog.finish();
             return;
         }
