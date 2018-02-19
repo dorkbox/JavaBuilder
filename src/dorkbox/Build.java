@@ -108,7 +108,7 @@ class Build {
      */
     public static
     String getVersion() {
-        return "3.8";
+        return "3.9";
     }
 
     public static
