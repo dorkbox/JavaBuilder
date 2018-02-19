@@ -38,8 +38,9 @@ class BuildOptions {
         public boolean forceRebuild = false;
 
         /**
-         * Do we want to save the build hashes? (used to determine if a rebuild is necessary). Also used to determine if the build should
-         * be uploaded to Maven
+         * Do we want to save the build hashes? (used to determine if a rebuild is necessary).
+         *
+         * Also used to determine if the build should be uploaded to Maven
          */
         public boolean saveBuild = true;
 
