@@ -364,7 +364,7 @@ class ProjectJava extends Project<ProjectJava> {
 
                         FileUtil.delete(tempProject.stagingDir);
                         FileUtil.mkdir(tempProject.stagingDir);
-                        tempProject.shouldBuild = true; // always build temp projects
+                        tempProject.forceRebuild(); // always build temp projects
 
                         try {
                             tempProject.build(crossCompileClass.targetJavaVersion);
@@ -379,7 +379,8 @@ class ProjectJava extends Project<ProjectJava> {
                             FileUtil.copyFile(file, new File(crossCompatBuiltFile, s));
                         }
 
-                        FileUtil.delete(tempProject.stagingDir);
+                        tempProject.cleanup();
+                        // FileUtil.delete(tempProject.stagingDir);
                         BuildLog.enable();
                     }
                 }
