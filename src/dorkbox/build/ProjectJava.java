@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -50,6 +51,7 @@ import dorkbox.build.util.DependencyWalker;
 import dorkbox.build.util.FileNotFoundRuntimeException;
 import dorkbox.build.util.classloader.ByteClassloader;
 import dorkbox.build.util.classloader.JavaMemFileManager;
+import dorkbox.build.util.wildcard.Path;
 import dorkbox.build.util.wildcard.Paths;
 import dorkbox.license.License;
 import dorkbox.license.LicenseType;
@@ -394,25 +396,17 @@ class ProjectJava extends Project<ProjectJava> {
                 extraFiles(crossIncludeFiles);
 
 
-                // have to remove all the relative java files (since we don't want to normally build them)
-                // the EASIEST way is to make a copy
-                List<File> files = sourcePaths.getFiles();
-                Paths copy = new Paths();
-                for (File file : files) {
-                    boolean canAdd = true;
+                // have to remove all the (now cross compiled) java files since we don't want to build them with the "normal" build process
+                Iterator<Path> iterator = sourcePaths.get()
+                                                      .iterator();
+                while (iterator.hasNext()) {
+                    final Path path = iterator.next();
+                    File file = path.file();
 
-                    for (File crossFile : relativeLocations.keySet()) {
-                        if (crossFile.equals(file)) {
-                            canAdd = false;
-                            break;
-                        }
-                    }
-
-                    if (canAdd) {
-                        copy.add(file.getParent(), file.getName());
+                    if (relativeLocations.containsKey(file)) {
+                        iterator.remove();
                     }
                 }
-                sourcePaths = copy;
             }
             // done with extra-file cross-compile
             BuildLog.println();
