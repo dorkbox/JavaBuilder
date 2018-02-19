@@ -41,6 +41,7 @@ import java.util.zip.ZipOutputStream;
 public
 class Paths implements Iterable<Path> {
     static private final Comparator<Path> LONGEST_TO_SHORTEST = new Comparator<Path>() {
+        @Override
         public
         int compare(Path s1, Path s2) {
             return s2.absolute()
@@ -356,6 +357,7 @@ class Paths implements Iterable<Path> {
     /**
      * Returns the absolute paths delimited by commas.
      */
+    @Override
     public
     String toString() {
         return toString(", ");
@@ -386,6 +388,14 @@ class Paths implements Iterable<Path> {
             stringPaths.add(file.getPath());
         }
         return stringPaths;
+    }
+
+    /**
+     * Retuns the backing HashSet for these paths.
+     */
+    public
+    HashSet<Path> get() {
+        return paths;
     }
 
     /**
@@ -554,21 +564,25 @@ class Paths implements Iterable<Path> {
     /**
      * Iterates over the absolute paths. The iterator supports the remove method.
      */
+    @Override
     public
     Iterator<Path> iterator() {
         return new Iterator<Path>() {
             private Iterator<Path> iter = paths.iterator();
 
+            @Override
             public
             boolean hasNext() {
                 return iter.hasNext();
             }
 
+            @Override
             public
             void remove() {
                 iter.remove();
             }
 
+            @Override
             public
             Path next() {
                 return iter.next();
@@ -584,17 +598,20 @@ class Paths implements Iterable<Path> {
         return new Iterator<File>() {
             private Iterator<Path> iter = paths.iterator();
 
+            @Override
             public
             void remove() {
                 iter.remove();
             }
 
+            @Override
             public
             File next() {
                 return iter.next()
                            .file();
             }
 
+            @Override
             public
             boolean hasNext() {
                 return iter.hasNext();
